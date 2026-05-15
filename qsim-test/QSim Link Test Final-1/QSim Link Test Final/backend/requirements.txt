@@ -1,7 +1,0 @@
-fastqsim
-flask
-flask-cors
-python-dotenv
-requests
-websocket-client>=1.6.0
-jupyter_client>=8.0
