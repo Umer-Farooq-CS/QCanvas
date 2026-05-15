@@ -26,8 +26,8 @@ jobs:
         pip install pytest
 
     - name: Run tests
-      working-directory: backend
-      run: pytest --ignore=test_api.py --ignore=test_auth.py --disable-warnings -q
+      # Remove the working-directory: backend line
+      run: pytest --ignore=tests/unit/test_api/test_api_routes.py --disable-warnings -q
 
   frontend:
     runs-on: ubuntu-latest
