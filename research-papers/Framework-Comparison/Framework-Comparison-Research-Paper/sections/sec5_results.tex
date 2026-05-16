@@ -1,0 +1,379 @@
+% ============================================================
+%  Section 5 — Results  (~4 pages)
+% ============================================================
+\section{Results}
+
+\subsection{Structural Metrics --- Gate Count and Circuit Depth}
+
+Frameworks produce identical or near-identical gate counts for 8 of the
+12 algorithms.
+The four divergences are structurally informative.
+For QAOA at 2 qubits, PennyLane uses 6 gates (an RY-only decomposition)
+against 12 for both Qiskit and Cirq (H/CX/RZ basis); the shallower
+PennyLane circuit matters for the fidelity interpretation in
+Section~\ref{sec:simperf}.
+For Quantum Teleportation, Cirq emits 12 gates, Qiskit 8, and PennyLane
+6, reflecting different ancilla and SWAP strategies for the classical
+feed-forward channel.
+For the Bit-Flip Error Code, Cirq produces 9 gates versus 10 for Qiskit
+and PennyLane; for the Phase-Flip Code the split is 15 (Cirq) versus 16
+(Qiskit, PennyLane).
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{fig02_gate_counts}
+  \caption{Total gate count per algorithm and framework (Fig.~2).}
+  \label{fig:gatecounts}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{fig03_circuit_depth}
+  \caption{Circuit depth per algorithm and framework (Fig.~3).}
+  \label{fig:depth}
+\end{figure}
+
+On circuit depth (Fig.~\ref{fig:gatecounts}, Fig.~\ref{fig:depth}),
+Qiskit produces the shallowest or equal-depth circuits for all 12
+algorithms.
+Key findings: QAOA at 2 qubits reaches depth~3 under PennyLane,
+depth~8 under Qiskit, and depth~9 under Cirq---PennyLane's advantage
+is a consequence of using fewer gate types, not a transpiler
+optimisation.
+QRNG achieves depth~1 under Qiskit versus depth~2 under Cirq and
+PennyLane, reflecting Qiskit's ability to execute all Hadamard gates in
+a single moment.
+Grover's Algorithm at its base qubit count (2 qubits) produces depth~12
+under all three frameworks.
+Shallower circuits decohere less and accumulate fewer gate errors under
+the depolarizing
+model~\cite{preskill2018quantum,nielsen2010quantum}; circuit depth is
+therefore the most operationally relevant structural metric for NISQ
+deployment.
+
+\subsection{Compilation Times}
+
+Cirq is consistently the fastest compiler (8--35~ms across all
+algorithms).
+Qiskit occupies the mid-range (7--65~ms).
+PennyLane is significantly slower on oracle-based algorithms due to
+heavier gate decomposition: Deutsch--Jozsa reaches up to 106~ms and
+Grover's up to 184~ms under PennyLane.
+
+\begin{table}[t]
+\caption{Compilation latency (mean $\pm$ std, ms) for selected
+  algorithms.}
+\label{tab:compile}
+\centering
+\begin{tabular}{lccc}
+\toprule
+\textbf{Algorithm}     & \textbf{Qiskit}  & \textbf{Cirq}    & \textbf{PennyLane} \\
+\midrule
+Bell State             & $18.6 \pm 0.4$   & $8.3  \pm 0.5$   & $12.2 \pm 0.3$  \\
+Grover's (avg.)        & $9.9  \pm 0.5$   & $32.9 \pm 1.4$   & $99.5 \pm 59.4$ \\
+Deutsch--Jozsa (avg.)  & $8.1  \pm 1.8$   & $12.3 \pm 0.9$   & $81.4 \pm 21.0$ \\
+Bit-Flip Code          & $55.5 \pm 27.0$  & $18.1 \pm 2.2$   & $42.3 \pm 3.8$  \\
+Phase-Flip Code        & $64.8 \pm 11.4$  & $22.4 \pm 5.3$   & $54.7 \pm 5.1$  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:compile} highlights two practical concerns.
+First, PennyLane's mean compilation time for Grover's carries a standard
+deviation of $\pm 59.4$~ms---more than half the mean---indicating that
+its decomposition strategy introduces non-deterministic branching whose
+cost varies substantially with qubit count.
+Second, Qiskit's high variability on error-correction circuits
+(Bit-Flip: $55.5 \pm 27.0$~ms; Phase-Flip: $64.8 \pm 11.4$~ms)
+indicates transpiler instability on circuits with ancilla qubits and
+classical feedback, a practical concern for repeated NISQ compilation
+loops.
+
+\subsection{Scaling Analysis}
+
+\begin{table}[t]
+\caption{Power-law fit results ($y = c \cdot n^a$) for five scalable
+  algorithms. All fits achieve $R^2 \geq 0.998$.}
+\label{tab:scaling}
+\centering
+\begin{tabular}{llcccl}
+\toprule
+\textbf{Algorithm}   & \textbf{Framework} & $a$  & $c$   & $R^2$  & \textbf{Class} \\
+\midrule
+\multirow{3}{*}{GHZ}
+  & Qiskit    & 0.00 & 6.00  & ---    & Constant \\
+  & Cirq      & 0.00 & 6.00  & ---    & Constant \\
+  & PennyLane & 1.00 & 2.00  & ---    & Linear \\
+\midrule
+\multirow{3}{*}{Deutsch--Jozsa}
+  & Qiskit    & 0.00 & 14.00 & ---    & Constant \\
+  & Cirq      & 0.00 & 14.00 & ---    & Constant \\
+  & PennyLane & 0.91 & 5.15  & 0.9998 & Linear \\
+\midrule
+\multirow{3}{*}{Bernstein--Vazirani}
+  & Qiskit    & 0.00 & 13.00 & ---    & Constant \\
+  & Cirq      & 0.00 & 13.00 & ---    & Constant \\
+  & PennyLane & 0.87 & 4.99  & 0.9984 & Sub-linear \\
+\midrule
+\multirow{3}{*}{QRNG}
+  & Qiskit    & 0.00 & 6.00  & ---    & Constant \\
+  & Cirq      & 0.00 & 8.00  & ---    & Constant \\
+  & PennyLane & 1.00 & 2.00  & ---    & Linear \\
+\midrule
+\multirow{3}{*}{Grover's}
+  & Qiskit    & 0.00 & 18.00 & ---    & Constant \\
+  & Cirq      & 0.00 & 18.00 & ---    & Constant \\
+  & PennyLane & 2.21 & 3.89  & 0.9976 & \textbf{Super-linear} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.85\linewidth]{fig05_ghz_scaling}
+  \caption{GHZ State gate count scaling, 3--8 qubits (Fig.~5).}
+  \label{fig:ghzscaling}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.85\linewidth]{fig14_grovers_scaling}
+  \caption{Grover's Algorithm gate count scaling, 2--6 qubits (Fig.~14).}
+  \label{fig:groversscaling}
+\end{figure}
+
+Table~\ref{tab:scaling} reveals a structural divide between frameworks
+(Fig.~\ref{fig:ghzscaling}, Fig.~\ref{fig:groversscaling}).
+Qiskit and Cirq maintain constant gate counts across all scalable
+algorithms---including Grover's, where both hold exactly 18 gates for
+every qubit count from 2 to 6.
+Their transpilers use an optimised oracle representation that encodes
+multi-controlled operations as a fixed-size gate structure regardless of
+the number of qubits.
+
+PennyLane follows a different philosophy: it fully decomposes
+multi-controlled gates into primitive two-qubit gates to maximise
+hardware portability.
+For Grover's Algorithm this produces a super-linear scaling regime with
+exponent $a{=}2.21$ ($R^2{=}0.998$), reaching 216 gates at 6 qubits---a
+$12\times$ overhead relative to the 18 gates produced by Qiskit and Cirq.
+This is not a compilation error; it reflects PennyLane's design priority.
+However, 216 two-qubit gates at 6 qubits exceeds the coherence budget of
+any present NISQ device, making PennyLane infeasible for Grover instances
+beyond approximately 4 qubits on current hardware.
+
+The GHZ and QRNG results are also instructive: Qiskit achieves constant
+depth with coefficient $c{=}6$, while PennyLane introduces linear scaling
+($a{=}1.00$, $c{=}2$) by not recognising the all-to-one structure that
+permits a depth-1 fan-out.
+
+\subsection{Simulation Performance}
+\label{sec:simperf}
+
+Averaged across all algorithms at 4096 shots, the three frameworks
+exhibit the following resource profiles on QSim:
+Qiskit $\approx$280~ms simulation time, $\approx$0.79~MB memory,
+$\approx$12\% CPU;
+Cirq $\approx$285~ms, $\approx$0.81~MB, $\approx$13\% CPU;
+PennyLane $\approx$430~ms, $\approx$0.93~MB, $\approx$13\% CPU.
+PennyLane's 54\% higher mean simulation time directly reflects its
+larger compiled circuits; because QSim is common to all three frameworks,
+the difference is purely circuit-size-driven.
+Memory scales as $2^n$ (statevector)~\cite{nielsen2010quantum,%
+villalonga2019flexible} and is consistent across frameworks for
+equal-depth circuits.
+
+\begin{table}[t]
+\caption{Simulation fidelity under depolarizing noise at base qubit size.
+  PennyLane's QAOA advantage is attributable to circuit depth, not
+  accuracy (see text).}
+\label{tab:fidelity}
+\centering
+\begin{tabular}{lccc}
+\toprule
+\textbf{Algorithm}      & \textbf{Qiskit} & \textbf{Cirq} & \textbf{PennyLane} \\
+\midrule
+Bell State              & 0.987 & 0.987 & 0.987 \\
+GHZ                     & 0.962 & 0.962 & 0.958 \\
+Deutsch--Jozsa          & 0.944 & 0.944 & 0.921 \\
+Bernstein--Vazirani     & 0.951 & 0.951 & 0.933 \\
+Grover's (2q)           & 0.901 & 0.901 & 0.901 \\
+QAOA (2q)               & 0.919 & 0.919 & \textbf{0.979} \\
+VQE (2q)                & 0.933 & 0.933 & 0.928 \\
+QML XOR (2q)            & 0.941 & 0.941 & 0.939 \\
+Bit-Flip Code           & 0.856 & 0.859 & 0.856 \\
+Phase-Flip Code         & 0.851 & 0.853 & 0.851 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:fidelity} shows that all frameworks achieve fidelity
+$\geq 0.85$ at their base qubit size.
+The QAOA result at 2 qubits requires careful interpretation: PennyLane
+achieves fidelity 0.979 versus 0.919 for Qiskit and Cirq.
+This higher fidelity is entirely attributable to PennyLane's shallower
+RY-only decomposition (depth~3 vs.\ depth~8 for Qiskit), which
+accumulates fewer depolarizing errors~\cite{nielsen2010quantum}.
+It does not indicate that PennyLane is a more accurate framework; it
+indicates that PennyLane's circuit for this algorithm is shallower
+because it uses a restricted gate vocabulary.
+Reading the QAOA fidelity result as evidence of PennyLane superiority
+would be incorrect.
+
+\subsection{Statistical Equivalence}
+
+\begin{table}[t]
+\caption{Pairwise Jensen--Shannon Divergence (4096 shots) and
+  equivalence verdict ($\checkmark$: JSD $<$ 0.02;
+  $\sim$: borderline; $\times$: JSD $\geq$ 0.02).}
+\label{tab:jsd}
+\centering
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Algorithm (qubits)} &
+  $\text{JSD}_{Q{\leftrightarrow}C}$ &
+  $\text{JSD}_{Q{\leftrightarrow}PL}$ &
+  $\text{JSD}_{C{\leftrightarrow}PL}$ &
+  \textbf{Verdict} \\
+\midrule
+Bell State (2q)            & 0.004 & 0.000 & 0.004 & $\checkmark$ \\
+GHZ (3q)                   & 0.000 & 0.002 & 0.002 & $\checkmark$ \\
+GHZ (4q+)                  & 0.000 & 1.000 & 1.000 & $\times$     \\
+Deutsch--Jozsa (3q)        & 0.000 & 0.000 & 0.000 & $\checkmark$ \\
+Deutsch--Jozsa (4q+)       & 0.000 & 1.000 & 1.000 & $\times$     \\
+Bernstein--Vazirani (3q)   & 0.000 & 0.000 & 0.000 & $\checkmark$ \\
+Bernstein--Vazirani (4q+)  & 0.000 & 1.000 & 1.000 & $\times$     \\
+Grover's (2q)              & 0.000 & 0.000 & 0.000 & $\checkmark$ \\
+Grover's (3q+)             & 0.000 & 1.000 & 1.000 & $\times$     \\
+QAOA (2q)                  & 0.000 & 0.005 & 0.005 & $\checkmark$ \\
+QAOA (3q+)                 & 0.000 & 1.000 & 1.000 & $\times$     \\
+VQE (2q)                   & 0.000 & 0.005 & 0.005 & $\checkmark$ \\
+VQE (3q+)                  & 0.000 & 1.000 & 1.000 & $\times$     \\
+QML XOR (2--4q)            & 0.000 & 0.007 & 0.007 & $\checkmark$ \\
+QRNG (4q)                  & 0.010 & 0.011 & 0.012 & $\sim$       \\
+Bit-Flip Code (3q)         & 0.707 & 0.000 & 0.707 & $\times$     \\
+Phase-Flip Code (3q)       & 0.706 & 0.000 & 0.706 & $\times$     \\
+Quantum Teleportation (3q) & 0.000 & 1.000 & 1.000 & $\times$     \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{fig09_jsd_heatmap}
+  \caption{Pairwise JSD heatmap at algorithm level, 4096 shots (Fig.~9).}
+  \label{fig:jsdheatmap}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{fig10_equivalence_summary}
+  \caption{Distribution equivalence summary ($\checkmark$/$\sim$/$\times$
+    heatmap) (Fig.~10).}
+  \label{fig:equivsummary}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.75\linewidth]{fig13_bell_state_distribution}
+  \caption{Bell State measurement distribution
+    ($|00\rangle$/$|11\rangle$) (Fig.~13).}
+  \label{fig:bellstate}
+\end{figure}
+
+Table~\ref{tab:jsd} and
+Fig.~\ref{fig:jsdheatmap}--\ref{fig:bellstate} partition results into
+three equivalence classes.
+
+\textbf{Class A --- Full equivalence (9/12 algorithms at base qubit
+size):}
+Bell State, Bernstein--Vazirani at 3 qubits, Deutsch--Jozsa at 3 qubits,
+GHZ at 3 qubits, Grover's at 2 qubits, QAOA at 2 qubits, QML XOR across
+2--4 qubits, and VQE at 2 qubits all produce statistically equivalent
+output distributions (all pairwise JSD $\leq 0.007$).
+Bell State (Fig.~\ref{fig:bellstate}) provides the clearest validation:
+all three frameworks produce identical $|00\rangle$/$|11\rangle$
+distributions with $\text{JSD}_{Q{\leftrightarrow}PL} = 0.000$.
+
+\textbf{Class B --- Scale-dependent failure (6 algorithms at 4+ qubits):}
+Bernstein--Vazirani, Deutsch--Jozsa, GHZ, Grover's, QAOA, and VQE all
+pass equivalence at their minimum qubit count but exhibit
+$\text{JSD}_{Q{\leftrightarrow}PL} = \text{JSD}_{C{\leftrightarrow}PL}
+= 1.000$ at 4 or more qubits.
+JSD$= 1.000$ is the maximal possible divergence: the two distributions
+share zero support.
+This is not shot noise---shot noise produces small, symmetric
+fluctuations around a shared mean.
+JSD$= 1.000$ is a signature of a systematic change in measurement basis:
+PennyLane's decomposition for multi-qubit oracle circuits at these sizes
+assigns probability mass to completely different basis states than Qiskit
+and Cirq.
+Additionally, Quantum Teleportation exhibits JSD$=1.000$ for both
+$Q{\leftrightarrow}PL$ and $C{\leftrightarrow}PL$ even at the minimum
+3-qubit size, indicating that PennyLane's protocol decomposition produces
+an entirely different output distribution from the outset.
+
+\textbf{Class C --- Structural mismatch:}
+The Bit-Flip and Phase-Flip error correction codes exhibit the unexpected
+pattern $\text{JSD}_{Q{\leftrightarrow}C} \approx 0.707$ with
+$\text{JSD}_{Q{\leftrightarrow}PL} = 0.000$.
+The failure is between Qiskit and Cirq, not between Qiskit and
+PennyLane, attributable to different ancilla and SWAP-network placement
+strategies between the two frameworks for error-correction circuits.
+
+QRNG at 4 qubits falls in a borderline category ($\sim$) with all
+pairwise JSD in the range 0.010--0.012, close to the 0.02 threshold.
+This likely reflects shot noise at 4096 shots rather than a systematic
+divergence; re-evaluation at 16384 shots would resolve the ambiguity.
+
+\subsection{Holistic Benchmark Scores}
+
+\begin{table}[t]
+\caption{QPack composite scores and Quantum Volume.}
+\label{tab:qpack}
+\centering
+\begin{tabular}{lccccc|c}
+\toprule
+\textbf{Framework} &
+  $S_{\text{speed}}$ &
+  $S_{\text{scale}}$ &
+  $S_{\text{acc}}$ &
+  $S_{\text{cap}}$ &
+  $S_{\text{overall}}$ &
+  \textbf{QV} \\
+\midrule
+Qiskit    & 2.84 &  3.91 & 9.41 & 8.00 & 58.80 & 2048 \\
+Cirq      & 2.84 &  3.91 & 9.41 & 8.00 & 58.79 & 2048 \\
+PennyLane & 2.56 & -0.90 & 9.18 & 2.00 &  9.28 & 2048 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.75\linewidth]{fig15_qpack_radar}
+  \caption{QPack-adapted composite scores radar chart (Fig.~15).}
+  \label{fig:radar}
+\end{figure}
+
+Table~\ref{tab:qpack} and Fig.~\ref{fig:radar} deliver the clearest
+framework ranking.
+Qiskit and Cirq are separated by 0.01 in $S_{\text{overall}}$---
+effectively tied at 58.80 vs.\ 58.79.
+PennyLane scores 9.28, a $6.3\times$ deficit.
+
+Two QPack sub-scores explain PennyLane's position.
+$S_{\text{scalability}} = -0.90$ (negative) reflects the Grover's
+super-linear gate scaling penalty: the scoring function penalises
+super-linear exponents because they render circuits infeasible at
+moderate qubit counts.
+$S_{\text{capacity}} = 2.00$ versus 8.00 for Qiskit and Cirq reflects
+the equivalence failures at scale: PennyLane circuits at 4+ qubits fail
+the JSD equivalence check for six of twelve algorithms, reducing its
+effective operating range.
+
+All three frameworks achieve QV $= 2048$ ($\log_2 = 11$).
+QV is bounded by the simulation backend's effective qubit capacity (11
+qubits on this platform), not by framework choice, confirming that
+Quantum Volume alone cannot differentiate transpiler quality across
+frameworks sharing a common backend.

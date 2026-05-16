@@ -1,0 +1,115 @@
+% ============================================================
+%  Section 4 — Methodology  (~2 pages)
+% ============================================================
+\section{Methodology}
+
+\subsection{The QCanvas Pipeline}
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  node distance=0.6cm and 1.1cm,
+  box/.style={draw, rounded corners=4pt, minimum width=2.0cm,
+              minimum height=0.75cm, align=center, font=\small},
+  arr/.style={-{Stealth[length=6pt]}, thick}
+]
+  \node[box, fill=blue!10]   (q)  {Qiskit\\Circuit};
+  \node[box, fill=green!10,  below=of q] (c)  {Cirq\\Circuit};
+  \node[box, fill=orange!10, below=of c] (p)  {PennyLane\\QNode};
+  \node[box, fill=gray!15,   right=1.3cm of c] (qc) {QCanvas\\Converter};
+  \node[box, fill=purple!10, right=1.3cm of qc] (oa) {OpenQASM 3.0\\IR};
+  \node[box, fill=red!10,    right=1.3cm of oa] (qs) {QSim\\Backend};
+  \node[box, fill=yellow!10, right=1.3cm of qs] (m)  {Metrics\\Engine};
+  \draw[arr] (q) -- (qc);
+  \draw[arr] (c) -- (qc);
+  \draw[arr] (p) -- (qc);
+  \draw[arr] (qc) -- (oa);
+  \draw[arr] (oa) -- (qs);
+  \draw[arr] (qs) -- (m);
+\end{tikzpicture}
+\caption{The QCanvas unified benchmarking pipeline.
+  All three framework circuits are compiled to a common OpenQASM 3.0
+  intermediate representation before execution on the shared QSim
+  statevector backend.
+  Every measured difference is attributable to the framework's
+  transpilation strategy.}
+\label{fig:pipeline}
+\end{figure}
+
+Figure~\ref{fig:pipeline} shows the end-to-end pipeline.
+A practitioner writes a circuit idiomatically in their chosen framework.
+QCanvas's framework-specific converter traverses the circuit's abstract
+syntax tree and emits semantically equivalent OpenQASM 3.0.
+The resulting QASM string is passed to QSim for statevector simulation.
+Because the intermediate representation and the backend are fixed across
+all three frameworks, any difference in compilation latency, gate count,
+depth, fidelity, or output distribution is attributable solely to the
+framework's transpilation choices.
+
+\subsection{Algorithm Suite}
+
+Table~\ref{tab:algorithms} lists the 12 algorithms in the benchmark
+suite.
+Each algorithm is implemented \emph{idiomatically} in each framework by
+a practitioner familiar with that framework's conventions; no algorithm
+is mechanically ported from one framework to another.
+This ensures we measure the framework as real users employ it, capturing
+the full effect of each framework's design philosophy on gate choice,
+qubit ordering, and ancilla management.
+
+\begin{table}[t]
+\caption{Algorithm test suite.}
+\label{tab:algorithms}
+\centering
+\begin{tabular}{llc}
+\toprule
+\textbf{Algorithm}       & \textbf{Category}    & \textbf{Qubit Range} \\
+\midrule
+Bell State               & Foundational         & 2q \\
+GHZ State                & Foundational         & 3--8q \\
+Quantum Teleportation    & Communication        & 3q \\
+Deutsch--Jozsa           & Oracle               & 3--8q \\
+Bernstein--Vazirani      & Oracle               & 3--8q \\
+Grover's Algorithm       & Search               & 2--6q \\
+QRNG                     & Randomness           & 4--8q \\
+VQE                      & Variational          & 2--6q \\
+QAOA                     & Variational          & 2--6q \\
+QML XOR Classifier       & Quantum ML           & 2--4q \\
+Bit-Flip Error Code      & Error Correction     & 3--9q \\
+Phase-Flip Error Code    & Error Correction     & 3--9q \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Metric Categories}
+
+Six metric categories are evaluated for every algorithm--framework pair:
+\begin{enumerate}
+  \item \textbf{Compilation:} mean compilation latency (ms) $\pm$ std
+        over 10 repeated runs; success flag.
+  \item \textbf{Structural:} total gate count, circuit depth, multi-qubit
+        gate count, multi-qubit ratio, per-gate-type counts.
+  \item \textbf{Scaling:} power-law exponent $a$, coefficient $c$,
+        coefficient of determination $R^2$, scaling class
+        (constant / sub-linear / linear / super-linear).
+  \item \textbf{Simulation:} mean and std of simulation time (ms) and
+        memory (MB), mean CPU utilisation (\%), fidelity under a
+        depolarizing noise model~\cite{nielsen2010quantum}.
+  \item \textbf{Statistical equivalence:} pairwise
+        JSD~\cite{lin1991divergence} at 4096 shots; equivalence declared
+        for JSD $< 0.02$; per-algorithm \texttt{all\_equivalent} verdict.
+  \item \textbf{Holistic:} Quantum Volume~\cite{cross2019validating};
+        QPack sub-scores $S_{\text{compile\_speed}}$,
+        $S_{\text{scalability}}$, $S_{\text{accuracy}}$,
+        $S_{\text{capacity}}$, $S_{\text{overall}}$.
+\end{enumerate}
+
+\subsection{Measurement Protocol}
+
+All timed measurements are repeated 10 times on the same physical
+machine with no concurrent workloads; we report the mean and standard
+deviation.
+Simulation shot counts of 1024, 4096, and 8192 are evaluated; the
+primary analysis uses 4096 shots.
+All package versions are pinned; the full environment is reproducible
+from the repository.

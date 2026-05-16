@@ -1,0 +1,62 @@
+% ============================================================
+%  Section 3 — Background  (~0.75 pages)
+% ============================================================
+\section{Background}
+
+\subsection{Frameworks}
+
+\textbf{Qiskit}~\cite{qiskit} is IBM's open-source SDK built around the
+\texttt{QuantumCircuit} abstraction.
+Its multi-level transpiler pipeline supports four optimisation passes
+(levels 0--3) that progressively reduce gate count and circuit depth
+through algebraic simplification and routing heuristics.
+
+\textbf{Cirq}~\cite{cirq} is Google's hardware-oriented SDK designed
+around a grid-qubit model that reflects physical device topology.
+Circuits are organised into \emph{moments}---layers of simultaneously
+executable gates---giving the programmer explicit control over
+parallelism and depth.
+
+\textbf{PennyLane}~\cite{bergholm2018pennylane} is Xanadu's
+differentiable programming SDK whose central abstraction is the
+device-agnostic \texttt{QNode}.
+Its primary design goal is variational and machine-learning workflows,
+where automatic differentiation of quantum circuits is essential.
+Gate decompositions are chosen for portability across heterogeneous
+backends rather than for minimising gate count on a specific target.
+
+\subsection{OpenQASM 3.0}
+OpenQASM 3.0~\cite{cross2022openqasm3} is the lingua franca that enables
+the unified pipeline in this work.
+Over its predecessor (QASM 2.0), version 3.0 adds: reusable subroutines
+and gate definitions with classical parameters; complex numeric types;
+gate modifiers (\texttt{ctrl@}, \texttt{pow@}, \texttt{inv@}); and
+structured classical control flow (\texttt{if}, \texttt{for},
+\texttt{while}).
+These extensions allow QCanvas to faithfully represent circuits from all
+three frameworks in a single, backend-agnostic intermediate
+representation without loss of gate semantics.
+
+\subsection{Metrics}
+
+\textbf{Jensen--Shannon Divergence (JSD)}~\cite{lin1991divergence} is a
+symmetric, bounded measure of distributional similarity on $[0, 1]$.
+Unlike KL divergence, JSD is defined even when the two distributions
+have non-overlapping support, making it suitable for comparing
+measurement outcome distributions that may differ in their set of
+reachable basis states.
+We declare two distributions statistically equivalent when
+$\text{JSD} < 0.02$.
+
+\textbf{Quantum Volume}~\cite{cross2019validating} is a single-number
+circuit quality estimator equal to $2^n$ where $n$ is the largest number
+of qubits for which a model random circuit achieves heavy-output
+generation probability above $2/3$.
+We compute QV in a structure-implied mode from circuit depth and width
+under a depolarizing noise model~\cite{nielsen2010quantum}.
+
+\textbf{Power-law scaling} fits the relation $y = c \cdot n^a$ to gate
+count or depth as qubit count $n$ varies.
+The exponent $a$ classifies the scaling regime: $a \approx 0$ is
+constant (optimal for oracle algorithms), $a = 1$ is linear, and
+$a > 1$ is super-linear.

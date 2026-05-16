@@ -1,0 +1,24 @@
+% ============================================================
+%  Section 7 — Conclusion  (~0.5 pages)
+% ============================================================
+\section{Conclusion}
+
+We introduced a unified benchmarking methodology in which QCanvas
+compiles circuits from Qiskit, Cirq, and PennyLane to a common OpenQASM
+3.0 intermediate representation for execution on a single QSim
+statevector backend, eliminating the simulator confound present in all
+prior cross-framework comparisons.
+Across 12 algorithms and 6 metric dimensions, Qiskit and Cirq prove
+functionally equivalent ($S_{\text{overall}}$ 58.80 vs.\ 58.79), with
+selection between them a matter of ecosystem fit rather than performance.
+PennyLane exhibits super-linear gate scaling for oracle and search
+algorithms, with Grover's Algorithm reaching a power-law exponent of
+$a{=}2.21$ and 216 gates at 6 qubits---a $12\times$ overhead relative
+to the 18 gates produced by Qiskit and Cirq.
+Most critically, PennyLane's gate decomposition produces JSD$=1.000$
+divergence against both other frameworks for six algorithms at 4 or more
+qubits, a systematic incompatibility in measurement basis that is
+invisible without a common simulation backend.
+Future work includes physical hardware validation on NISQ devices,
+extension of the suite to fault-tolerant algorithms, and integration of
+additional frameworks including Amazon Braket and Stim.

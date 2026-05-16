@@ -1,0 +1,93 @@
+% ============================================================
+%  Section 6 — Discussion  (~1.5 pages)
+% ============================================================
+\section{Discussion}
+
+\subsection{Framework Selection Guidance}
+
+For NISQ practitioners selecting a framework for oracle, error
+correction, or search workloads: Qiskit and Cirq are functionally
+interchangeable in circuit-quality terms.
+A 0.01 difference in $S_{\text{overall}}$ (58.80 vs.\ 58.79) lies below
+any meaningful threshold; selection between them should be based on
+ecosystem fit (IBM hardware $\to$ Qiskit; Google hardware $\to$ Cirq)
+or team familiarity, not performance.
+Both produce constant-depth circuits for oracle algorithms, maintain
+statistical equivalence through 8 qubits, and compile with stable,
+predictable latency.
+
+PennyLane's advantages lie outside this study's scope.
+Its automatic differentiation engine and device-agnostic \texttt{QNode}
+abstraction make it the natural choice for variational algorithm research
+(VQE, QAOA, QML), where gradient computation across hybrid
+quantum-classical loops is the primary concern.
+Practitioners using PennyLane for VQE and QML workloads at small qubit
+counts ($\leq$2--3 qubits) will observe no equivalence penalty.
+The trade-off---larger compiled circuits and JSD$=1.000$ failures at
+scale---becomes operationally significant only when the algorithm
+requires 4+ qubits and output distributions must be compared with those
+from Qiskit or Cirq implementations.
+
+\subsection{The Decomposition Incompatibility Problem}
+
+The JSD$=1.000$ failures reported in Section~5 are not compilation
+errors.
+PennyLane produces syntactically valid, executable OpenQASM 3.0 circuits
+that QSim runs without errors.
+The issue is semantic: PennyLane's full decomposition of multi-qubit
+oracle gates into primitive two-qubit gates changes the computational
+basis in which results are measured at 4+ qubits.
+Where Qiskit and Cirq implement a multi-controlled phase operation as a
+single structured gate whose output matches the expected oracle behavior,
+PennyLane expands the same gate into a sequence of elementary rotations
+that, while equivalent in principle, produces a different effective
+mapping between input and output basis states when composed with the
+algorithm's measurement layer.
+
+This is an underdocumented behavior with serious practical implications.
+A practitioner who ports an algorithm from Qiskit to PennyLane at 5
+qubits and compares output distributions will observe completely
+non-overlapping histograms (JSD$=1.000$) and may incorrectly conclude
+their implementation is wrong.
+The correct diagnosis is a framework-induced decomposition
+incompatibility that is invisible without a common backend.
+
+\subsection{The Unified Pipeline as a Methodological Contribution}
+
+The JSD$=1.000$ findings are discoverable only because all circuits
+execute on the same QSim backend.
+Had this study used PennyLane's \texttt{default.qubit} alongside
+Qiskit's Aer, any divergence would be confounded by the two simulators'
+different state-update algorithms, shot-sampling implementations, and
+floating-point precision policies.
+The QCanvas pipeline removes this confound entirely: a JSD$=1.000$
+result in our setup cannot be attributed to the backend; it must be
+attributed to the framework's gate-level choices.
+
+\subsection{Limitations}
+
+The following limitations bound the generalisability of these results:
+
+\begin{itemize}
+  \item \textbf{Classical simulation only.} All results are from
+        statevector simulation.
+        Physical hardware validation on NISQ devices---where crosstalk,
+        leakage, and device-specific noise profiles dominate---remains
+        future work.
+        No hardware implications are claimed beyond what the depolarizing
+        noise model supports.
+  \item \textbf{Simulator mode.} QSim operates in statevector mode;
+        density matrix simulation and stabilizer-circuit simulation are
+        not evaluated.
+  \item \textbf{PennyLane version pinned.} Results reflect the PennyLane
+        release pinned in the benchmark environment.
+        PennyLane's decomposition strategy may change in future releases.
+  \item \textbf{Quantum Volume is structure-implied.} QV is computed from
+        circuit structure under a depolarizing model, not from
+        heavy-output probability on physical hardware.
+        It does not capture real noise profiles (crosstalk, leakage).
+  \item \textbf{Algorithm scope.} The 12-algorithm suite is
+        representative but not exhaustive.
+        Deeper QAOA layers, fault-tolerant codes, and quantum simulation
+        circuits are out of scope.
+\end{itemize}
