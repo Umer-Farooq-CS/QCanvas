@@ -224,8 +224,8 @@ For each operation, show the full state transformation:
         cfg = get_config()
         edu_model_cfg = cfg.get("agents", {}).get("educational", {}).get("model", {})
         
-        self.model = model or edu_model_cfg.get("model", "gpt-4")
-        self.provider = (provider or edu_model_cfg.get("provider", "openai")).lower()
+        self.model = model or edu_model_cfg.get("model", "anthropic.claude-haiku-4-5-20251001-v1:0")
+        self.provider = (provider or edu_model_cfg.get("provider", "aws")).lower()
         if self.provider == "aws":
             inference_profile_arn = (
                 edu_model_cfg.get("inference_profile_arn")

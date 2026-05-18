@@ -9,13 +9,35 @@ Email: umerfarooqcs0891@gmail.com
 """
 
 # This file will export evaluation components
-from .metrics import MetricsCollector
-from .benchmark import BenchmarkSuite
+from .metrics import (
+    MetricsCollector,
+    compute_code_quality_score,
+    compute_statistics,
+    wilson_ci,
+)
+from .benchmark import (
+    BenchmarkSuite,
+    load_benchmark_prompts,
+    sample_benchmark_cases,
+    get_validation_from_result,
+    STANDARD_BENCHMARKS,
+)
+from .ablation import AblationStudy, VARIANT_LABELS, VARIANT_COMPONENTS
 from .reports import ReportGenerator
 
 __all__ = [
     "MetricsCollector",
+    "compute_code_quality_score",
+    "compute_statistics",
+    "wilson_ci",
     "BenchmarkSuite",
+    "load_benchmark_prompts",
+    "sample_benchmark_cases",
+    "get_validation_from_result",
+    "STANDARD_BENCHMARKS",
+    "AblationStudy",
+    "VARIANT_LABELS",
+    "VARIANT_COMPONENTS",
     "ReportGenerator",
 ]
 

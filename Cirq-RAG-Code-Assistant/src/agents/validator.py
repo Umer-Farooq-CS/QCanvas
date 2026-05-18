@@ -80,8 +80,8 @@ class ValidatorAgent(BaseAgent):
         self.default_shots = config.get("agents.validator.default_shots", 1024)
         self.default_backend = config.get("agents.validator.default_backend", "cirq")
         val_model_cfg = config.get("agents", {}).get("validator", {}).get("model", {})
-        self.llm_provider = (val_model_cfg.get("provider") or "ollama").lower()
-        self.llm_model = ollama_model or val_model_cfg.get("model", "cirq-validator-agent")
+        self.llm_provider = (val_model_cfg.get("provider") or "aws").lower()
+        self.llm_model = ollama_model or val_model_cfg.get("model", "anthropic.claude-sonnet-4-6")
         if self.llm_provider == "aws":
             inference_profile_arn = (
                 val_model_cfg.get("inference_profile_arn")

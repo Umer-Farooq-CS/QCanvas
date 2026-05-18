@@ -74,8 +74,8 @@ class OptimizerAgent(BaseAgent):
             
             self.generator = Generator(
                 retriever=retriever,
-                model=opt_config.get("model", "qwen2.5-coder:14b-instruct-q4_K_M"),
-                provider=opt_config.get("provider", "ollama"),
+                model=opt_config.get("model", "anthropic.claude-opus-4-6-v1"),
+                provider=opt_config.get("provider", "aws"),
                 inference_profile_arn=opt_config.get("inference_profile_arn")
                 or os.getenv("BEDROCK_INFERENCE_PROFILE_ARN")
                 or os.getenv("BEDROCK_INFERENCE_PROFILE_ARN_OPTIMIZER"),

@@ -181,24 +181,43 @@ def explain_command(code_file: str, depth: str, algorithm: Optional[str]):
         click.echo(f"\n❌ Explanation generation failed: {result.get('error')}")
 
 
-def benchmark_command(output: Optional[str]):
+def benchmark_command(output: Optional[str], trials: int = 1):
     """Run benchmarks command."""
-    from ..evaluation.benchmark import BenchmarkSuite
+    from ..evaluation.benchmark import BenchmarkSuite, load_benchmark_prompts
+    from ..evaluation.metrics import MetricsCollector
     from ..evaluation.reports import ReportGenerator
-    
-    click.echo("Running benchmarks...")
-    
+
+    prompts = load_benchmark_prompts(exclude_explanation=True)
+    click.echo(
+        f"Running benchmarks ({len(prompts)} prompts, "
+        f"AWS Bedrock per config/config.json)..."
+    )
+    if trials > 1:
+        click.echo(f"  Multi-trial mode: {trials} trials per prompt")
+
     orchestrator = get_orchestrator()
-    benchmark_suite = BenchmarkSuite(orchestrator)
-    results = benchmark_suite.run_benchmarks()
-    
-    click.echo(f"\n✅ Benchmarks completed!")
-    click.echo(f"  Passed: {results['passed']}/{results['total_tests']}")
-    click.echo(f"  Pass Rate: {results['pass_rate']:.1%}")
-    
+    benchmark_suite = BenchmarkSuite(orchestrator, MetricsCollector())
+
+    if trials > 1:
+        results = benchmark_suite.run_benchmarks_multi_trial(num_trials=trials)
+        click.echo(f"\n✅ Benchmarks completed ({results['total_runs']} total runs)!")
+        click.echo(f"  Overall Pass Rate: {results['overall_pass_rate']:.1%}")
+        oci = results.get("overall_pass_rate_ci", {})
+        if oci:
+            click.echo(
+                f"  95% CI: [{oci.get('ci_lower', 0):.1%}, {oci.get('ci_upper', 0):.1%}]"
+            )
+    else:
+        results = benchmark_suite.run_benchmarks(test_cases=prompts)
+        click.echo(f"\n✅ Benchmarks completed!")
+        click.echo(f"  Passed: {results['passed']}/{results['total_tests']}")
+        click.echo(f"  Pass Rate: {results['pass_rate']:.1%}")
+
     if output:
         report_generator = ReportGenerator()
         report_path = report_generator.generate_report(
+            metrics=benchmark_suite.metrics_collector,
             benchmark_results=results,
+            format="json" if str(output).endswith(".json") else "text",
         )
         click.echo(f"\n💾 Report saved to: {report_path}")

@@ -134,8 +134,8 @@ Generated code:"""
         # Load defaults from configuration if not explicitly provided
         cfg = get_config()
         designer_cfg = cfg.get("agents", {}).get("designer", {}).get("model", {})
-        model = model or designer_cfg.get("model", "gpt-4")
-        provider = (provider or designer_cfg.get("provider", "openai")).lower()
+        model = model or designer_cfg.get("model", "anthropic.claude-sonnet-4-6")
+        provider = (provider or designer_cfg.get("provider", "aws")).lower()
         if inference_profile_arn is None:
             inference_profile_arn = (
                 designer_cfg.get("inference_profile_arn")

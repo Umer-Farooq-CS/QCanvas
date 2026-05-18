@@ -26,6 +26,7 @@ class DesignerAgent(BaseAgent):
         retriever: Retriever,
         generator: Generator,
         compiler: Optional[CirqCompiler] = None,
+        use_rag: bool = True,
     ):
         """
         Initialize the DesignerAgent.
@@ -34,11 +35,13 @@ class DesignerAgent(BaseAgent):
             retriever: Retriever instance for context retrieval
             generator: Generator instance for code generation
             compiler: Optional compiler for validation
+            use_rag: Whether to retrieve RAG context (False for no-RAG ablations)
         """
         super().__init__(name="DesignerAgent")
         self.retriever = retriever
         self.generator = generator
         self.compiler = compiler or CirqCompiler()
+        self.use_rag = use_rag
     
     def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -60,10 +63,13 @@ class DesignerAgent(BaseAgent):
             }
         
         try:
-            result = self.generator.generate(
-                query=query,
-                algorithm=algorithm,
-            )
+            if self.use_rag:
+                result = self.generator.generate(
+                    query=query,
+                    algorithm=algorithm,
+                )
+            else:
+                result = self.generator.generate_direct(query=query)
             
             validation = self.compiler.compile(result["code"], execute=False)
             

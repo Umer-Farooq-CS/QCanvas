@@ -66,9 +66,10 @@ def explain(code_file, depth, algorithm):
 
 @cli.command()
 @click.option("--output", type=click.Path(), help="Output report file path")
-def benchmark(output):
-    """Run benchmark tests."""
-    benchmark_command(output)
+@click.option("--trials", default=1, type=int, help="Number of trials per prompt (default: 1)")
+def benchmark(output, trials):
+    """Run benchmark tests (25 prompts from benchmark_prompts_v2.jsonl)."""
+    benchmark_command(output, trials=trials)
 
 
 def main():

@@ -1,0 +1,704 @@
+{
+  "full": {
+    "variant": "full",
+    "label": "Full System",
+    "total_cases": 5,
+    "success_rate": 0.8,
+    "success_rate_ci": {
+      "mean": 0.8,
+      "ci_lower": 0.3755282641185388,
+      "ci_upper": 0.9637768390302125,
+      "n": 5
+    },
+    "validation_rate": 0.8,
+    "avg_latency": 41.065275239944455,
+    "latency_stats": {
+      "mean": 41.065275239944455,
+      "std": 54.54410700860867,
+      "ci_lower": -6.7447425290180405,
+      "ci_upper": 88.87529300890695,
+      "n": 5
+    },
+    "code_quality_stats": {
+      "mean": 1.0,
+      "std": 0.0,
+      "ci_lower": 1.0,
+      "ci_upper": 1.0,
+      "n": 5
+    },
+    "circuit_depth_stats": {
+      "mean": 14.8,
+      "std": 9.959919678390985,
+      "ci_lower": 6.069745479082528,
+      "ci_upper": 23.530254520917474,
+      "n": 5
+    },
+    "gate_count_stats": {
+      "mean": 22.6,
+      "std": 13.575713609236164,
+      "ci_lower": 10.700362358458138,
+      "ci_upper": 34.49963764154187,
+      "n": 5
+    },
+    "two_qubit_gate_stats": {
+      "mean": 4.0,
+      "std": 3.5355339059327378,
+      "ci_lower": 0.9009678930349887,
+      "ci_upper": 7.099032106965011,
+      "n": 5
+    },
+    "avg_code_length": 1661.0,
+    "details": [
+      {
+        "id": "BM-016",
+        "tier": "advanced",
+        "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 19.356050491333008,
+        "code_quality_score": 1.0,
+        "circuit_depth": 17,
+        "num_gates": 21,
+        "two_qubit_gates": 9,
+        "errors": []
+      },
+      {
+        "id": "BM-011",
+        "tier": "algorithm",
+        "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
+        "success": false,
+        "validation_passed": false,
+        "latency": 138.4567723274231,
+        "code_quality_score": 1.0,
+        "circuit_depth": 7,
+        "num_gates": 20,
+        "two_qubit_gates": 3,
+        "errors": []
+      },
+      {
+        "id": "BM-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 11.106413125991821,
+        "code_quality_score": 1.0,
+        "circuit_depth": 3,
+        "num_gates": 3,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-006",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
+        "success": true,
+        "validation_passed": true,
+        "latency": 17.497966527938843,
+        "code_quality_score": 1.0,
+        "circuit_depth": 19,
+        "num_gates": 40,
+        "two_qubit_gates": 0,
+        "errors": []
+      },
+      {
+        "id": "BM-017",
+        "tier": "advanced",
+        "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 18.909173727035522,
+        "code_quality_score": 1.0,
+        "circuit_depth": 28,
+        "num_gates": 29,
+        "two_qubit_gates": 6,
+        "errors": []
+      }
+    ]
+  },
+  "no_rag": {
+    "variant": "no_rag",
+    "label": "No RAG",
+    "total_cases": 5,
+    "success_rate": 0.8,
+    "success_rate_ci": {
+      "mean": 0.8,
+      "ci_lower": 0.3755282641185388,
+      "ci_upper": 0.9637768390302125,
+      "n": 5
+    },
+    "validation_rate": 0.8,
+    "avg_latency": 42.009686183929446,
+    "latency_stats": {
+      "mean": 42.009686183929446,
+      "std": 51.54231091639817,
+      "ci_lower": -3.169141299256907,
+      "ci_upper": 87.1885136671158,
+      "n": 5
+    },
+    "code_quality_stats": {
+      "mean": 1.0,
+      "std": 0.0,
+      "ci_lower": 1.0,
+      "ci_upper": 1.0,
+      "n": 5
+    },
+    "circuit_depth_stats": {
+      "mean": 15.6,
+      "std": 10.064790112068906,
+      "ci_lower": 6.777822491017311,
+      "ci_upper": 24.42217750898269,
+      "n": 5
+    },
+    "gate_count_stats": {
+      "mean": 24.6,
+      "std": 13.164345787011218,
+      "ci_lower": 13.060942152844541,
+      "ci_upper": 36.13905784715546,
+      "n": 5
+    },
+    "two_qubit_gate_stats": {
+      "mean": 4.6,
+      "std": 3.847076812334269,
+      "ci_lower": 1.2278884953192901,
+      "ci_upper": 7.97211150468071,
+      "n": 5
+    },
+    "avg_code_length": 1811.8,
+    "details": [
+      {
+        "id": "BM-016",
+        "tier": "advanced",
+        "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 37.23838829994202,
+        "code_quality_score": 1.0,
+        "circuit_depth": 21,
+        "num_gates": 33,
+        "two_qubit_gates": 10,
+        "errors": []
+      },
+      {
+        "id": "BM-011",
+        "tier": "algorithm",
+        "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
+        "success": false,
+        "validation_passed": false,
+        "latency": 132.20590162277222,
+        "code_quality_score": 1.0,
+        "circuit_depth": 8,
+        "num_gates": 22,
+        "two_qubit_gates": 5,
+        "errors": []
+      },
+      {
+        "id": "BM-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 8.654479742050171,
+        "code_quality_score": 1.0,
+        "circuit_depth": 3,
+        "num_gates": 3,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-006",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
+        "success": true,
+        "validation_passed": true,
+        "latency": 15.730401754379272,
+        "code_quality_score": 1.0,
+        "circuit_depth": 18,
+        "num_gates": 36,
+        "two_qubit_gates": 0,
+        "errors": []
+      },
+      {
+        "id": "BM-017",
+        "tier": "advanced",
+        "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 16.21925950050354,
+        "code_quality_score": 1.0,
+        "circuit_depth": 28,
+        "num_gates": 29,
+        "two_qubit_gates": 6,
+        "errors": []
+      }
+    ]
+  },
+  "no_validator": {
+    "variant": "no_validator",
+    "label": "No Validator",
+    "total_cases": 5,
+    "success_rate": 0.8,
+    "success_rate_ci": {
+      "mean": 0.8,
+      "ci_lower": 0.3755282641185388,
+      "ci_upper": 0.9637768390302125,
+      "n": 5
+    },
+    "validation_rate": 0.8,
+    "avg_latency": 16.40122365951538,
+    "latency_stats": {
+      "mean": 16.40122365951538,
+      "std": 5.894346440600662,
+      "ci_lower": 11.234601204461514,
+      "ci_upper": 21.56784611456925,
+      "n": 5
+    },
+    "code_quality_stats": {
+      "mean": 0.9199999999999999,
+      "std": 0.17888543819998318,
+      "ci_lower": 0.7631999999999999,
+      "ci_upper": 1.0768,
+      "n": 5
+    },
+    "circuit_depth_stats": {
+      "mean": 18.5,
+      "std": 11.269427669584644,
+      "ci_lower": 7.45596088380705,
+      "ci_upper": 29.54403911619295,
+      "n": 4
+    },
+    "gate_count_stats": {
+      "mean": 25.0,
+      "std": 14.944341180973263,
+      "ci_lower": 10.354545642646203,
+      "ci_upper": 39.6454543573538,
+      "n": 4
+    },
+    "two_qubit_gate_stats": {
+      "mean": 5.0,
+      "std": 5.291502622129181,
+      "ci_lower": -0.18567256968659773,
+      "ci_upper": 10.185672569686599,
+      "n": 4
+    },
+    "avg_code_length": 1841.4,
+    "details": [
+      {
+        "id": "BM-016",
+        "tier": "advanced",
+        "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 15.602829694747925,
+        "code_quality_score": 1.0,
+        "circuit_depth": 24,
+        "num_gates": 32,
+        "two_qubit_gates": 12,
+        "errors": []
+      },
+      {
+        "id": "BM-011",
+        "tier": "algorithm",
+        "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
+        "success": false,
+        "validation_passed": false,
+        "latency": 24.61686944961548,
+        "code_quality_score": 0.6,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": []
+      },
+      {
+        "id": "BM-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 8.039583206176758,
+        "code_quality_score": 1.0,
+        "circuit_depth": 3,
+        "num_gates": 3,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-006",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
+        "success": true,
+        "validation_passed": true,
+        "latency": 16.385542392730713,
+        "code_quality_score": 1.0,
+        "circuit_depth": 18,
+        "num_gates": 36,
+        "two_qubit_gates": 0,
+        "errors": []
+      },
+      {
+        "id": "BM-017",
+        "tier": "advanced",
+        "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 17.36129355430603,
+        "code_quality_score": 1.0,
+        "circuit_depth": 29,
+        "num_gates": 29,
+        "two_qubit_gates": 6,
+        "errors": []
+      }
+    ]
+  },
+  "no_optimizer": {
+    "variant": "no_optimizer",
+    "label": "No Optimizer",
+    "total_cases": 5,
+    "success_rate": 0.8,
+    "success_rate_ci": {
+      "mean": 0.8,
+      "ci_lower": 0.3755282641185388,
+      "ci_upper": 0.9637768390302125,
+      "n": 5
+    },
+    "validation_rate": 0.8,
+    "avg_latency": 28.722828483581544,
+    "latency_stats": {
+      "mean": 28.722828483581544,
+      "std": 29.641958311192884,
+      "ci_lower": 2.7405064457250212,
+      "ci_upper": 54.70515052143807,
+      "n": 5
+    },
+    "code_quality_stats": {
+      "mean": 1.0,
+      "std": 0.0,
+      "ci_lower": 1.0,
+      "ci_upper": 1.0,
+      "n": 5
+    },
+    "circuit_depth_stats": {
+      "mean": 19.6,
+      "std": 13.049904214207858,
+      "ci_lower": 8.16125461425074,
+      "ci_upper": 31.038745385749262,
+      "n": 5
+    },
+    "gate_count_stats": {
+      "mean": 33.6,
+      "std": 24.653600142778334,
+      "ci_lower": 11.990166682734461,
+      "ci_upper": 55.20983331726554,
+      "n": 5
+    },
+    "two_qubit_gate_stats": {
+      "mean": 4.4,
+      "std": 3.286335345030997,
+      "ci_lower": 1.5194000624869828,
+      "ci_upper": 7.280599937513018,
+      "n": 5
+    },
+    "avg_code_length": 1804.2,
+    "details": [
+      {
+        "id": "BM-016",
+        "tier": "advanced",
+        "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 15.259048223495483,
+        "code_quality_score": 1.0,
+        "circuit_depth": 35,
+        "num_gates": 69,
+        "two_qubit_gates": 8,
+        "errors": []
+      },
+      {
+        "id": "BM-011",
+        "tier": "algorithm",
+        "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
+        "success": false,
+        "validation_passed": false,
+        "latency": 81.01036334037781,
+        "code_quality_score": 1.0,
+        "circuit_depth": 10,
+        "num_gates": 23,
+        "two_qubit_gates": 6,
+        "errors": []
+      },
+      {
+        "id": "BM-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 7.7846198081970215,
+        "code_quality_score": 1.0,
+        "circuit_depth": 3,
+        "num_gates": 3,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-006",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
+        "success": true,
+        "validation_passed": true,
+        "latency": 20.47580361366272,
+        "code_quality_score": 1.0,
+        "circuit_depth": 22,
+        "num_gates": 44,
+        "two_qubit_gates": 0,
+        "errors": []
+      },
+      {
+        "id": "BM-017",
+        "tier": "advanced",
+        "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 19.084307432174683,
+        "code_quality_score": 1.0,
+        "circuit_depth": 28,
+        "num_gates": 29,
+        "two_qubit_gates": 6,
+        "errors": []
+      }
+    ]
+  },
+  "no_final_validator": {
+    "variant": "no_final_validator",
+    "label": "No Final Validator",
+    "total_cases": 5,
+    "success_rate": 0.8,
+    "success_rate_ci": {
+      "mean": 0.8,
+      "ci_lower": 0.3755282641185388,
+      "ci_upper": 0.9637768390302125,
+      "n": 5
+    },
+    "validation_rate": 0.8,
+    "avg_latency": 31.749901056289673,
+    "latency_stats": {
+      "mean": 31.749901056289673,
+      "std": 33.59742426525911,
+      "ci_lower": 2.30046024208972,
+      "ci_upper": 61.199341870489626,
+      "n": 5
+    },
+    "code_quality_stats": {
+      "mean": 1.0,
+      "std": 0.0,
+      "ci_lower": 1.0,
+      "ci_upper": 1.0,
+      "n": 5
+    },
+    "circuit_depth_stats": {
+      "mean": 18.6,
+      "std": 11.282730166054668,
+      "ci_lower": 8.710250963750397,
+      "ci_upper": 28.489749036249606,
+      "n": 5
+    },
+    "gate_count_stats": {
+      "mean": 26.4,
+      "std": 15.109599597606815,
+      "ci_lower": 13.155852009283496,
+      "ci_upper": 39.644147990716505,
+      "n": 5
+    },
+    "two_qubit_gate_stats": {
+      "mean": 5.2,
+      "std": 4.604345773288535,
+      "ci_lower": 1.1641129847330962,
+      "ci_upper": 9.235887015266904,
+      "n": 5
+    },
+    "avg_code_length": 1912.2,
+    "details": [
+      {
+        "id": "BM-016",
+        "tier": "advanced",
+        "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 14.71934199333191,
+        "code_quality_score": 1.0,
+        "circuit_depth": 28,
+        "num_gates": 32,
+        "two_qubit_gates": 12,
+        "errors": []
+      },
+      {
+        "id": "BM-011",
+        "tier": "algorithm",
+        "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
+        "success": false,
+        "validation_passed": false,
+        "latency": 90.85919857025146,
+        "code_quality_score": 1.0,
+        "circuit_depth": 11,
+        "num_gates": 23,
+        "two_qubit_gates": 6,
+        "errors": []
+      },
+      {
+        "id": "BM-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 8.34688687324524,
+        "code_quality_score": 1.0,
+        "circuit_depth": 3,
+        "num_gates": 3,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-006",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
+        "success": true,
+        "validation_passed": true,
+        "latency": 20.278232097625732,
+        "code_quality_score": 1.0,
+        "circuit_depth": 22,
+        "num_gates": 44,
+        "two_qubit_gates": 0,
+        "errors": []
+      },
+      {
+        "id": "BM-017",
+        "tier": "advanced",
+        "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 24.54584574699402,
+        "code_quality_score": 1.0,
+        "circuit_depth": 29,
+        "num_gates": 30,
+        "two_qubit_gates": 6,
+        "errors": []
+      }
+    ]
+  },
+  "minimal": {
+    "variant": "minimal",
+    "label": "Only Designer",
+    "total_cases": 5,
+    "success_rate": 1.0,
+    "success_rate_ci": {
+      "mean": 1.0,
+      "ci_lower": 0.5655085052479191,
+      "ci_upper": 1.0,
+      "n": 5
+    },
+    "validation_rate": 1.0,
+    "avg_latency": 14.079441738128661,
+    "latency_stats": {
+      "mean": 14.079441738128661,
+      "std": 5.813701955445386,
+      "ci_lower": 8.983507290995322,
+      "ci_upper": 19.175376185262003,
+      "n": 5
+    },
+    "code_quality_stats": {
+      "mean": 1.0,
+      "std": 0.0,
+      "ci_lower": 1.0,
+      "ci_upper": 1.0,
+      "n": 5
+    },
+    "circuit_depth_stats": {
+      "mean": 18.2,
+      "std": 12.67675037223657,
+      "ci_lower": 7.0883383780822395,
+      "ci_upper": 29.311661621917757,
+      "n": 5
+    },
+    "gate_count_stats": {
+      "mean": 26.4,
+      "std": 14.707141122597553,
+      "ci_lower": 13.508622416514205,
+      "ci_upper": 39.29137758348579,
+      "n": 5
+    },
+    "two_qubit_gate_stats": {
+      "mean": 6.6,
+      "std": 7.861297602813418,
+      "ci_lower": -0.2907311658488023,
+      "ci_upper": 13.490731165848802,
+      "n": 5
+    },
+    "avg_code_length": 1858.0,
+    "details": [
+      {
+        "id": "BM-016",
+        "tier": "advanced",
+        "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 15.94872784614563,
+        "code_quality_score": 1.0,
+        "circuit_depth": 32,
+        "num_gates": 36,
+        "two_qubit_gates": 20,
+        "errors": []
+      },
+      {
+        "id": "BM-011",
+        "tier": "algorithm",
+        "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 10.583156824111938,
+        "code_quality_score": 1.0,
+        "circuit_depth": 8,
+        "num_gates": 22,
+        "two_qubit_gates": 5,
+        "errors": []
+      },
+      {
+        "id": "BM-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 6.142056465148926,
+        "code_quality_score": 1.0,
+        "circuit_depth": 3,
+        "num_gates": 3,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-006",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
+        "success": true,
+        "validation_passed": true,
+        "latency": 16.54457998275757,
+        "code_quality_score": 1.0,
+        "circuit_depth": 19,
+        "num_gates": 40,
+        "two_qubit_gates": 0,
+        "errors": []
+      },
+      {
+        "id": "BM-017",
+        "tier": "advanced",
+        "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 21.178687572479248,
+        "code_quality_score": 1.0,
+        "circuit_depth": 29,
+        "num_gates": 31,
+        "two_qubit_gates": 6,
+        "errors": []
+      }
+    ]
+  }
+}
