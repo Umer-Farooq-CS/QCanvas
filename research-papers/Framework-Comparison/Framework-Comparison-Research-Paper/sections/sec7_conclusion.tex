@@ -11,10 +11,11 @@ prior cross-framework comparisons.
 Across 12 algorithms and 6 metric dimensions, Qiskit and Cirq prove
 functionally equivalent ($S_{\text{overall}}$ 58.80 vs.\ 58.79), with
 selection between them a matter of ecosystem fit rather than performance.
-PennyLane exhibits super-linear gate scaling for oracle and search
-algorithms, with Grover's Algorithm reaching a power-law exponent of
-$a{=}2.21$ and 216 gates at 6 qubits---a $12\times$ overhead relative
-to the 18 gates produced by Qiskit and Cirq.
+PennyLane exhibits initial super-linear gate scaling for oracle and search
+algorithms, with Grover's Algorithm reaching 216 gates at 6 qubits
+(a $12\times$ overhead relative to the 18 gates produced by Qiskit and
+Cirq), though this transitions to a linear growth regime ($a=0.218$) for
+qubits $n \ge 7$.
 Most critically, PennyLane's gate decomposition produces JSD$=1.000$
 divergence against both other frameworks for six algorithms at 4 or more
 qubits, a systematic incompatibility in measurement basis that is

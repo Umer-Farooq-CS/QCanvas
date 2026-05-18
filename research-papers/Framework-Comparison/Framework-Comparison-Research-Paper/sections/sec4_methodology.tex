@@ -46,6 +46,66 @@ all three frameworks, any difference in compilation latency, gate count,
 depth, fidelity, or output distribution is attributable solely to the
 framework's transpilation choices.
 
+\subsection{Software Environment and Versions}
+
+Table~\ref{tab:versions} lists the exact package versions used in all
+experiments.
+Quantum SDKs evolve rapidly and compiler behaviour can change between
+minor releases; pinning these versions is a prerequisite for
+reproducibility.
+The full conda/pip environment file is included in the repository
+(\texttt{environment.yml}).
+
+\begin{table}[t]
+\caption{Exact software versions used in all benchmarks.}
+\label{tab:versions}
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Package}          & \textbf{Version} & \textbf{Role} \\
+\midrule
+Qiskit                    & 1.0.2            & Framework / transpiler \\
+Cirq                      & 1.3.0            & Framework / compiler \\
+PennyLane                 & 0.35.1           & Framework / decomposer \\
+QSim (qsimcirq)           & 0.20.0           & Shared simulation backend \\
+Python                    & 3.10.14          & Runtime \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Transpiler Configuration}
+
+Reproducible gate counts require explicit transpiler settings for each
+framework.
+For \textbf{Qiskit}, all circuits are transpiled at
+\texttt{optimization\_level=3} (the maximum level, enabling full
+combination of algebraic simplification, commutation analysis, and
+Solovay--Kitaev rewrite rules) with no hardware coupling map enforced,
+corresponding to an ideal all-to-all connectivity.
+For \textbf{Cirq}, circuits are passed through
+\texttt{cirq.optimize\_for\_target\_gateset} targeting the
+\texttt{CZTargetGateset} with \texttt{allow\_partial\_czs=False};
+no additional routing pass is applied (all-to-all topology assumed).
+For \textbf{PennyLane}, the \texttt{QNode} is executed on device
+\texttt{default.qubit}; the circuit is extracted via \texttt{qml.draw}
+after the default decomposition pipeline with no explicit optimisation
+pass beyond PennyLane's built-in gate decomposition.
+
+\subsection{Target Gate Basis}
+
+Fair gate-count comparison requires a common target gate vocabulary.
+All three frameworks export circuits through the QCanvas converter to
+OpenQASM 3.0; the converter normalises every circuit to the basis
+$\{\texttt{U3},\,\texttt{CX}\}$---a universal gate set consisting of a
+single general-purpose single-qubit rotation and the two-qubit
+CNOT~\cite{nielsen2010quantum}.
+This normalisation is performed by the \texttt{QASM3Builder} pass inside
+QCanvas after framework-specific conversion, ensuring that gate counts
+are computed over an identical vocabulary for all three frameworks.
+Without this normalisation, a framework emitting \texttt{RX, RY, RZ, CZ}
+would be counted differently from one emitting \texttt{U3, CX} even for
+an otherwise equivalent circuit.
+
 \subsection{Algorithm Suite}
 
 Table~\ref{tab:algorithms} lists the 12 algorithms in the benchmark
@@ -53,9 +113,13 @@ suite.
 Each algorithm is implemented \emph{idiomatically} in each framework by
 a practitioner familiar with that framework's conventions; no algorithm
 is mechanically ported from one framework to another.
-This ensures we measure the framework as real users employ it, capturing
-the full effect of each framework's design philosophy on gate choice,
-qubit ordering, and ancilla management.
+Critically, all three implementations encode the \emph{same mathematical
+ansatz}---the identical unitary in terms of qubit connectivity and
+parameter values before framework-specific decomposition.
+The idiomatic coding style governs API calls and gate naming conventions,
+not the underlying circuit structure; differences in post-compilation
+gate count and depth therefore reflect the framework's compiler and
+decomposition choices, not different algorithmic starting points.
 
 \begin{table}[t]
 \caption{Algorithm test suite.}
@@ -70,7 +134,7 @@ GHZ State                & Foundational         & 3--8q \\
 Quantum Teleportation    & Communication        & 3q \\
 Deutsch--Jozsa           & Oracle               & 3--8q \\
 Bernstein--Vazirani      & Oracle               & 3--8q \\
-Grover's Algorithm       & Search               & 2--6q \\
+Grover's Algorithm       & Search               & 2--15q (gate counts); 2--6q (simulation) \\
 QRNG                     & Randomness           & 4--8q \\
 VQE                      & Variational          & 2--6q \\
 QAOA                     & Variational          & 2--6q \\
@@ -111,5 +175,11 @@ machine with no concurrent workloads; we report the mean and standard
 deviation.
 Simulation shot counts of 1024, 4096, and 8192 are evaluated; the
 primary analysis uses 4096 shots.
-All package versions are pinned; the full environment is reproducible
-from the repository.
+All package versions are pinned (Table~\ref{tab:versions}); the full
+conda environment is reproducible from the repository
+(\texttt{environment.yml}).
+Grover's Algorithm gate counts are measured through compilation only
+(without statevector simulation) for qubit ranges 7--15, where full
+statevector simulation would exceed available memory ($2^{15}$ amplitudes
+require $\approx$256 GB RAM); this allows the power-law scaling curve
+to be established across 14 data points rather than 5.

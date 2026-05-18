@@ -64,6 +64,31 @@ The QCanvas pipeline removes this confound entirely: a JSD$=1.000$
 result in our setup cannot be attributed to the backend; it must be
 attributed to the framework's gate-level choices.
 
+\subsection{Hardware Topology and Connectivity Constraints}
+\label{sec:hw-topology}
+
+All experiments in this study assume ideal all-to-all qubit connectivity,
+corresponding to statevector simulation with no routing overhead.
+On real quantum hardware, qubits are arranged in restricted topologies
+(e.g., IBM heavy-hex graphs, Google Sycamore grids) and two-qubit gates
+can only be applied to physically adjacent qubits.
+
+When a target coupling map is enforced, the transpiler must insert SWAP
+gates to route logical qubits to compatible physical qubit pairs;
+this routing step is the most computationally expensive and
+quantum-error-prone component of the transpilation pipeline.
+Comparing Qiskit and Cirq without a coupling map therefore ignores the
+primary domain where their transpilers differ most substantially:
+Qiskit's SABRE-based router~\cite{li2019tackling} and Cirq's
+\texttt{LineSwapRouter} employ fundamentally different heuristic
+strategies that produce very different SWAP-overhead profiles depending on
+circuit width and hardware topology.
+Future work should replicate this benchmark suite on a hardware-constrained
+topology (e.g., a 27-qubit heavy-hex map) to characterise the routing
+overhead and SWAP insertion penalty for each framework, which we expect
+would significantly change the relative gate counts and circuit depths
+observed in this study.
+
 \subsection{Limitations}
 
 The following limitations bound the generalisability of these results:
@@ -79,8 +104,17 @@ The following limitations bound the generalisability of these results:
   \item \textbf{Simulator mode.} QSim operates in statevector mode;
         density matrix simulation and stabilizer-circuit simulation are
         not evaluated.
-  \item \textbf{PennyLane version pinned.} Results reflect the PennyLane
-        release pinned in the benchmark environment.
+  \item \textbf{No hardware coupling map.} All benchmarks assume ideal
+        all-to-all connectivity.
+        Enforcing a realistic hardware topology would activate SWAP-gate
+        insertion and routing heuristics---the most performance-sensitive
+        part of any transpiler---which are not evaluated here.
+        Gate counts and depths reported in Section~5 therefore represent
+        lower bounds on the overhead incurred on physical devices
+        (see Section~\ref{sec:hw-topology} for further discussion).
+  \item \textbf{PennyLane version pinned at 0.35.1.} Results reflect the
+        PennyLane release pinned in the benchmark environment
+        (Table~\ref{tab:versions}).
         PennyLane's decomposition strategy may change in future releases.
   \item \textbf{Quantum Volume is structure-implied.} QV is computed from
         circuit structure under a depolarizing model, not from
@@ -90,4 +124,10 @@ The following limitations bound the generalisability of these results:
         representative but not exhaustive.
         Deeper QAOA layers, fault-tolerant codes, and quantum simulation
         circuits are out of scope.
+  \item \textbf{Grover scaling extended to 15 qubits (compilation only).}
+        To strengthen the power-law extrapolation beyond 5 simulation
+        data points, gate-count measurements for Grover's Algorithm were
+        extended to 15 qubits via compilation-only runs.
+        Statevector simulation was not performed for $n \geq 7$ qubits
+        due to memory constraints ($2^{15}$ amplitudes $\approx$256~GB).
 \end{itemize}
