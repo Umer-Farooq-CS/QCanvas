@@ -173,6 +173,11 @@ class OptimizerAgent(BaseAgent):
         algorithm = task.get("algorithm")
         optimization_level = task.get("optimization_level", "balanced")
         
+        # In a Multi-Agent system, the Optimizer should default to using its LLM 
+        # (Claude Opus) rather than fallback heuristic representations.
+        use_llm = task.get("use_llm", True)
+        use_heuristics = task.get("use_heuristics", False)
+        
         if not code and not circuit:
             return {
                 "success": False,
@@ -250,7 +255,7 @@ Fixed code:"""
             optimized_circuit = circuit
             optimized_code = original_code
             
-            if task.get("use_llm", False):
+            if use_llm:
                 logger.info("Running LLM optimization")
                 llm_result = self._optimize_with_llm(optimized_code, references)
                 if llm_result.get("success"):
@@ -263,7 +268,7 @@ Fixed code:"""
                 else:
                     logger.warning(f"LLM optimization failed: {llm_result.get('error')}")
 
-            if task.get("use_heuristics", True):
+            if use_heuristics:
                 optimizations = self._select_optimizations(optimized_circuit, references, optimization_level)
                 logger.debug(f"Selected optimizations: {optimizations}")
                 optimized_code = self._circuit_to_code(optimized_circuit)
@@ -316,8 +321,9 @@ Instructions:
 1. Analyze the circuit for redundant gates and inefficient patterns.
 2. Apply circuit identities and optimizations to reduce depth and gate count.
 3. CRITICAL: PRESERVE the original qubit initialization method and variable names.
-4. Return ONLY the full, executable Cirq code for the optimized circuit.
-5. Do not include explanations, just the code.
+4. CRITICAL: PRESERVE all comments, measurements, and simulation execution logic (e.g. cirq.Simulator).
+5. Return ONLY the full, executable Cirq code for the optimized circuit.
+6. Do not include explanations, just the code.
 """
         
         try:

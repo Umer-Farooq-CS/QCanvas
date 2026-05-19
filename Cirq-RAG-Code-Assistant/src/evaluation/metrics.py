@@ -74,18 +74,72 @@ def _circuit_non_empty(validation_result: Dict[str, Any]) -> bool:
     return compilation.get("success", False)
 
 
+def _has_simulation(code: str) -> bool:
+    return "cirq.Simulator" in code or ".simulate(" in code or ".run(" in code
+
+
+def _has_qubit_definition(code: str) -> bool:
+    return "cirq.LineQubit" in code or "cirq.GridQubit" in code or "cirq.NamedQubit" in code
+
+
+def _has_comments(code: str) -> bool:
+    try:
+        tree = ast.parse(code)
+        if ast.get_docstring(tree):
+            return True
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.ClassDef, ast.AsyncFunctionDef)):
+                if ast.get_docstring(node):
+                    return True
+    except SyntaxError:
+        pass
+    
+    for line in code.split('\n'):
+        if '#' in line.strip():
+            return True
+    return False
+
+
+def _is_concise(code: str) -> bool:
+    """Checks if lines of code are within a reasonable boundary (not overly bloated)."""
+    loc = len([line for line in code.split('\n') if line.strip()])
+    return 3 <= loc <= 150
+
+
+def _is_optimized(code: str, validation_result: Dict[str, Any]) -> bool:
+    """Heuristic to check if the circuit is reasonably optimized (e.g. depth <= 100 or uses optimization APIs)."""
+    if "cirq.optimize" in code or "cirq.transformers" in code:
+        return True
+    
+    compilation = validation_result.get("compilation", {})
+    circuit = compilation.get("circuit")
+    if circuit is not None:
+        try:
+            depth = len(circuit)
+            if 0 < depth <= 100:
+                return True
+        except Exception:
+            pass
+    return False
+
+
 def compute_code_quality_score(
     code: str,
     validation_result: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
-    Published code quality formula (§4.3 revision plan):
+    Improved code quality formula:
 
-    CodeQuality(c) = 0.30 × SyntaxValid
-                  + 0.30 × CompilationSuccess
-                  + 0.20 × HasMeasurement
+    CodeQuality(c) = 0.20 × SyntaxValid
+                  + 0.20 × CompilationSuccess
+                  + 0.10 × HasMeasurement
+                  + 0.10 × HasSimulation
                   + 0.10 × CircuitNonEmpty
                   + 0.10 × CorrectImports
+                  + 0.05 × HasQubitDefinition
+                  + 0.05 × HasComments
+                  + 0.05 × IsConcise
+                  + 0.05 × IsOptimized
     """
     validation_result = validation_result or {}
     compilation = validation_result.get("compilation", {})
@@ -94,16 +148,26 @@ def compute_code_quality_score(
         "syntax_valid": 1.0 if _syntax_valid(code) else 0.0,
         "compilation_success": 1.0 if compilation.get("success", False) else 0.0,
         "has_measurement": 1.0 if _has_measurement(code, validation_result) else 0.0,
+        "has_simulation": 1.0 if _has_simulation(code) else 0.0,
         "circuit_non_empty": 1.0 if _circuit_non_empty(validation_result) else 0.0,
         "correct_imports": 1.0 if _correct_imports(code) else 0.0,
+        "has_qubit_definition": 1.0 if _has_qubit_definition(code) else 0.0,
+        "has_comments": 1.0 if _has_comments(code) else 0.0,
+        "is_concise": 1.0 if _is_concise(code) else 0.0,
+        "is_optimized": 1.0 if _is_optimized(code, validation_result) else 0.0,
     }
 
     score = (
-        0.30 * components["syntax_valid"]
-        + 0.30 * components["compilation_success"]
-        + 0.20 * components["has_measurement"]
+        0.20 * components["syntax_valid"]
+        + 0.20 * components["compilation_success"]
+        + 0.10 * components["has_measurement"]
+        + 0.10 * components["has_simulation"]
         + 0.10 * components["circuit_non_empty"]
         + 0.10 * components["correct_imports"]
+        + 0.05 * components["has_qubit_definition"]
+        + 0.05 * components["has_comments"]
+        + 0.05 * components["is_concise"]
+        + 0.05 * components["is_optimized"]
     )
 
     return {

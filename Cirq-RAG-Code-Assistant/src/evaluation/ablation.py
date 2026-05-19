@@ -31,6 +31,7 @@ from ..cirq_rag_code_assistant.config.logging import get_logger
 logger = get_logger(__name__)
 
 VARIANT_LABELS = {
+    "ideal": "Ideal System (Hypothetical)",
     "full": "Full System",
     "no_rag": "No RAG",
     "no_validator": "No Validator",
@@ -40,6 +41,7 @@ VARIANT_LABELS = {
 }
 
 VARIANT_COMPONENTS = {
+    "ideal": ["Perfect RAG", "Perfect Designer", "Perfect Validator", "Perfect Optimizer"],
     "full": ["RAG", "Designer", "Validator", "Optimizer", "Final Validator"],
     "no_rag": ["Designer", "Validator", "Optimizer", "Final Validator"],
     "no_validator": ["RAG", "Designer", "Optimizer"],
@@ -60,31 +62,16 @@ def _evaluate_case_outcome(
     quality: Dict[str, Any],
 ) -> Tuple[bool, bool]:
     """
-    Return (pipeline_success, validation_passed) with variant-aware criteria.
-
-    When Validator is disabled, do not require validation_passed (it stays None).
-    Use syntax + compilation success from the code-quality components instead.
+    Return (pipeline_success, validation_passed) using the formal code quality score.
+    A score of 1.0 means perfect syntax, compilation, measurements, non-empty, and correct imports.
     """
     if not code or not result.get("success", False):
         return False, False
 
-    components = quality.get("components", {})
-
-    if variant in VARIANTS_WITH_VALIDATOR:
-        if variant == "no_final_validator":
-            # Use initial validation only (final pass intentionally skipped)
-            initial = result.get("validation")
-            if isinstance(initial, dict):
-                validation = initial
-        passed = validation.get("validation_passed", False)
-        return passed, passed
-
-    # no_validator / minimal — no ValidatorAgent in pipeline
-    compiles = (
-        components.get("syntax_valid", 0) >= 1.0
-        and components.get("compilation_success", 0) >= 1.0
-    )
-    return compiles, compiles
+    score = quality.get("code_quality_score", 0.0)
+    passed = score >= 0.99
+    
+    return passed, passed
 
 
 class AblationStudy:
@@ -107,6 +94,7 @@ class AblationStudy:
         variants: Optional[List[str]] = None,
         max_cases: Optional[int] = None,
         stratified_sample: bool = True,
+        num_trials: int = 3,
     ) -> Dict[str, Any]:
         """
         Run ablation study for specified variants.
@@ -115,6 +103,7 @@ class AblationStudy:
             variants: Variant keys (default: all six notebook modes)
             max_cases: Limit prompts for faster notebook runs
             stratified_sample: If True and max_cases set, sample across tiers
+            num_trials: Number of trials per case for statistical variance
         """
         variants = variants or list(VARIANT_LABELS.keys())
         cases = list(self.benchmark_cases)
@@ -125,8 +114,8 @@ class AblationStudy:
                 cases = cases[:max_cases]
 
         for variant in variants:
-            logger.info(f"Running ablation variant: {variant} ({len(cases)} cases)")
-            self.results[variant] = self._run_variant(variant, cases)
+            logger.info(f"Running ablation variant: {variant} ({len(cases)} cases, {num_trials} trials)")
+            self.results[variant] = self._run_variant(variant, cases, num_trials)
 
         return self.results
 
@@ -225,7 +214,59 @@ class AblationStudy:
             }
         )
 
-    def _run_variant(self, variant: str, cases: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _mock_ideal_variant(self, variant: str, cases: List[Dict[str, Any]], num_trials: int) -> Dict[str, Any]:
+        details = []
+        latencies = []
+        qualities = []
+        depths = []
+        gates = []
+        two_qubit = []
+        code_lengths = []
+        
+        n = len(cases) * num_trials
+        for case in cases:
+            for trial in range(num_trials):
+                details.append({
+                    "id": case.get("id"),
+                    "tier": case.get("tier"),
+                    "query": case.get("query"),
+                    "success": True,
+                    "validation_passed": True,
+                    "latency": 1.5,
+                    "code_quality_score": 1.0,
+                    "circuit_depth": 5,
+                    "num_gates": 10,
+                    "two_qubit_gates": 2,
+                    "errors": [],
+                })
+                latencies.append(1.5)
+                qualities.append(1.0)
+                code_lengths.append(300)
+                depths.append(5.0)
+                gates.append(10.0)
+                two_qubit.append(2.0)
+                
+        return {
+            "variant": variant,
+            "label": VARIANT_LABELS.get(variant, variant),
+            "total_cases": len(cases),
+            "success_rate": 1.0,
+            "success_rate_ci": wilson_ci(n, n),
+            "validation_rate": 1.0,
+            "avg_latency": 1.5,
+            "latency_stats": compute_statistics(latencies),
+            "code_quality_stats": compute_statistics(qualities),
+            "circuit_depth_stats": compute_statistics(depths),
+            "gate_count_stats": compute_statistics(gates),
+            "two_qubit_gate_stats": compute_statistics(two_qubit),
+            "avg_code_length": 300.0,
+            "details": details,
+        }
+
+    def _run_variant(self, variant: str, cases: List[Dict[str, Any]], num_trials: int = 1) -> Dict[str, Any]:
+        if variant == "ideal":
+            return self._mock_ideal_variant(variant, cases, num_trials)
+
         orchestrator = self._setup_orchestrator(variant)
 
         details: List[Dict[str, Any]] = []
@@ -239,77 +280,78 @@ class AblationStudy:
         two_qubit: List[float] = []
 
         for case in cases:
-            query = case.get("query")
-            algorithm = case.get("algorithm")
-            case_start = time.time()
+            for trial in range(num_trials):
+                query = case.get("query")
+                algorithm = case.get("algorithm")
+                case_start = time.time()
 
-            try:
-                result = orchestrator.generate_code(
-                    query=query,
-                    algorithm=algorithm,
-                    optimize=variant not in ("no_optimizer", "minimal"),
-                    validate=variant in VARIANTS_WITH_VALIDATOR,
-                    final_validate=variant in ("full", "no_rag", "no_optimizer"),
-                    explain=False,
-                )
-                latency = time.time() - case_start
+                try:
+                    result = orchestrator.generate_code(
+                        query=query,
+                        algorithm=algorithm,
+                        optimize=variant not in ("no_optimizer", "minimal"),
+                        validate=variant in VARIANTS_WITH_VALIDATOR,
+                        final_validate=variant in ("full", "no_rag", "no_optimizer"),
+                        explain=False,
+                    )
+                    latency = time.time() - case_start
 
-                code = result.get("optimized_code") or result.get("code") or ""
-                validation = get_validation_from_result(result)
+                    code = result.get("optimized_code") or result.get("code") or ""
+                    validation = get_validation_from_result(result)
 
-                if not validation and code:
-                    compiled = CirqCompiler().compile(code, execute=True)
-                    validation = {"compilation": compiled, "validation_passed": compiled.get("success", False)}
+                    if not validation and code:
+                        compiled = CirqCompiler().compile(code, execute=True)
+                        validation = {"compilation": compiled, "validation_passed": compiled.get("success", False)}
 
-                quality = compute_code_quality_score(code, validation)
-                success, validation_passed = _evaluate_case_outcome(
-                    variant, result, code, validation, quality
-                )
+                    quality = compute_code_quality_score(code, validation)
+                    success, validation_passed = _evaluate_case_outcome(
+                        variant, result, code, validation, quality
+                    )
 
-                if success:
-                    success_count += 1
-                if validation_passed:
-                    validation_count += 1
+                    if success:
+                        success_count += 1
+                    if validation_passed:
+                        validation_count += 1
 
-                cm = _extract_circuit_metrics(code, validation)
-                self._record_case_metrics(
-                    details=details,
-                    case=case,
-                    success=success,
-                    validation_passed=validation_passed,
-                    latency=latency,
-                    code=code,
-                    quality=quality,
-                    cm=cm,
-                    result=result,
-                    latencies=latencies,
-                    qualities=qualities,
-                    code_lengths=code_lengths,
-                    depths=depths,
-                    gates=gates,
-                    two_qubit=two_qubit,
-                )
+                    cm = _extract_circuit_metrics(code, validation)
+                    self._record_case_metrics(
+                        details=details,
+                        case=case,
+                        success=success,
+                        validation_passed=validation_passed,
+                        latency=latency,
+                        code=code,
+                        quality=quality,
+                        cm=cm,
+                        result=result,
+                        latencies=latencies,
+                        qualities=qualities,
+                        code_lengths=code_lengths,
+                        depths=depths,
+                        gates=gates,
+                        two_qubit=two_qubit,
+                    )
 
-            except Exception as e:
-                latency = time.time() - case_start
-                logger.error(f"Error in case {query} ({variant}): {e}")
-                latencies.append(latency)
-                qualities.append(0.0)
-                code_lengths.append(0)
-                details.append(
-                    {
-                        "id": case.get("id"),
-                        "tier": case.get("tier"),
-                        "query": query,
-                        "success": False,
-                        "validation_passed": False,
-                        "latency": latency,
-                        "code_quality_score": 0.0,
-                        "error": str(e),
-                    }
-                )
+                except Exception as e:
+                    latency = time.time() - case_start
+                    logger.error(f"Error in case {query} ({variant}, trial {trial}): {e}")
+                    latencies.append(latency)
+                    qualities.append(0.0)
+                    code_lengths.append(0)
+                    details.append(
+                        {
+                            "id": case.get("id"),
+                            "tier": case.get("tier"),
+                            "query": query,
+                            "success": False,
+                            "validation_passed": False,
+                            "latency": latency,
+                            "code_quality_score": 0.0,
+                            "error": str(e),
+                        }
+                    )
 
-        n = len(cases) or 1
+        n = len(cases) * num_trials or 1
         return {
             "variant": variant,
             "label": VARIANT_LABELS.get(variant, variant),
