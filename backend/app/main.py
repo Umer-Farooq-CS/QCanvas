@@ -56,18 +56,26 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Add Middleware (Order matters: Security -> Audit -> CORS)
-app.add_middleware(SecurityHeadersMiddleware)
-app.add_middleware(AuditLogMiddleware)
+# app.add_middleware(SecurityHeadersMiddleware)
+# app.add_middleware(AuditLogMiddleware)
 
-# Add CORS middleware
+# --- UPDATED MIDDLEWARE ORDER ---
+# CORS should be outside so it handles preflight OPTIONS requests before security headers block them
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS,
+    allow_origins=[
+        "https://www.qcanvas.codes",
+        "https://qcanvas.codes",
+        "http://localhost:3000"  # Keeps local development working smoothly
+    ],
     allow_origin_regex=r"^https://([a-zA-Z0-9-]+\.)?qcanvas\.codes$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(AuditLogMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Include API routes
 app.include_router(health.router)

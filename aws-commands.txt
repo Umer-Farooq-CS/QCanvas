@@ -2,3 +2,17 @@ aws ecr get-login-password --region us-east-1 | docker login --username AWS --pa
 docker build -t qcanvas-api:latest -f backend/Dockerfile .
 docker tag qcanvas-api:latest 626230557862.dkr.ecr.us-east-1.amazonaws.com/qcanvas-api:latest
 docker push 626230557862.dkr.ecr.us-east-1.amazonaws.com/qcanvas-api:latest
+
+------------- New commands --------------
+
+# Step 1: Log into your friend's AWS ECR Registry
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 776217504506.dkr.ecr.us-east-1.amazonaws.com
+
+# Step 2: Build the fresh container with the updated CORS file
+docker build -t qcanvas-api:latest -f backend/Dockerfile .
+
+# Step 3: Tag the fresh build for his repository
+docker tag qcanvas-api:latest 776217504506.dkr.ecr.us-east-1.amazonaws.com/qcanvas-api:latest
+
+# Step 4: Push the image directly to his cloud container storage
+docker push 776217504506.dkr.ecr.us-east-1.amazonaws.com/qcanvas-api:latest

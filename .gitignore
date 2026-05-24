@@ -343,3 +343,4 @@ backend/app/cache/
 backend/app/temp/
 frontend/.next/
 Test-Pypi-Imports/
+qcanvas_prod_backup.sql

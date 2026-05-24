@@ -7,15 +7,15 @@
   },
   "aws": {
     "embeddings": {
-      "model_id": "amazon.nova-2-multimodal-embeddings-v1:0",
+      "model_id": "amazon.titan-embed-text-v2:0",
       "embedding_dimension": 1024,
-      "request_delay_seconds": 5.0
+      "request_delay_seconds": 0.0
     }
   },
   "models": {
     "embedding": {
       "provider": "aws",
-      "model_name": "amazon.nova-2-multimodal-embeddings-v1:0",
+      "model_name": "amazon.titan-embed-text-v2:0",
       "embedding_dimension": 1024,
       "device": "cpu",
       "batch_size": 16,
@@ -51,7 +51,7 @@
   },
   "agents": {
     "general": {
-      "max_retries": 3,
+      "max_retries": 5,
       "timeout_seconds": 300,
       "parallel_execution": true
     },
@@ -61,7 +61,7 @@
       "model": {
         "provider": "aws",
         "model": "anthropic.claude-sonnet-4-6",
-        "inference_profile_arn": null
+        "inference_profile_arn": "${BEDROCK_INFERENCE_PROFILE_ARN_DESIGNER}"
       }
     },
     "optimizer": {
@@ -73,11 +73,11 @@
         "two_qubit_gates": -0.3,
         "fidelity": 0.4
       },
-      "rl_iterations": 10,
+      "rl_iterations": 1,
       "model": {
         "provider": "aws",
         "model": "anthropic.claude-opus-4-6-v1",
-        "inference_profile_arn": null,
+        "inference_profile_arn": "${BEDROCK_INFERENCE_PROFILE_ARN_OPTIMIZER}",
         "temperature": 0.2,
         "max_tokens": 2000
       }
@@ -92,19 +92,19 @@
       "model": {
         "provider": "aws",
         "model": "anthropic.claude-sonnet-4-6",
-        "inference_profile_arn": null
+        "inference_profile_arn": "${BEDROCK_INFERENCE_PROFILE_ARN_VALIDATOR}"
       }
     },
     "qcanvas": {
-      "backend_url": "http://localhost:8000",
-      "timeout_seconds": 30
+      "backend_url": "http://localhost:8001",
+      "timeout_seconds": 300
     },
     "educational": {
       "enabled": true,
       "model": {
         "provider": "aws",
         "model": "anthropic.claude-haiku-4-5-20251001-v1:0",
-        "inference_profile_arn": null
+        "inference_profile_arn": "${BEDROCK_INFERENCE_PROFILE_ARN_EDUCATIONAL}"
       }
     }
   },
@@ -143,16 +143,10 @@
     "torch_memory_fraction": 0.8
   },
   "evaluation": {
-    "target_syntax_accuracy": 0.90,
+    "target_syntax_accuracy": 0.9,
     "evaluation_batch_size": 32,
     "benchmark_dataset_path": "data/datasets/benchmark",
-    "benchmark_algorithms": [
-      "vqe",
-      "qaoa",
-      "grover",
-      "teleportation",
-      "qft"
-    ],
+    "benchmark_algorithms": ["vqe", "qaoa", "grover", "teleportation", "qft"],
     "enable_ablations": true,
     "ablation_variants": [
       "no_rag",
