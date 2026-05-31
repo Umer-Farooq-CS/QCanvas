@@ -1,0 +1,1492 @@
+{
+  "ideal": {
+    "variant": "ideal",
+    "label": "Ideal System (Hypothetical)",
+    "total_cases": 4,
+    "success_rate": 1.0,
+    "success_rate_ci": {
+      "mean": 1.0,
+      "ci_lower": 0.7574992425007574,
+      "ci_upper": 1.0,
+      "n": 12
+    },
+    "validation_rate": 1.0,
+    "avg_latency": 1.5,
+    "latency_stats": {
+      "mean": 1.5,
+      "std": 0.0,
+      "ci_lower": 1.5,
+      "ci_upper": 1.5,
+      "n": 12
+    },
+    "code_quality_stats": {
+      "mean": 1.0,
+      "std": 0.0,
+      "ci_lower": 1.0,
+      "ci_upper": 1.0,
+      "n": 12
+    },
+    "circuit_depth_stats": {
+      "mean": 5.0,
+      "std": 0.0,
+      "ci_lower": 5.0,
+      "ci_upper": 5.0,
+      "n": 12
+    },
+    "gate_count_stats": {
+      "mean": 10.0,
+      "std": 0.0,
+      "ci_lower": 10.0,
+      "ci_upper": 10.0,
+      "n": 12
+    },
+    "two_qubit_gate_stats": {
+      "mean": 2.0,
+      "std": 0.0,
+      "ci_lower": 2.0,
+      "ci_upper": 2.0,
+      "n": 12
+    },
+    "avg_code_length": 300.0,
+    "details": [
+      {
+        "id": "BM-LEGACY-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 1.5,
+        "code_quality_score": 1.0,
+        "circuit_depth": 5,
+        "num_gates": 10,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 1.5,
+        "code_quality_score": 1.0,
+        "circuit_depth": 5,
+        "num_gates": 10,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 1.5,
+        "code_quality_score": 1.0,
+        "circuit_depth": 5,
+        "num_gates": 10,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-002",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm",
+        "success": true,
+        "validation_passed": true,
+        "latency": 1.5,
+        "code_quality_score": 1.0,
+        "circuit_depth": 5,
+        "num_gates": 10,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-002",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm",
+        "success": true,
+        "validation_passed": true,
+        "latency": 1.5,
+        "code_quality_score": 1.0,
+        "circuit_depth": 5,
+        "num_gates": 10,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-002",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm",
+        "success": true,
+        "validation_passed": true,
+        "latency": 1.5,
+        "code_quality_score": 1.0,
+        "circuit_depth": 5,
+        "num_gates": 10,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-003",
+        "tier": "algorithm",
+        "query": "Create a simple VQE circuit for 2 qubits",
+        "success": true,
+        "validation_passed": true,
+        "latency": 1.5,
+        "code_quality_score": 1.0,
+        "circuit_depth": 5,
+        "num_gates": 10,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-003",
+        "tier": "algorithm",
+        "query": "Create a simple VQE circuit for 2 qubits",
+        "success": true,
+        "validation_passed": true,
+        "latency": 1.5,
+        "code_quality_score": 1.0,
+        "circuit_depth": 5,
+        "num_gates": 10,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-003",
+        "tier": "algorithm",
+        "query": "Create a simple VQE circuit for 2 qubits",
+        "success": true,
+        "validation_passed": true,
+        "latency": 1.5,
+        "code_quality_score": 1.0,
+        "circuit_depth": 5,
+        "num_gates": 10,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-004",
+        "tier": "algorithm",
+        "query": "Implement a 2-qubit QAOA circuit",
+        "success": true,
+        "validation_passed": true,
+        "latency": 1.5,
+        "code_quality_score": 1.0,
+        "circuit_depth": 5,
+        "num_gates": 10,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-004",
+        "tier": "algorithm",
+        "query": "Implement a 2-qubit QAOA circuit",
+        "success": true,
+        "validation_passed": true,
+        "latency": 1.5,
+        "code_quality_score": 1.0,
+        "circuit_depth": 5,
+        "num_gates": 10,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-004",
+        "tier": "algorithm",
+        "query": "Implement a 2-qubit QAOA circuit",
+        "success": true,
+        "validation_passed": true,
+        "latency": 1.5,
+        "code_quality_score": 1.0,
+        "circuit_depth": 5,
+        "num_gates": 10,
+        "two_qubit_gates": 2,
+        "errors": []
+      }
+    ]
+  },
+  "full": {
+    "variant": "full",
+    "label": "Full System",
+    "total_cases": 4,
+    "success_rate": 0.3333333333333333,
+    "success_rate_ci": {
+      "mean": 0.3333333333333333,
+      "ci_lower": 0.13811783989736132,
+      "ci_upper": 0.6093824126023861,
+      "n": 12
+    },
+    "validation_rate": 0.3333333333333333,
+    "avg_latency": 145.79804092645645,
+    "latency_stats": {
+      "mean": 145.79804092645645,
+      "std": 110.03180749519646,
+      "ci_lower": 83.54168512321914,
+      "ci_upper": 208.05439672969376,
+      "n": 12
+    },
+    "code_quality_stats": {
+      "mean": 0.8541666666666669,
+      "std": 0.22709462718648737,
+      "ci_lower": 0.7256757854117833,
+      "ci_upper": 0.9826575479215504,
+      "n": 12
+    },
+    "circuit_depth_stats": {
+      "mean": 4.6,
+      "std": 3.7475918193480524,
+      "ci_lower": 2.2772185256081925,
+      "ci_upper": 6.922781474391806,
+      "n": 10
+    },
+    "gate_count_stats": {
+      "mean": 8.5,
+      "std": 9.082951062292475,
+      "ci_lower": 2.870328606392733,
+      "ci_upper": 14.129671393607268,
+      "n": 10
+    },
+    "two_qubit_gate_stats": {
+      "mean": 0.8,
+      "std": 0.7888106377466155,
+      "ci_lower": 0.31109010146153837,
+      "ci_upper": 1.2889098985384617,
+      "n": 10
+    },
+    "avg_code_length": 698.1666666666666,
+    "details": [
+      {
+        "id": "BM-LEGACY-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 63.68533706665039,
+        "code_quality_score": 1.0,
+        "circuit_depth": 3,
+        "num_gates": 4,
+        "two_qubit_gates": 1,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": false,
+        "validation_passed": false,
+        "latency": 67.12614607810974,
+        "code_quality_score": 0.9000000000000001,
+        "circuit_depth": 3,
+        "num_gates": 4,
+        "two_qubit_gates": 1,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 45.92954611778259,
+        "code_quality_score": 1.0,
+        "circuit_depth": 3,
+        "num_gates": 4,
+        "two_qubit_gates": 1,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-002",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm",
+        "success": true,
+        "validation_passed": true,
+        "latency": 181.85480046272278,
+        "code_quality_score": 1.0,
+        "circuit_depth": 8,
+        "num_gates": 16,
+        "two_qubit_gates": 0,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-002",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm",
+        "success": false,
+        "validation_passed": false,
+        "latency": 388.95365285873413,
+        "code_quality_score": 0.6500000000000001,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Optimization iteration 1 failed: Failed to compile code: []"
+        ]
+      },
+      {
+        "id": "BM-LEGACY-002",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm",
+        "success": true,
+        "validation_passed": true,
+        "latency": 166.1337788105011,
+        "code_quality_score": 1.0,
+        "circuit_depth": 14,
+        "num_gates": 32,
+        "two_qubit_gates": 0,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-003",
+        "tier": "algorithm",
+        "query": "Create a simple VQE circuit for 2 qubits",
+        "success": false,
+        "validation_passed": false,
+        "latency": 255.0607476234436,
+        "code_quality_score": 0.9000000000000001,
+        "circuit_depth": 2,
+        "num_gates": 4,
+        "two_qubit_gates": 0,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-003",
+        "tier": "algorithm",
+        "query": "Create a simple VQE circuit for 2 qubits",
+        "success": false,
+        "validation_passed": false,
+        "latency": 103.56510949134827,
+        "code_quality_score": 0.9000000000000001,
+        "circuit_depth": 2,
+        "num_gates": 4,
+        "two_qubit_gates": 0,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-003",
+        "tier": "algorithm",
+        "query": "Create a simple VQE circuit for 2 qubits",
+        "success": false,
+        "validation_passed": false,
+        "latency": 71.40697121620178,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: Generated code has errors: [{'type': 'syntax_error', 'message': \"Syntax error at line 2: unmatched '}'\\n  }\"}]"
+        ]
+      },
+      {
+        "id": "BM-LEGACY-004",
+        "tier": "algorithm",
+        "query": "Implement a 2-qubit QAOA circuit",
+        "success": false,
+        "validation_passed": false,
+        "latency": 73.27319169044495,
+        "code_quality_score": 0.9000000000000001,
+        "circuit_depth": 3,
+        "num_gates": 5,
+        "two_qubit_gates": 1,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-004",
+        "tier": "algorithm",
+        "query": "Implement a 2-qubit QAOA circuit",
+        "success": false,
+        "validation_passed": false,
+        "latency": 276.01425290107727,
+        "code_quality_score": 0.9000000000000001,
+        "circuit_depth": 5,
+        "num_gates": 8,
+        "two_qubit_gates": 2,
+        "errors": [
+          "Optimization iteration 1 failed: Failed to compile code: [{'type': 'execution_error', 'message': \"module 'cirq' has no attribute 'Symbol'\", 'traceback': 'Traceback (most recent call last):\\n  File \"C:\\\\Study Material\\\\FYP\\\\QCanvas-Project\\\\QCanvas\\\\Cirq-RAG-Code-Assistant\\\\src\\\\tools\\\\compiler.py\", line 217, in _execute_code\\n    exec(code, namespace)\\n  File \"<string>\", line 29, in <module>\\n  File \"<string>\", line 11, in qaoa_circuit\\nAttributeError: module \\'cirq\\' has no attribute \\'Symbol\\'\\n'}]"
+        ]
+      },
+      {
+        "id": "BM-LEGACY-004",
+        "tier": "algorithm",
+        "query": "Implement a 2-qubit QAOA circuit",
+        "success": false,
+        "validation_passed": false,
+        "latency": 56.572956800460815,
+        "code_quality_score": 0.9000000000000001,
+        "circuit_depth": 3,
+        "num_gates": 4,
+        "two_qubit_gates": 2,
+        "errors": []
+      }
+    ]
+  },
+  "no_rag": {
+    "variant": "no_rag",
+    "label": "No RAG",
+    "total_cases": 4,
+    "success_rate": 0.6666666666666666,
+    "success_rate_ci": {
+      "mean": 0.6666666666666666,
+      "ci_lower": 0.3906175873976138,
+      "ci_upper": 0.8618821601026385,
+      "n": 12
+    },
+    "validation_rate": 0.6666666666666666,
+    "avg_latency": 109.86807366212209,
+    "latency_stats": {
+      "mean": 109.86807366212209,
+      "std": 84.12055101038176,
+      "ci_lower": 62.272391347303,
+      "ci_upper": 157.46375597694117,
+      "n": 12
+    },
+    "code_quality_stats": {
+      "mean": 0.8708333333333335,
+      "std": 0.19938351957668884,
+      "ci_lower": 0.7580214872077486,
+      "ci_upper": 0.9836451794589183,
+      "n": 12
+    },
+    "circuit_depth_stats": {
+      "mean": 4.0,
+      "std": 1.6903085094570331,
+      "ci_lower": 2.8286759628522944,
+      "ci_upper": 5.171324037147706,
+      "n": 8
+    },
+    "gate_count_stats": {
+      "mean": 6.875,
+      "std": 5.409977554746151,
+      "ci_lower": 3.1260768212725405,
+      "ci_upper": 10.623923178727459,
+      "n": 8
+    },
+    "two_qubit_gate_stats": {
+      "mean": 1.25,
+      "std": 0.8864052604279183,
+      "ci_lower": 0.6357524928825515,
+      "ci_upper": 1.8642475071174485,
+      "n": 8
+    },
+    "avg_code_length": 962.5833333333334,
+    "details": [
+      {
+        "id": "BM-LEGACY-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 25.08695411682129,
+        "code_quality_score": 1.0,
+        "circuit_depth": 3,
+        "num_gates": 3,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 29.56706428527832,
+        "code_quality_score": 1.0,
+        "circuit_depth": 3,
+        "num_gates": 3,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 28.700372457504272,
+        "code_quality_score": 1.0,
+        "circuit_depth": 3,
+        "num_gates": 4,
+        "two_qubit_gates": 1,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-002",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm",
+        "success": true,
+        "validation_passed": true,
+        "latency": 52.63709902763367,
+        "code_quality_score": 1.0,
+        "circuit_depth": 7,
+        "num_gates": 18,
+        "two_qubit_gates": 0,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-002",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm",
+        "success": true,
+        "validation_passed": true,
+        "latency": 53.214158058166504,
+        "code_quality_score": 1.0,
+        "circuit_depth": 6,
+        "num_gates": 12,
+        "two_qubit_gates": 0,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-002",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm",
+        "success": false,
+        "validation_passed": false,
+        "latency": 170.8873040676117,
+        "code_quality_score": 0.6500000000000001,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Optimization iteration 1 failed: Failed to compile code: [{'type': 'execution_error', 'message': \"cannot import name 'svg_diagram' from 'cirq.contrib.svg' (c:\\\\Study Material\\\\FYP\\\\QCanvas-Project\\\\QCanvas\\\\qasm_env\\\\Lib\\\\site-packages\\\\cirq\\\\contrib\\\\svg\\\\__init__.py)\", 'traceback': 'Traceback (most recent call last):\\n  File \"C:\\\\Study Material\\\\FYP\\\\QCanvas-Project\\\\QCanvas\\\\Cirq-RAG-Code-Assistant\\\\src\\\\tools\\\\compiler.py\", line 217, in _execute_code\\n    exec(code, namespace)\\n  File \"<string>\", line 2, in <module>\\nImportError: cannot import name \\'svg_diagram\\' from \\'cirq.contrib.svg\\' (c:\\\\Study Material\\\\FYP\\\\QCanvas-Project\\\\QCanvas\\\\qasm_env\\\\Lib\\\\site-packages\\\\cirq\\\\contrib\\\\svg\\\\__init__.py)\\n'}]"
+        ]
+      },
+      {
+        "id": "BM-LEGACY-003",
+        "tier": "algorithm",
+        "query": "Create a simple VQE circuit for 2 qubits",
+        "success": true,
+        "validation_passed": true,
+        "latency": 165.24798250198364,
+        "code_quality_score": 1.0,
+        "circuit_depth": 2,
+        "num_gates": 3,
+        "two_qubit_gates": 1,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-003",
+        "tier": "algorithm",
+        "query": "Create a simple VQE circuit for 2 qubits",
+        "success": false,
+        "validation_passed": false,
+        "latency": 257.23150658607483,
+        "code_quality_score": 0.6500000000000001,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Optimization iteration 1 failed: Failed to compile code: [{'type': 'execution_error', 'message': \"module 'cirq' has no attribute 'Symbol'\", 'traceback': 'Traceback (most recent call last):\\n  File \"C:\\\\Study Material\\\\FYP\\\\QCanvas-Project\\\\QCanvas\\\\Cirq-RAG-Code-Assistant\\\\src\\\\tools\\\\compiler.py\", line 217, in _execute_code\\n    exec(code, namespace)\\n  File \"<string>\", line 11, in <module>\\nAttributeError: module \\'cirq\\' has no attribute \\'Symbol\\'\\n'}]"
+        ]
+      },
+      {
+        "id": "BM-LEGACY-003",
+        "tier": "algorithm",
+        "query": "Create a simple VQE circuit for 2 qubits",
+        "success": false,
+        "validation_passed": false,
+        "latency": 222.91025590896606,
+        "code_quality_score": 0.7000000000000002,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Optimization iteration 1 failed: Failed to compile code: [{'type': 'execution_error', 'message': \"No module named 'cirq.optimizers'\", 'traceback': 'Traceback (most recent call last):\\n  File \"C:\\\\Study Material\\\\FYP\\\\QCanvas-Project\\\\QCanvas\\\\Cirq-RAG-Code-Assistant\\\\src\\\\tools\\\\compiler.py\", line 217, in _execute_code\\n    exec(code, namespace)\\n  File \"<string>\", line 2, in <module>\\nModuleNotFoundError: No module named \\'cirq.optimizers\\'\\n'}]"
+        ]
+      },
+      {
+        "id": "BM-LEGACY-004",
+        "tier": "algorithm",
+        "query": "Implement a 2-qubit QAOA circuit",
+        "success": false,
+        "validation_passed": false,
+        "latency": 182.02450847625732,
+        "code_quality_score": 0.45,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Optimization iteration 1 failed: Failed to compile code: [{'type': 'execution_error', 'message': \"No module named 'cirq.contrib.qaoa'\", 'traceback': 'Traceback (most recent call last):\\n  File \"C:\\\\Study Material\\\\FYP\\\\QCanvas-Project\\\\QCanvas\\\\Cirq-RAG-Code-Assistant\\\\src\\\\tools\\\\compiler.py\", line 217, in _execute_code\\n    exec(code, namespace)\\n  File \"<string>\", line 2, in <module>\\nModuleNotFoundError: No module named \\'cirq.contrib.qaoa\\'\\n'}]"
+        ]
+      },
+      {
+        "id": "BM-LEGACY-004",
+        "tier": "algorithm",
+        "query": "Implement a 2-qubit QAOA circuit",
+        "success": true,
+        "validation_passed": true,
+        "latency": 84.0718002319336,
+        "code_quality_score": 1.0,
+        "circuit_depth": 4,
+        "num_gates": 6,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-004",
+        "tier": "algorithm",
+        "query": "Implement a 2-qubit QAOA circuit",
+        "success": true,
+        "validation_passed": true,
+        "latency": 46.83787822723389,
+        "code_quality_score": 1.0,
+        "circuit_depth": 4,
+        "num_gates": 6,
+        "two_qubit_gates": 2,
+        "errors": []
+      }
+    ]
+  },
+  "no_validator": {
+    "variant": "no_validator",
+    "label": "No Validator",
+    "total_cases": 4,
+    "success_rate": 0.25,
+    "success_rate_ci": {
+      "mean": 0.25,
+      "ci_lower": 0.08894003962896138,
+      "ci_upper": 0.53231033912066,
+      "n": 12
+    },
+    "validation_rate": 0.25,
+    "avg_latency": 68.07141784826915,
+    "latency_stats": {
+      "mean": 68.07141784826915,
+      "std": 43.96660663767941,
+      "ci_lower": 43.194968314202924,
+      "ci_upper": 92.94786738233537,
+      "n": 12
+    },
+    "code_quality_stats": {
+      "mean": 0.75,
+      "std": 0.29154759474226505,
+      "ci_lower": 0.585041419340086,
+      "ci_upper": 0.914958580659914,
+      "n": 12
+    },
+    "circuit_depth_stats": {
+      "mean": 2.875,
+      "std": 1.4577379737113252,
+      "ci_lower": 1.8648391217236733,
+      "ci_upper": 3.8851608782763267,
+      "n": 8
+    },
+    "gate_count_stats": {
+      "mean": 3.375,
+      "std": 2.1339098923270936,
+      "ci_lower": 1.8962758878005677,
+      "ci_upper": 4.853724112199433,
+      "n": 8
+    },
+    "two_qubit_gate_stats": {
+      "mean": 1.0,
+      "std": 1.1952286093343936,
+      "ci_lower": 0.17174883036605393,
+      "ci_upper": 1.828251169633946,
+      "n": 8
+    },
+    "avg_code_length": 437.3333333333333,
+    "details": [
+      {
+        "id": "BM-LEGACY-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 43.96689581871033,
+        "code_quality_score": 1.0,
+        "circuit_depth": 3,
+        "num_gates": 3,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": false,
+        "validation_passed": false,
+        "latency": 26.62421178817749,
+        "code_quality_score": 0.8000000000000002,
+        "circuit_depth": 1,
+        "num_gates": 1,
+        "two_qubit_gates": 0,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 43.10331130027771,
+        "code_quality_score": 1.0,
+        "circuit_depth": 3,
+        "num_gates": 4,
+        "two_qubit_gates": 1,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-002",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm",
+        "success": false,
+        "validation_passed": false,
+        "latency": 26.32699489593506,
+        "code_quality_score": 0.9000000000000001,
+        "circuit_depth": 2,
+        "num_gates": 2,
+        "two_qubit_gates": 0,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-002",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm",
+        "success": false,
+        "validation_passed": false,
+        "latency": 152.23477172851562,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: Generated code has errors: [{'type': 'syntax_error', 'message': 'Syntax error at line 1: invalid syntax\\n  ```python'}]"
+        ]
+      },
+      {
+        "id": "BM-LEGACY-002",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm",
+        "success": false,
+        "validation_passed": false,
+        "latency": 127.86611747741699,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: Generated code has errors: [{'type': 'syntax_error', 'message': 'Syntax error at line 1: invalid syntax\\n  // Import necessary libraries'}]"
+        ]
+      },
+      {
+        "id": "BM-LEGACY-003",
+        "tier": "algorithm",
+        "query": "Create a simple VQE circuit for 2 qubits",
+        "success": false,
+        "validation_passed": false,
+        "latency": 42.62588357925415,
+        "code_quality_score": 0.9000000000000001,
+        "circuit_depth": 2,
+        "num_gates": 2,
+        "two_qubit_gates": 0,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-003",
+        "tier": "algorithm",
+        "query": "Create a simple VQE circuit for 2 qubits",
+        "success": false,
+        "validation_passed": false,
+        "latency": 94.72901797294617,
+        "code_quality_score": 0.55,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Optimization iteration 1 failed: Failed to compile code: [{'type': 'execution_error', 'message': 'Ry.__init__() takes 1 positional argument but 2 were given', 'traceback': 'Traceback (most recent call last):\\n  File \"C:\\\\Study Material\\\\FYP\\\\QCanvas-Project\\\\QCanvas\\\\Cirq-RAG-Code-Assistant\\\\src\\\\tools\\\\compiler.py\", line 217, in _execute_code\\n    exec(code, namespace)\\n  File \"<string>\", line 20, in <module>\\n  File \"<string>\", line 9, in vqe_circuit\\nTypeError: Ry.__init__() takes 1 positional argument but 2 were given\\n'}]"
+        ]
+      },
+      {
+        "id": "BM-LEGACY-003",
+        "tier": "algorithm",
+        "query": "Create a simple VQE circuit for 2 qubits",
+        "success": false,
+        "validation_passed": false,
+        "latency": 38.95587992668152,
+        "code_quality_score": 0.6500000000000001,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Optimization iteration 1 failed: Failed to compile code: [{'type': 'execution_error', 'message': 'Wrong number of qubits for <cirq.CNOT>. Expected 2 qubits but got <()>.', 'traceback': 'Traceback (most recent call last):\\n  File \"C:\\\\Study Material\\\\FYP\\\\QCanvas-Project\\\\QCanvas\\\\Cirq-RAG-Code-Assistant\\\\src\\\\tools\\\\compiler.py\", line 217, in _execute_code\\n    exec(code, namespace)\\n  File \"<string>\", line 23, in <module>\\n  File \"<string>\", line 14, in vqe_circuit\\n  File \"c:\\\\Study Material\\\\FYP\\\\QCanvas-Project\\\\QCanvas\\\\qasm_env\\\\Lib\\\\site-packages\\\\cirq\\\\ops\\\\raw_types.py\", line 369, in __call__\\n    return self.on(*qubits)\\n           ^^^^^^^^^^^^^^^^\\n  File \"c:\\\\Study Material\\\\FYP\\\\QCanvas-Project\\\\QCanvas\\\\qasm_env\\\\Lib\\\\site-packages\\\\cirq\\\\ops\\\\raw_types.py\", line 242, in on\\n    return ops.gate_operation.GateOperation(self, qubits)\\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \"c:\\\\Study Material\\\\FYP\\\\QCanvas-Project\\\\QCanvas\\\\qasm_env\\\\Lib\\\\site-packages\\\\cirq\\\\ops\\\\gate_operation.py\", line 61, in __init__\\n    gate.validate_args(qubits)\\n  File \"c:\\\\Study Material\\\\FYP\\\\QCanvas-Project\\\\QCanvas\\\\qasm_env\\\\Lib\\\\site-packages\\\\cirq\\\\ops\\\\raw_types.py\", line 231, in validate_args\\n    _validate_qid_shape(self, qubits)\\n  File \"c:\\\\Study Material\\\\FYP\\\\QCanvas-Project\\\\QCanvas\\\\qasm_env\\\\Lib\\\\site-packages\\\\cirq\\\\ops\\\\raw_types.py\", line 1068, in _validate_qid_shape\\n    raise ValueError(\\nValueError: Wrong number of qubits for <cirq.CNOT>. Expected 2 qubits but got <()>.\\n'}]"
+        ]
+      },
+      {
+        "id": "BM-LEGACY-004",
+        "tier": "algorithm",
+        "query": "Implement a 2-qubit QAOA circuit",
+        "success": false,
+        "validation_passed": false,
+        "latency": 86.52107334136963,
+        "code_quality_score": 0.9000000000000001,
+        "circuit_depth": 5,
+        "num_gates": 7,
+        "two_qubit_gates": 3,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-004",
+        "tier": "algorithm",
+        "query": "Implement a 2-qubit QAOA circuit",
+        "success": true,
+        "validation_passed": true,
+        "latency": 108.12905097007751,
+        "code_quality_score": 1.0,
+        "circuit_depth": 5,
+        "num_gates": 6,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-004",
+        "tier": "algorithm",
+        "query": "Implement a 2-qubit QAOA circuit",
+        "success": false,
+        "validation_passed": false,
+        "latency": 25.773805379867554,
+        "code_quality_score": 0.9000000000000001,
+        "circuit_depth": 2,
+        "num_gates": 2,
+        "two_qubit_gates": 0,
+        "errors": []
+      }
+    ]
+  },
+  "no_optimizer": {
+    "variant": "no_optimizer",
+    "label": "No Optimizer",
+    "total_cases": 4,
+    "success_rate": 0.25,
+    "success_rate_ci": {
+      "mean": 0.25,
+      "ci_lower": 0.08894003962896138,
+      "ci_upper": 0.53231033912066,
+      "n": 12
+    },
+    "validation_rate": 0.25,
+    "avg_latency": 92.31962702671687,
+    "latency_stats": {
+      "mean": 92.31962702671687,
+      "std": 68.31076370119528,
+      "ci_lower": 53.66917397151153,
+      "ci_upper": 130.97008008192222,
+      "n": 12
+    },
+    "code_quality_stats": {
+      "mean": 0.6625,
+      "std": 0.3213076973302015,
+      "ci_lower": 0.48070305616463516,
+      "ci_upper": 0.8442969438353648,
+      "n": 12
+    },
+    "circuit_depth_stats": {
+      "mean": 4.125,
+      "std": 2.1671244937540095,
+      "ci_lower": 2.6232593432952545,
+      "ci_upper": 5.6267406567047455,
+      "n": 8
+    },
+    "gate_count_stats": {
+      "mean": 7.625,
+      "std": 6.7810134093026875,
+      "ci_lower": 2.925997446265858,
+      "ci_upper": 12.324002553734143,
+      "n": 8
+    },
+    "two_qubit_gate_stats": {
+      "mean": 1.0,
+      "std": 1.1952286093343936,
+      "ci_lower": 0.17174883036605393,
+      "ci_upper": 1.828251169633946,
+      "n": 8
+    },
+    "avg_code_length": 449.5,
+    "details": [
+      {
+        "id": "BM-LEGACY-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": false,
+        "validation_passed": false,
+        "latency": 67.08846473693848,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: Generated code has errors: [{'type': 'syntax_error', 'message': \"Syntax error at line 2: unmatched '}'\\n  }\"}]"
+        ]
+      },
+      {
+        "id": "BM-LEGACY-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 31.155391931533813,
+        "code_quality_score": 1.0,
+        "circuit_depth": 3,
+        "num_gates": 4,
+        "two_qubit_gates": 1,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": false,
+        "validation_passed": false,
+        "latency": 87.44500923156738,
+        "code_quality_score": 0.9500000000000001,
+        "circuit_depth": 3,
+        "num_gates": 3,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-002",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm",
+        "success": true,
+        "validation_passed": true,
+        "latency": 94.23721027374268,
+        "code_quality_score": 1.0,
+        "circuit_depth": 7,
+        "num_gates": 19,
+        "two_qubit_gates": 0,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-002",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm",
+        "success": true,
+        "validation_passed": true,
+        "latency": 255.64272665977478,
+        "code_quality_score": 1.0,
+        "circuit_depth": 6,
+        "num_gates": 16,
+        "two_qubit_gates": 0,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-002",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm",
+        "success": false,
+        "validation_passed": false,
+        "latency": 73.09376859664917,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: Generated code has errors: [{'type': 'syntax_error', 'message': 'Syntax error at line 2: unmatched \\'}\\'\\n  \"display_type\": \"text\"}'}]"
+        ]
+      },
+      {
+        "id": "BM-LEGACY-003",
+        "tier": "algorithm",
+        "query": "Create a simple VQE circuit for 2 qubits",
+        "success": false,
+        "validation_passed": false,
+        "latency": 200.16739439964294,
+        "code_quality_score": 0.55,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-003",
+        "tier": "algorithm",
+        "query": "Create a simple VQE circuit for 2 qubits",
+        "success": false,
+        "validation_passed": false,
+        "latency": 93.47820258140564,
+        "code_quality_score": 0.9000000000000001,
+        "circuit_depth": 3,
+        "num_gates": 4,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-003",
+        "tier": "algorithm",
+        "query": "Create a simple VQE circuit for 2 qubits",
+        "success": false,
+        "validation_passed": false,
+        "latency": 32.37810516357422,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: Generated code has errors: [{'type': 'syntax_error', 'message': \"Syntax error at line 2: unmatched '}'\\n  }\"}]"
+        ]
+      },
+      {
+        "id": "BM-LEGACY-004",
+        "tier": "algorithm",
+        "query": "Implement a 2-qubit QAOA circuit",
+        "success": false,
+        "validation_passed": false,
+        "latency": 57.497973918914795,
+        "code_quality_score": 0.65,
+        "circuit_depth": 2,
+        "num_gates": 2,
+        "two_qubit_gates": 0,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-004",
+        "tier": "algorithm",
+        "query": "Implement a 2-qubit QAOA circuit",
+        "success": false,
+        "validation_passed": false,
+        "latency": 80.88094997406006,
+        "code_quality_score": 0.65,
+        "circuit_depth": 7,
+        "num_gates": 11,
+        "two_qubit_gates": 3,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-004",
+        "tier": "algorithm",
+        "query": "Implement a 2-qubit QAOA circuit",
+        "success": false,
+        "validation_passed": false,
+        "latency": 34.77032685279846,
+        "code_quality_score": 0.65,
+        "circuit_depth": 2,
+        "num_gates": 2,
+        "two_qubit_gates": 0,
+        "errors": []
+      }
+    ]
+  },
+  "no_final_validator": {
+    "variant": "no_final_validator",
+    "label": "No Final Validator",
+    "total_cases": 4,
+    "success_rate": 0.6666666666666666,
+    "success_rate_ci": {
+      "mean": 0.6666666666666666,
+      "ci_lower": 0.3906175873976138,
+      "ci_upper": 0.8618821601026385,
+      "n": 12
+    },
+    "validation_rate": 0.6666666666666666,
+    "avg_latency": 70.18099077542622,
+    "latency_stats": {
+      "mean": 70.18099077542622,
+      "std": 20.652217596863096,
+      "ci_lower": 58.49589865429282,
+      "ci_upper": 81.86608289655963,
+      "n": 12
+    },
+    "code_quality_stats": {
+      "mean": 0.8875000000000001,
+      "std": 0.23560849652837995,
+      "ci_lower": 0.7541919436838573,
+      "ci_upper": 1.0208080563161428,
+      "n": 12
+    },
+    "circuit_depth_stats": {
+      "mean": 4.363636363636363,
+      "std": 2.2033033051637387,
+      "ci_lower": 3.061567317213366,
+      "ci_upper": 5.665705410059361,
+      "n": 11
+    },
+    "gate_count_stats": {
+      "mean": 7.909090909090909,
+      "std": 6.106628291529549,
+      "ci_lower": 4.300304203340165,
+      "ci_upper": 11.517877614841654,
+      "n": 11
+    },
+    "two_qubit_gate_stats": {
+      "mean": 1.6363636363636365,
+      "std": 1.7477257950106058,
+      "ci_lower": 0.6035236937261348,
+      "ci_upper": 2.669203579001138,
+      "n": 11
+    },
+    "avg_code_length": 623.0833333333334,
+    "details": [
+      {
+        "id": "BM-LEGACY-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": false,
+        "validation_passed": false,
+        "latency": 41.70531511306763,
+        "code_quality_score": 0.8500000000000001,
+        "circuit_depth": 3,
+        "num_gates": 4,
+        "two_qubit_gates": 1,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": false,
+        "validation_passed": false,
+        "latency": 73.05882382392883,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: Generated code has errors: [{'type': 'syntax_error', 'message': 'Syntax error at line 1: invalid syntax\\n  ```python'}]"
+        ]
+      },
+      {
+        "id": "BM-LEGACY-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 50.73853373527527,
+        "code_quality_score": 1.0,
+        "circuit_depth": 3,
+        "num_gates": 3,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-002",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm",
+        "success": false,
+        "validation_passed": false,
+        "latency": 88.57564496994019,
+        "code_quality_score": 0.9000000000000001,
+        "circuit_depth": 2,
+        "num_gates": 2,
+        "two_qubit_gates": 0,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-002",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm",
+        "success": true,
+        "validation_passed": true,
+        "latency": 99.11430191993713,
+        "code_quality_score": 1.0,
+        "circuit_depth": 6,
+        "num_gates": 15,
+        "two_qubit_gates": 0,
+        "errors": [
+          "Optimization iteration 1 failed: Failed to compile code: [{'type': 'execution_error', 'message': \"module 'cirq' has no attribute 'ClassicalBit'\", 'traceback': 'Traceback (most recent call last):\\n  File \"C:\\\\Study Material\\\\FYP\\\\QCanvas-Project\\\\QCanvas\\\\Cirq-RAG-Code-Assistant\\\\src\\\\tools\\\\compiler.py\", line 217, in _execute_code\\n    exec(code, namespace)\\n  File \"<string>\", line 24, in <module>\\nAttributeError: module \\'cirq\\' has no attribute \\'ClassicalBit\\'\\n'}]"
+        ]
+      },
+      {
+        "id": "BM-LEGACY-002",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm",
+        "success": true,
+        "validation_passed": true,
+        "latency": 96.32075929641724,
+        "code_quality_score": 1.0,
+        "circuit_depth": 8,
+        "num_gates": 20,
+        "two_qubit_gates": 0,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-003",
+        "tier": "algorithm",
+        "query": "Create a simple VQE circuit for 2 qubits",
+        "success": true,
+        "validation_passed": true,
+        "latency": 61.31005930900574,
+        "code_quality_score": 1.0,
+        "circuit_depth": 3,
+        "num_gates": 4,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-003",
+        "tier": "algorithm",
+        "query": "Create a simple VQE circuit for 2 qubits",
+        "success": true,
+        "validation_passed": true,
+        "latency": 39.73913335800171,
+        "code_quality_score": 1.0,
+        "circuit_depth": 3,
+        "num_gates": 5,
+        "two_qubit_gates": 1,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-003",
+        "tier": "algorithm",
+        "query": "Create a simple VQE circuit for 2 qubits",
+        "success": true,
+        "validation_passed": true,
+        "latency": 59.44655203819275,
+        "code_quality_score": 1.0,
+        "circuit_depth": 3,
+        "num_gates": 4,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-004",
+        "tier": "algorithm",
+        "query": "Implement a 2-qubit QAOA circuit",
+        "success": true,
+        "validation_passed": true,
+        "latency": 75.97079682350159,
+        "code_quality_score": 1.0,
+        "circuit_depth": 8,
+        "num_gates": 15,
+        "two_qubit_gates": 6,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-004",
+        "tier": "algorithm",
+        "query": "Implement a 2-qubit QAOA circuit",
+        "success": false,
+        "validation_passed": false,
+        "latency": 64.74929642677307,
+        "code_quality_score": 0.7000000000000001,
+        "circuit_depth": 6,
+        "num_gates": 10,
+        "two_qubit_gates": 3,
+        "errors": [
+          "Optimization iteration 1 failed: Failed to compile code: []"
+        ]
+      },
+      {
+        "id": "BM-LEGACY-004",
+        "tier": "algorithm",
+        "query": "Implement a 2-qubit QAOA circuit",
+        "success": true,
+        "validation_passed": true,
+        "latency": 91.44267249107361,
+        "code_quality_score": 1.0,
+        "circuit_depth": 3,
+        "num_gates": 5,
+        "two_qubit_gates": 1,
+        "errors": []
+      }
+    ]
+  },
+  "minimal": {
+    "variant": "minimal",
+    "label": "Only Designer",
+    "total_cases": 4,
+    "success_rate": 0.3333333333333333,
+    "success_rate_ci": {
+      "mean": 0.3333333333333333,
+      "ci_lower": 0.13811783989736132,
+      "ci_upper": 0.6093824126023861,
+      "n": 12
+    },
+    "validation_rate": 0.3333333333333333,
+    "avg_latency": 21.015781104564667,
+    "latency_stats": {
+      "mean": 21.015781104564667,
+      "std": 5.609398569184241,
+      "ci_lower": 17.84196508613245,
+      "ci_upper": 24.189597122996883,
+      "n": 12
+    },
+    "code_quality_stats": {
+      "mean": 0.7791666666666667,
+      "std": 0.24537386440559095,
+      "ci_lower": 0.6403333333333333,
+      "ci_upper": 0.918,
+      "n": 12
+    },
+    "circuit_depth_stats": {
+      "mean": 4.4,
+      "std": 2.6076809620810595,
+      "ci_lower": 2.1142668572206427,
+      "ci_upper": 6.685733142779358,
+      "n": 5
+    },
+    "gate_count_stats": {
+      "mean": 6.4,
+      "std": 5.079370039680118,
+      "ci_lower": 1.947735856892586,
+      "ci_upper": 10.852264143107416,
+      "n": 5
+    },
+    "two_qubit_gate_stats": {
+      "mean": 1.2,
+      "std": 0.8366600265340756,
+      "ci_lower": 0.46663515219230756,
+      "ci_upper": 1.9333648478076924,
+      "n": 5
+    },
+    "avg_code_length": 939.0,
+    "details": [
+      {
+        "id": "BM-LEGACY-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 13.329909324645996,
+        "code_quality_score": 1.0,
+        "circuit_depth": 3,
+        "num_gates": 3,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 14.099510908126831,
+        "code_quality_score": 1.0,
+        "circuit_depth": 3,
+        "num_gates": 4,
+        "two_qubit_gates": 1,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": true,
+        "validation_passed": true,
+        "latency": 13.563282012939453,
+        "code_quality_score": 1.0,
+        "circuit_depth": 3,
+        "num_gates": 3,
+        "two_qubit_gates": 2,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-002",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm",
+        "success": true,
+        "validation_passed": true,
+        "latency": 24.242557287216187,
+        "code_quality_score": 1.0,
+        "circuit_depth": 9,
+        "num_gates": 15,
+        "two_qubit_gates": 0,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-002",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm",
+        "success": false,
+        "validation_passed": false,
+        "latency": 30.605633974075317,
+        "code_quality_score": 0.6500000000000001,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-002",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm",
+        "success": false,
+        "validation_passed": false,
+        "latency": 25.44176459312439,
+        "code_quality_score": 0.9500000000000001,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-003",
+        "tier": "algorithm",
+        "query": "Create a simple VQE circuit for 2 qubits",
+        "success": false,
+        "validation_passed": false,
+        "latency": 18.633847951889038,
+        "code_quality_score": 0.45,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-003",
+        "tier": "algorithm",
+        "query": "Create a simple VQE circuit for 2 qubits",
+        "success": false,
+        "validation_passed": false,
+        "latency": 27.757544994354248,
+        "code_quality_score": 0.9500000000000001,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-003",
+        "tier": "algorithm",
+        "query": "Create a simple VQE circuit for 2 qubits",
+        "success": false,
+        "validation_passed": false,
+        "latency": 19.526167631149292,
+        "code_quality_score": 0.45,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-004",
+        "tier": "algorithm",
+        "query": "Implement a 2-qubit QAOA circuit",
+        "success": false,
+        "validation_passed": false,
+        "latency": 21.62936234474182,
+        "code_quality_score": 0.55,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-004",
+        "tier": "algorithm",
+        "query": "Implement a 2-qubit QAOA circuit",
+        "success": false,
+        "validation_passed": false,
+        "latency": 19.795418977737427,
+        "code_quality_score": 0.45,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": []
+      },
+      {
+        "id": "BM-LEGACY-004",
+        "tier": "algorithm",
+        "query": "Implement a 2-qubit QAOA circuit",
+        "success": false,
+        "validation_passed": false,
+        "latency": 23.564373254776,
+        "code_quality_score": 0.9000000000000001,
+        "circuit_depth": 4,
+        "num_gates": 7,
+        "two_qubit_gates": 1,
+        "errors": []
+      }
+    ]
+  }
+}

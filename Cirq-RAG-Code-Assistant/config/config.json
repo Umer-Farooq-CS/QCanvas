@@ -14,12 +14,18 @@
   },
   "models": {
     "embedding": {
-      "provider": "aws",
-      "model_name": "amazon.nova-2-multimodal-embeddings-v1:0",
-      "embedding_dimension": 1024,
+      "__HELP_SWITCH__": "To switch back to AWS: set provider to 'aws', model_name to 'amazon.nova-2-multimodal-embeddings-v1:0', and embedding_dimension to 1024.",
+      "provider": "local",
+      "model_name": "BAAI/bge-base-en-v1.5",
+      "embedding_dimension": 768,
       "device": "cpu",
       "batch_size": 16,
-      "cache_folder": ".cache/embeddings"
+      "cache_folder": ".cache/embeddings",
+      "aws_backup": {
+        "provider": "aws",
+        "model_name": "amazon.nova-2-multimodal-embeddings-v1:0",
+        "embedding_dimension": 1024
+      }
     },
     "fine_tuning": {
       "use_fine_tuned_model": false,
@@ -59,9 +65,14 @@
       "enabled": true,
       "use_rag": true,
       "model": {
-        "provider": "aws",
-        "model": "anthropic.claude-sonnet-4-6",
-        "inference_profile_arn": null
+        "__HELP_SWITCH__": "To switch back to AWS: set provider to 'aws', and model to 'anthropic.claude-sonnet-4-6'.",
+        "provider": "ollama",
+        "model": "qwen2.5-coder:14b-instruct-q4_K_M",
+        "inference_profile_arn": null,
+        "aws_backup": {
+          "provider": "aws",
+          "model": "anthropic.claude-sonnet-4-6"
+        }
       }
     },
     "optimizer": {
@@ -75,11 +86,16 @@
       },
       "rl_iterations": 10,
       "model": {
-        "provider": "aws",
-        "model": "anthropic.claude-opus-4-6-v1",
+        "__HELP_SWITCH__": "To switch back to AWS: set provider to 'aws', and model to 'anthropic.claude-opus-4-6-v1'.",
+        "provider": "ollama",
+        "model": "qwen2.5-coder:14b-instruct-q4_K_M",
         "inference_profile_arn": null,
         "temperature": 0.2,
-        "max_tokens": 2000
+        "max_tokens": 2000,
+        "aws_backup": {
+          "provider": "aws",
+          "model": "anthropic.claude-opus-4-6-v1"
+        }
       }
     },
     "validator": {
@@ -90,9 +106,14 @@
       "default_shots": 1024,
       "default_backend": "cirq",
       "model": {
-        "provider": "aws",
-        "model": "anthropic.claude-sonnet-4-6",
-        "inference_profile_arn": null
+        "__HELP_SWITCH__": "To switch back to AWS: set provider to 'aws', and model to 'anthropic.claude-sonnet-4-6'.",
+        "provider": "ollama",
+        "model": "qwen2.5-coder:14b-instruct-q4_K_M",
+        "inference_profile_arn": null,
+        "aws_backup": {
+          "provider": "aws",
+          "model": "anthropic.claude-sonnet-4-6"
+        }
       }
     },
     "qcanvas": {
@@ -102,9 +123,14 @@
     "educational": {
       "enabled": true,
       "model": {
-        "provider": "aws",
-        "model": "anthropic.claude-haiku-4-5-20251001-v1:0",
-        "inference_profile_arn": null
+        "__HELP_SWITCH__": "To switch back to AWS: set provider to 'aws', and model to 'anthropic.claude-haiku-4-5-20251001-v1:0'.",
+        "provider": "ollama",
+        "model": "qwen2.5-coder:14b-instruct-q4_K_M",
+        "inference_profile_arn": null,
+        "aws_backup": {
+          "provider": "aws",
+          "model": "anthropic.claude-haiku-4-5-20251001-v1:0"
+        }
       }
     }
   },

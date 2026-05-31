@@ -8,12 +8,12 @@
     "operatingSystemFamily": "LINUX",
     "cpuArchitecture": "X86_64"
   },
-  "executionRoleArn": "arn:aws:iam::626230557862:role/cirq-agent-task-execution-role",
-  "taskRoleArn": "arn:aws:iam::626230557862:role/cirq-agent-task-role",
+  "executionRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/cirq-agent-task-execution-role",
+  "taskRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/cirq-agent-task-role",
   "containerDefinitions": [
     {
       "name": "cirq-agent",
-      "image": "626230557862.dkr.ecr.us-east-1.amazonaws.com/cirq-agent:<TAG>",
+      "image": "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/cirq-agent:<TAG>",
       "essential": true,
       "portMappings": [
         {
@@ -23,7 +23,7 @@
       ],
       "environment": [
         { "name": "ENVIRONMENT", "value": "production" },
-        { "name": "AWS_DEFAULT_REGION", "value": "us-east-1" },
+        { "name": "AWS_DEFAULT_REGION", "value": "<REGION>" },
         { "name": "CIRQ_RAG_VECTOR_STORE_TYPE", "value": "pgvector" },
         { "name": "CIRQ_RAG_RUN_HISTORY_BACKEND", "value": "redis" },
         { "name": "CIRQ_RAG_RUN_HISTORY_TTL_SECONDS", "value": "86400" },
@@ -39,31 +39,31 @@
       "secrets": [
         {
           "name": "CIRQ_RAG_DB_URL",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:626230557862:secret:cirq-agent/db-url-XXXX"
+          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:cirq-agent/db-url-XXXX"
         },
         {
           "name": "CIRQ_RAG_REDIS_URL",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:626230557862:secret:cirq-agent/redis-url-XXXX"
+          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:cirq-agent/redis-url-XXXX"
         },
         {
           "name": "CIRQ_RAG_API_KEY",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:626230557862:secret:cirq-agent/api-key-XXXX"
+          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:cirq-agent/api-key-XXXX"
         },
         {
           "name": "BEDROCK_INFERENCE_PROFILE_ARN_DESIGNER",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:626230557862:secret:cirq-agent/bedrock-designer-XXXX"
+          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:cirq-agent/bedrock-designer-XXXX"
         },
         {
           "name": "BEDROCK_INFERENCE_PROFILE_ARN_OPTIMIZER",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:626230557862:secret:cirq-agent/bedrock-optimizer-XXXX"
+          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:cirq-agent/bedrock-optimizer-XXXX"
         },
         {
           "name": "BEDROCK_INFERENCE_PROFILE_ARN_VALIDATOR",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:626230557862:secret:cirq-agent/bedrock-validator-XXXX"
+          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:cirq-agent/bedrock-validator-XXXX"
         },
         {
           "name": "BEDROCK_INFERENCE_PROFILE_ARN_EDUCATIONAL",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:626230557862:secret:cirq-agent/bedrock-educational-XXXX"
+          "valueFrom": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:cirq-agent/bedrock-educational-XXXX"
         }
       ],
       "healthCheck": {
@@ -80,7 +80,7 @@
         "logDriver": "awslogs",
         "options": {
           "awslogs-group": "/ecs/cirq-agent",
-          "awslogs-region": "us-east-1",
+          "awslogs-region": "<REGION>",
           "awslogs-stream-prefix": "cirq-agent",
           "awslogs-create-group": "true"
         }

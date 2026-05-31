@@ -342,3 +342,4 @@ tmp/
 backend/app/cache/
 backend/app/temp/
 frontend/.next/
+qcanvas_prod_backup.sql

@@ -250,233 +250,213 @@
     "variant": "full",
     "label": "Full System",
     "total_cases": 5,
-    "success_rate": 0.9333333333333333,
+    "success_rate": 0.0,
     "success_rate_ci": {
-      "mean": 0.9333333333333333,
-      "ci_lower": 0.70182922447576,
-      "ci_upper": 0.9881334113938052,
+      "mean": 0.0,
+      "ci_lower": 0.0,
+      "ci_upper": 0.20388926630434784,
       "n": 15
     },
-    "validation_rate": 0.9333333333333333,
-    "avg_latency": 68.73482929865519,
+    "validation_rate": 0.0,
+    "avg_latency": 7.653511031468709,
     "latency_stats": {
-      "mean": 68.73482929865519,
-      "std": 73.26492018582454,
-      "ci_lower": 31.657664041842416,
-      "ci_upper": 105.81199455546795,
+      "mean": 7.653511031468709,
+      "std": 1.096579329428498,
+      "ci_lower": 7.098565323327585,
+      "ci_upper": 8.208456739609833,
       "n": 15
     },
     "code_quality_stats": {
-      "mean": 0.9766666666666667,
-      "std": 0.09036961141150636,
-      "ci_lower": 0.9309333333333334,
-      "ci_upper": 1.0224,
+      "mean": 0.2,
+      "std": 0.0,
+      "ci_lower": 0.2,
+      "ci_upper": 0.2,
       "n": 15
     },
-    "circuit_depth_stats": {
-      "mean": 16.214285714285715,
-      "std": 10.735839126879732,
-      "ci_lower": 10.59050926616284,
-      "ci_upper": 21.83806216240859,
-      "n": 14
-    },
-    "gate_count_stats": {
-      "mean": 26.071428571428573,
-      "std": 16.035845835139213,
-      "ci_lower": 17.671338828318227,
-      "ci_upper": 34.47151831453892,
-      "n": 14
-    },
-    "two_qubit_gate_stats": {
-      "mean": 4.785714285714286,
-      "std": 4.154304004071171,
-      "ci_lower": 2.6095567687910415,
-      "ci_upper": 6.96187180263753,
-      "n": 14
-    },
-    "avg_code_length": 2521.266666666667,
+    "circuit_depth_stats": {},
+    "gate_count_stats": {},
+    "two_qubit_gate_stats": {},
+    "avg_code_length": 0.0,
     "details": [
       {
         "id": "BM-016",
         "tier": "advanced",
         "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 36.521992683410645,
-        "code_quality_score": 1.0,
-        "circuit_depth": 32,
-        "num_gates": 51,
-        "two_qubit_gates": 15,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 9.170724868774414,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-016",
         "tier": "advanced",
         "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 40.421062707901,
-        "code_quality_score": 1.0,
-        "circuit_depth": 23,
-        "num_gates": 35,
-        "two_qubit_gates": 8,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 7.487857818603516,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-016",
         "tier": "advanced",
         "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 29.774845123291016,
-        "code_quality_score": 1.0,
-        "circuit_depth": 30,
-        "num_gates": 52,
-        "two_qubit_gates": 8,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 7.730379343032837,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-011",
         "tier": "algorithm",
         "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 229.69307279586792,
-        "code_quality_score": 1.0,
-        "circuit_depth": 10,
-        "num_gates": 23,
-        "two_qubit_gates": 6,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 5.213964939117432,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-011",
         "tier": "algorithm",
         "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 198.01835918426514,
-        "code_quality_score": 1.0,
-        "circuit_depth": 7,
-        "num_gates": 15,
-        "two_qubit_gates": 6,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 6.622010946273804,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-011",
         "tier": "algorithm",
         "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 186.91896557807922,
-        "code_quality_score": 1.0,
-        "circuit_depth": 9,
-        "num_gates": 23,
-        "two_qubit_gates": 6,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 6.341035842895508,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-001",
         "tier": "basic",
         "query": "Create a 2-qubit Bell state circuit with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 13.21774673461914,
-        "code_quality_score": 1.0,
-        "circuit_depth": 3,
-        "num_gates": 3,
-        "two_qubit_gates": 2,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 8.352912425994873,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-001",
         "tier": "basic",
         "query": "Create a 2-qubit Bell state circuit with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 13.252516508102417,
-        "code_quality_score": 1.0,
-        "circuit_depth": 3,
-        "num_gates": 3,
-        "two_qubit_gates": 2,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 8.034065008163452,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-001",
         "tier": "basic",
         "query": "Create a 2-qubit Bell state circuit with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 13.365051031112671,
-        "code_quality_score": 1.0,
-        "circuit_depth": 3,
-        "num_gates": 3,
-        "two_qubit_gates": 2,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 8.388254404067993,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-006",
         "tier": "intermediate",
         "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
-        "success": true,
-        "validation_passed": true,
-        "latency": 39.87533164024353,
-        "code_quality_score": 1.0,
-        "circuit_depth": 14,
-        "num_gates": 25,
-        "two_qubit_gates": 0,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 6.556433439254761,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-006",
         "tier": "intermediate",
         "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
-        "success": true,
-        "validation_passed": true,
-        "latency": 33.81466197967529,
-        "code_quality_score": 1.0,
-        "circuit_depth": 18,
-        "num_gates": 36,
-        "two_qubit_gates": 0,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 7.280401706695557,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-006",
         "tier": "intermediate",
         "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
-        "success": true,
-        "validation_passed": true,
-        "latency": 41.26069927215576,
-        "code_quality_score": 1.0,
-        "circuit_depth": 18,
-        "num_gates": 36,
-        "two_qubit_gates": 0,
-        "errors": []
-      },
-      {
-        "id": "BM-017",
-        "tier": "advanced",
-        "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 30.893141746520996,
-        "code_quality_score": 1.0,
-        "circuit_depth": 29,
-        "num_gates": 31,
-        "two_qubit_gates": 6,
-        "errors": []
-      },
-      {
-        "id": "BM-017",
-        "tier": "advanced",
-        "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 33.31085705757141,
-        "code_quality_score": 1.0,
-        "circuit_depth": 28,
-        "num_gates": 29,
-        "two_qubit_gates": 6,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 7.689148426055908,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-017",
@@ -484,13 +464,43 @@
         "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
         "success": false,
         "validation_passed": false,
-        "latency": 90.68413543701172,
-        "code_quality_score": 0.6500000000000001,
+        "latency": 8.744071960449219,
+        "code_quality_score": 0.2,
         "circuit_depth": null,
         "num_gates": null,
         "two_qubit_gates": null,
         "errors": [
-          "Optimization iteration 1 failed: Failed to compile code: [{'type': 'execution_error', 'message': \"'int' object is not subscriptable\", 'traceback': 'Traceback (most recent call last):\\n  File \"D:\\\\Study Material\\\\FYP\\\\Practice\\\\Test8\\\\QCanvas\\\\Cirq-RAG-Code-Assistant\\\\src\\\\tools\\\\compiler.py\", line 217, in _execute_code\\n    exec(code, namespace)\\n    ~~~~^^^^^^^^^^^^^^^^^\\n  File \"<string>\", line 64, in <module>\\nTypeError: \\'int\\' object is not subscriptable\\n'}]"
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
+      },
+      {
+        "id": "BM-017",
+        "tier": "advanced",
+        "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
+        "success": false,
+        "validation_passed": false,
+        "latency": 8.96912431716919,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
+      },
+      {
+        "id": "BM-017",
+        "tier": "advanced",
+        "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
+        "success": false,
+        "validation_passed": false,
+        "latency": 8.222280025482178,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
         ]
       }
     ]
@@ -499,181 +509,168 @@
     "variant": "no_rag",
     "label": "No RAG",
     "total_cases": 5,
-    "success_rate": 0.9333333333333333,
+    "success_rate": 0.0,
     "success_rate_ci": {
-      "mean": 0.9333333333333333,
-      "ci_lower": 0.70182922447576,
-      "ci_upper": 0.9881334113938052,
+      "mean": 0.0,
+      "ci_lower": 0.0,
+      "ci_upper": 0.20388926630434784,
       "n": 15
     },
-    "validation_rate": 0.9333333333333333,
-    "avg_latency": 71.38111729621887,
+    "validation_rate": 0.0,
+    "avg_latency": 7.482754755020141,
     "latency_stats": {
-      "mean": 71.38111729621887,
-      "std": 71.9852359550366,
-      "ci_lower": 34.951561612734245,
-      "ci_upper": 107.8106729797035,
+      "mean": 7.482754755020141,
+      "std": 0.6191601578447495,
+      "ci_lower": 7.169416482971006,
+      "ci_upper": 7.7960930270692765,
       "n": 15
     },
     "code_quality_stats": {
-      "mean": 0.9766666666666667,
-      "std": 0.09036961141150636,
-      "ci_lower": 0.9309333333333334,
-      "ci_upper": 1.0224,
+      "mean": 0.2,
+      "std": 0.0,
+      "ci_lower": 0.2,
+      "ci_upper": 0.2,
       "n": 15
     },
-    "circuit_depth_stats": {
-      "mean": 16.4,
-      "std": 15.846585932442538,
-      "ci_lower": 8.380521047682295,
-      "ci_upper": 24.419478952317704,
-      "n": 15
-    },
-    "gate_count_stats": {
-      "mean": 25.933333333333334,
-      "std": 26.89786679451064,
-      "ci_lower": 12.321134621230364,
-      "ci_upper": 39.5455320454363,
-      "n": 15
-    },
-    "two_qubit_gate_stats": {
-      "mean": 6.333333333333333,
-      "std": 7.603257447273754,
-      "ci_lower": 2.4855541758914144,
-      "ci_upper": 10.181112490775252,
-      "n": 15
-    },
-    "avg_code_length": 2659.5333333333333,
+    "circuit_depth_stats": {},
+    "gate_count_stats": {},
+    "two_qubit_gate_stats": {},
+    "avg_code_length": 0.0,
     "details": [
       {
         "id": "BM-016",
         "tier": "advanced",
         "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 27.993037700653076,
-        "code_quality_score": 1.0,
-        "circuit_depth": 12,
-        "num_gates": 18,
-        "two_qubit_gates": 5,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 7.071203708648682,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-016",
         "tier": "advanced",
         "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 33.16098213195801,
-        "code_quality_score": 1.0,
-        "circuit_depth": 20,
-        "num_gates": 25,
-        "two_qubit_gates": 9,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 8.619814157485962,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-016",
         "tier": "advanced",
         "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 52.64439105987549,
-        "code_quality_score": 1.0,
-        "circuit_depth": 14,
-        "num_gates": 24,
-        "two_qubit_gates": 8,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 7.66992974281311,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-011",
         "tier": "algorithm",
         "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 199.41812205314636,
-        "code_quality_score": 1.0,
-        "circuit_depth": 9,
-        "num_gates": 19,
-        "two_qubit_gates": 6,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 8.20003890991211,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-011",
         "tier": "algorithm",
         "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 200.31356739997864,
-        "code_quality_score": 1.0,
-        "circuit_depth": 6,
-        "num_gates": 14,
-        "two_qubit_gates": 5,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 7.127516984939575,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-011",
         "tier": "algorithm",
         "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 218.78359270095825,
-        "code_quality_score": 1.0,
-        "circuit_depth": 9,
-        "num_gates": 15,
-        "two_qubit_gates": 6,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 8.1000497341156,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-001",
         "tier": "basic",
         "query": "Create a 2-qubit Bell state circuit with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 12.979204893112183,
-        "code_quality_score": 1.0,
-        "circuit_depth": 3,
-        "num_gates": 3,
-        "two_qubit_gates": 2,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 7.1846959590911865,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-001",
         "tier": "basic",
         "query": "Create a 2-qubit Bell state circuit with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 12.490406036376953,
-        "code_quality_score": 1.0,
-        "circuit_depth": 3,
-        "num_gates": 3,
-        "two_qubit_gates": 2,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 7.3386595249176025,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-001",
         "tier": "basic",
         "query": "Create a 2-qubit Bell state circuit with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 12.35843563079834,
-        "code_quality_score": 1.0,
-        "circuit_depth": 3,
-        "num_gates": 3,
-        "two_qubit_gates": 2,
-        "errors": []
-      },
-      {
-        "id": "BM-006",
-        "tier": "intermediate",
-        "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
-        "success": true,
-        "validation_passed": true,
-        "latency": 38.18517875671387,
-        "code_quality_score": 1.0,
-        "circuit_depth": 18,
-        "num_gates": 36,
-        "two_qubit_gates": 0,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 7.605500221252441,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-006",
@@ -681,64 +678,89 @@
         "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
         "success": false,
         "validation_passed": false,
-        "latency": 63.78879737854004,
-        "code_quality_score": 0.6500000000000001,
-        "circuit_depth": 18,
-        "num_gates": 36,
-        "two_qubit_gates": 0,
-        "errors": []
+        "latency": 7.515644788742065,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-006",
         "tier": "intermediate",
         "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
-        "success": true,
-        "validation_passed": true,
-        "latency": 70.8003761768341,
-        "code_quality_score": 1.0,
-        "circuit_depth": 66,
-        "num_gates": 115,
-        "two_qubit_gates": 32,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 6.75301456451416,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
+      },
+      {
+        "id": "BM-006",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
+        "success": false,
+        "validation_passed": false,
+        "latency": 8.487826347351074,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-017",
         "tier": "advanced",
         "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 41.658472299575806,
-        "code_quality_score": 1.0,
-        "circuit_depth": 11,
-        "num_gates": 21,
-        "two_qubit_gates": 6,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 6.8705878257751465,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-017",
         "tier": "advanced",
         "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 50.087202072143555,
-        "code_quality_score": 1.0,
-        "circuit_depth": 26,
-        "num_gates": 28,
-        "two_qubit_gates": 6,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 6.845060348510742,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-017",
         "tier": "advanced",
         "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 36.05499315261841,
-        "code_quality_score": 1.0,
-        "circuit_depth": 28,
-        "num_gates": 29,
-        "two_qubit_gates": 6,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 6.851778507232666,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       }
     ]
   },
@@ -746,248 +768,258 @@
     "variant": "no_validator",
     "label": "No Validator",
     "total_cases": 5,
-    "success_rate": 0.8666666666666667,
+    "success_rate": 0.0,
     "success_rate_ci": {
-      "mean": 0.8666666666666667,
-      "ci_lower": 0.6211750079348376,
-      "ci_upper": 0.9626395301086407,
+      "mean": 0.0,
+      "ci_lower": 0.0,
+      "ci_upper": 0.20388926630434784,
       "n": 15
     },
-    "validation_rate": 0.8666666666666667,
-    "avg_latency": 71.83590146700541,
+    "validation_rate": 0.0,
+    "avg_latency": 1.601276445388794,
     "latency_stats": {
-      "mean": 71.83590146700541,
-      "std": 42.80669604775707,
-      "ci_lower": 50.172724336186285,
-      "ci_upper": 93.49907859782454,
+      "mean": 1.601276445388794,
+      "std": 1.1073193335922402,
+      "ci_lower": 1.0408955452317916,
+      "ci_upper": 2.1616573455457964,
       "n": 15
     },
     "code_quality_stats": {
-      "mean": 0.8866666666666667,
-      "std": 0.2996823715361379,
-      "ci_lower": 0.7350064616761097,
-      "ci_upper": 1.0383268716572238,
+      "mean": 0.2,
+      "std": 0.0,
+      "ci_lower": 0.2,
+      "ci_upper": 0.2,
       "n": 15
     },
-    "circuit_depth_stats": {
-      "mean": 28.46153846153846,
-      "std": 54.311778011488734,
-      "ci_lower": -1.0626803803691516,
-      "ci_upper": 57.98575730344607,
-      "n": 13
-    },
-    "gate_count_stats": {
-      "mean": 47.53846153846154,
-      "std": 97.10871518098962,
-      "ci_lower": -5.250437360291798,
-      "ci_upper": 100.32736043721488,
-      "n": 13
-    },
-    "two_qubit_gate_stats": {
-      "mean": 12.615384615384615,
-      "std": 27.19539930925346,
-      "ci_lower": -2.168202851216412,
-      "ci_upper": 27.39897208198564,
-      "n": 13
-    },
-    "avg_code_length": 2673.5333333333333,
+    "circuit_depth_stats": {},
+    "gate_count_stats": {},
+    "two_qubit_gate_stats": {},
+    "avg_code_length": 0.0,
     "details": [
       {
         "id": "BM-016",
         "tier": "advanced",
         "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 64.74586296081543,
-        "code_quality_score": 1.0,
-        "circuit_depth": 15,
-        "num_gates": 27,
-        "two_qubit_gates": 8,
-        "errors": []
-      },
-      {
-        "id": "BM-016",
-        "tier": "advanced",
-        "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 74.31448364257812,
-        "code_quality_score": 1.0,
-        "circuit_depth": 37,
-        "num_gates": 39,
-        "two_qubit_gates": 16,
-        "errors": []
-      },
-      {
-        "id": "BM-016",
-        "tier": "advanced",
-        "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 80.45628237724304,
-        "code_quality_score": 1.0,
-        "circuit_depth": 22,
-        "num_gates": 34,
-        "two_qubit_gates": 8,
-        "errors": []
-      },
-      {
-        "id": "BM-011",
-        "tier": "algorithm",
-        "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 72.85315108299255,
-        "code_quality_score": 1.0,
-        "circuit_depth": 7,
-        "num_gates": 15,
-        "two_qubit_gates": 6,
-        "errors": []
-      },
-      {
-        "id": "BM-011",
-        "tier": "algorithm",
-        "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 57.83936429023743,
-        "code_quality_score": 1.0,
-        "circuit_depth": 7,
-        "num_gates": 15,
-        "two_qubit_gates": 6,
-        "errors": []
-      },
-      {
-        "id": "BM-011",
-        "tier": "algorithm",
-        "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 72.3881151676178,
-        "code_quality_score": 1.0,
-        "circuit_depth": 8,
-        "num_gates": 19,
-        "two_qubit_gates": 6,
-        "errors": []
-      },
-      {
-        "id": "BM-001",
-        "tier": "basic",
-        "query": "Create a 2-qubit Bell state circuit with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 19.205209255218506,
-        "code_quality_score": 1.0,
-        "circuit_depth": 3,
-        "num_gates": 3,
-        "two_qubit_gates": 2,
-        "errors": []
-      },
-      {
-        "id": "BM-001",
-        "tier": "basic",
-        "query": "Create a 2-qubit Bell state circuit with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 18.111356258392334,
-        "code_quality_score": 1.0,
-        "circuit_depth": 3,
-        "num_gates": 3,
-        "two_qubit_gates": 2,
-        "errors": []
-      },
-      {
-        "id": "BM-001",
-        "tier": "basic",
-        "query": "Create a 2-qubit Bell state circuit with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 17.804001331329346,
-        "code_quality_score": 1.0,
-        "circuit_depth": 3,
-        "num_gates": 3,
-        "two_qubit_gates": 2,
-        "errors": []
-      },
-      {
-        "id": "BM-006",
-        "tier": "intermediate",
-        "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
         "success": false,
         "validation_passed": false,
-        "latency": 90.92557406425476,
-        "code_quality_score": 0.1,
-        "circuit_depth": null,
-        "num_gates": null,
-        "two_qubit_gates": null,
-        "errors": []
-      },
-      {
-        "id": "BM-006",
-        "tier": "intermediate",
-        "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
-        "success": true,
-        "validation_passed": true,
-        "latency": 194.13564038276672,
-        "code_quality_score": 1.0,
-        "circuit_depth": 15,
-        "num_gates": 30,
-        "two_qubit_gates": 0,
-        "errors": []
-      },
-      {
-        "id": "BM-006",
-        "tier": "intermediate",
-        "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
-        "success": true,
-        "validation_passed": true,
-        "latency": 103.1320731639862,
-        "code_quality_score": 1.0,
-        "circuit_depth": 18,
-        "num_gates": 36,
-        "two_qubit_gates": 0,
-        "errors": []
-      },
-      {
-        "id": "BM-017",
-        "tier": "advanced",
-        "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
-        "success": false,
-        "validation_passed": false,
-        "latency": 53.601630210876465,
+        "latency": 5.03170919418335,
         "code_quality_score": 0.2,
         "circuit_depth": null,
         "num_gates": null,
         "two_qubit_gates": null,
         "errors": [
-          "Optimization iteration 2 failed: Failed to compile code: [{'type': 'syntax_error', 'message': 'Syntax error at line 1: unterminated string literal (detected at line 1); perhaps you escaped the end quote?\\n  \"code\": \"import cirq\\\\nimport numpy as np\\\\n\\\\n# Qubits: 1 coin qubit + 3 position qubits (encoding positions 0-7 on a line)\\\\ncoin = cirq.LineQubit(0)\\\\npos = cirq.LineQubit.range(1, 4)  # pos[0]=MSB, pos[2]=LSB\\\\n\\\\ndef coin_op():\\\\n    \\\\\"\\\\\"\\\\\"Hadamard coin flip.\\\\\"\\\\\"\\\\\"\\\\n    return cirq.H(coin)\\\\n\\\\ndef shift_op():\\\\n    \\\\\"\\\\\"\\\\\"Conditional shift: if coin=|1>, increment position; if coin=|0>, decrement.\\\\\"\\\\\"\\\\\"\\\\n    ops = []\\\\n    # Increment position (coin=|1>): controlled ripple-carry add +1\\\\n    # pos encodes binary: pos[0] is MSB, pos[2] is LSB\\\\n    # Increment: flip LSB; if LSB was 1, flip middle; if LSB&middle were 1, flip MSB\\\\n    ops.append(cirq.CCX(coin, pos[1], pos[0]))  # carry into MSB\\\\n    ops.append(cirq.CCX(coin, pos[2], pos[1]))  # carry into middle\\\\n    ops.append(cirq.CNOT(coin, pos[2]))          # flip LSB\\\\n\\\\n    # Decrement position (coin=|0>): use X on coin to condition on |0>, then add +1 (same as -1)\\\\n    ops.append(cirq.X(coin))                     # flip coin to condition on original |0>\\\\n    ops.append(cirq.CCX(coin, pos[1], pos[0]))\\\\n    ops.append(cirq.CCX(coin, pos[2], pos[1]))\\\\n    ops.append(cirq.CNOT(coin, pos[2]))\\\\n    ops.append(cirq.X(coin))                     # restore coin\\\\n    return ops\\\\n\\\\n# Build the quantum walk circuit with T steps\\\\nT = 3  # number of walk steps\\\\n\\\\ncircuit = cirq.Circuit()\\\\n\\\\n# Initialize walker at position 4 (binary 100) = center of 0-7 line\\\\ncircuit.append(cirq.X(pos[0]))  # set position to |100> = 4\\\\n\\\\n# Initialize coin in superposition\\\\ncircuit.append(cirq.H(coin))\\\\n\\\\n# Apply T steps of quantum walk\\\\nfor step in range(T):\\\\n    circuit.append(coin_op())       # coin flip\\\\n    circuit.append(shift_op())      # conditional shift\\\\n\\\\n# Measure all qubits\\\\ncircuit.append(cirq.measure(coin, *pos, key=\\'result\\'))\\\\n\\\\n# Optimize: use Cirq\\'s built-in optimizers to reduce depth and gate count\\\\n# Drop empty moments, merge single-qubit gates, and eject phased paulis\\\\ncirq.DropEmptyMoments().optimize_circuit(circuit)\\\\ncirq.DropNegligible().optimize_circuit(circuit)\\\\n\\\\n# Cancel adjacent X gates (X followed by X = identity)\\\\n# Between steps, the pattern X(coin)...X(coin) at end of one shift and\\\\n# no X at start of next shift doesn\\'t cancel, but within a step the\\\\n# two X gates on coin bracket the decrement. However, between consecutive\\\\n# steps, the X(coin) at end of shift_op step k and nothing at start of\\\\n# shift_op step k+1 don\\'t cancel. Let\\'s use a smarter approach:\\\\n\\\\n# Rebuild with optimized shift that merges the two CNOT(coin, pos[2]) gates\\\\n# In the original: CNOT(coin, pos[2]) then X(coin) then ... then CNOT(coin, pos[2]) then X(coin)\\\\n# The two CNOT(coin,pos[2]) with X(coin) between them: \\\\n# After increment\\'s CNOT(coin,pos[2]): pos[2] ^= coin\\\\n# Then X(coin): coin flips\\\\n# Then decrement\\'s CNOT(coin,pos[2]): pos[2] ^= coin (now flipped)\\\\n# Net effect on pos[2]: pos[2] ^= coin XOR (NOT coin) = pos[2] ^= 1, i.e., X(pos[2])\\\\n# This means we can replace the two CNOTs and the X(coin) between with X(pos[2])!\\\\n\\\\ndef optimized_shift_op():\\\\n    \\\\\"\\\\\"\\\\\"Optimized conditional shift merging increment and decrement logic.\\\\\"\\\\\"\\\\\"\\\\n    ops = []\\\\n    # Increment position (coin=|1>): carry chain\\\\n    ops.append(cirq.CCX(coin, pos[1], pos[0]))  # carry into MSB\\\\n    ops.append(cirq.CCX(coin, pos[2], pos[1]))  # carry into middle\\\\n    \\\\n    # Merged: CNOT(coin,pos[2]) + X(coin) + ... + CNOT(coin,pos[2]) + X(coin)\\\\n    # The two CNOTs with X(coin) in between = X(pos[2]), and we still need the\\\\n    # decrement carries and the final X(coin) restoration.\\\\n    # \\\\n    # Let\\'s be more careful:\\\\n    # Original sequence after the two increment carries:\\\\n    #   CNOT(coin, pos[2])   -- (A)\\\\n    #   X(coin)              -- (B)\\\\n    #   CCX(coin, pos[1], pos[0])  -- (C)\\\\n    #   CCX(coin, pos[2], pos[1])  -- (D)\\\\n    #   CNOT(coin, pos[2])   -- (E)\\\\n    #   X(coin)              -- (F)\\\\n    #\\\\n    # After (A): pos[2] ^= coin\\\\n    # After (B): coin\\' = NOT coin\\\\n    # (C) and (D) use coin\\' = NOT coin (i.e., condition on original |0>)\\\\n    # After (E): pos[2] ^= coin\\' = pos[2] ^= (NOT coin)\\\\n    #   Combined (A)+(E) on pos[2]: pos[2] ^= coin XOR (NOT coin) = pos[2] ^= 1 = X(pos[2])\\\\n    #   But (C) and (D) happen between (A) and (E), and they use pos[1] and pos[2]\\\\n    #   So we can\\'t simply merge (A) and (E) without considering (C) and (D) use pos[2]\\\\n    #\\\\n    # Actually (D) uses pos[2] as control AFTER (A) modified it. So we can\\'t trivially merge.\\\\n    # Let\\'s just use the cirq optimizer instead.\\\\n    \\\\n    ops.append(cirq.CNOT(coin, pos[2]))          # flip LSB\\\\n    ops.append(cirq.X(coin))                     # flip coin to condition on original |0>\\\\n    ops.append(cirq.CCX(coin, pos[1], pos[0]))\\\\n    ops.append(cirq.CCX(coin, pos[2], pos[1]))\\\\n    ops.append(cirq.CNOT(coin, pos[2]))\\\\n    ops.append(cirq.X(coin))                     # restore coin\\\\n    return ops\\\\n\\\\n# Rebuild circuit with optimization: merge adjacent X(coin) gates between steps\\\\n# At end of shift_op: X(coin) restores coin\\\\n# At start of next step: H(coin) is applied\\\\n# Between steps there\\'s no cancellation of X gates.\\\\n# But within a step, the structure is fixed.\\\\n\\\\n# Better approach: use cirq\\'s built-in circuit optimization\\\\ncircuit_opt = cirq.Circuit()\\\\n\\\\n# Initialize walker at position 4 (binary 100) = center of 0-7 line\\\\ncircuit_opt.append(cirq.X(pos[0]))  # set position to |100> = 4\\\\n\\\\n# Initialize coin in superposition\\\\ncirc'}]"
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
+      },
+      {
+        "id": "BM-016",
+        "tier": "advanced",
+        "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
+        "success": false,
+        "validation_passed": false,
+        "latency": 3.409727096557617,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
+      },
+      {
+        "id": "BM-016",
+        "tier": "advanced",
+        "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.1858971118927002,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
+      },
+      {
+        "id": "BM-011",
+        "tier": "algorithm",
+        "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.2213070392608643,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
+      },
+      {
+        "id": "BM-011",
+        "tier": "algorithm",
+        "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.1919920444488525,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
+      },
+      {
+        "id": "BM-011",
+        "tier": "algorithm",
+        "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.2434935569763184,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
+      },
+      {
+        "id": "BM-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.2179627418518066,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
+      },
+      {
+        "id": "BM-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.1892070770263672,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
+      },
+      {
+        "id": "BM-001",
+        "tier": "basic",
+        "query": "Create a 2-qubit Bell state circuit with measurement",
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.1362452507019043,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
+      },
+      {
+        "id": "BM-006",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.1484172344207764,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
+      },
+      {
+        "id": "BM-006",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.2259531021118164,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
+      },
+      {
+        "id": "BM-006",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.1967880725860596,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
         ]
       },
       {
         "id": "BM-017",
         "tier": "advanced",
         "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 81.60688185691833,
-        "code_quality_score": 1.0,
-        "circuit_depth": 26,
-        "num_gates": 26,
-        "two_qubit_gates": 6,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.2038283348083496,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-017",
         "tier": "advanced",
         "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 76.41889595985413,
-        "code_quality_score": 1.0,
-        "circuit_depth": 206,
-        "num_gates": 368,
-        "two_qubit_gates": 102,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.1534087657928467,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
+      },
+      {
+        "id": "BM-017",
+        "tier": "advanced",
+        "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.2632100582122803,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       }
     ]
   },
@@ -995,246 +1027,258 @@
     "variant": "no_optimizer",
     "label": "No Optimizer",
     "total_cases": 5,
-    "success_rate": 1.0,
+    "success_rate": 0.0,
     "success_rate_ci": {
-      "mean": 1.0,
-      "ci_lower": 0.7961107336956521,
-      "ci_upper": 1.0,
+      "mean": 0.0,
+      "ci_lower": 0.0,
+      "ci_upper": 0.20388926630434784,
       "n": 15
     },
-    "validation_rate": 1.0,
-    "avg_latency": 28.66178558667501,
+    "validation_rate": 0.0,
+    "avg_latency": 1.1862995306650796,
     "latency_stats": {
-      "mean": 28.66178558667501,
-      "std": 29.05604413978709,
-      "ci_lower": 13.957398445493443,
-      "ci_upper": 43.36617272785658,
+      "mean": 1.1862995306650796,
+      "std": 0.05478459391614921,
+      "ci_lower": 1.158574700869258,
+      "ci_upper": 1.2140243604609013,
       "n": 15
     },
     "code_quality_stats": {
-      "mean": 1.0,
+      "mean": 0.2,
       "std": 0.0,
-      "ci_lower": 1.0,
-      "ci_upper": 1.0,
+      "ci_lower": 0.2,
+      "ci_upper": 0.2,
       "n": 15
     },
-    "circuit_depth_stats": {
-      "mean": 17.466666666666665,
-      "std": 10.602335771400744,
-      "ci_lower": 12.10114446985819,
-      "ci_upper": 22.83218886347514,
-      "n": 15
-    },
-    "gate_count_stats": {
-      "mean": 27.866666666666667,
-      "std": 15.597008260133308,
-      "ci_lower": 19.973491443024972,
-      "ci_upper": 35.75984189030836,
-      "n": 15
-    },
-    "two_qubit_gate_stats": {
-      "mean": 4.4,
-      "std": 3.6994208040873486,
-      "ci_lower": 2.5278347651271096,
-      "ci_upper": 6.272165234872891,
-      "n": 15
-    },
-    "avg_code_length": 1746.0666666666666,
+    "circuit_depth_stats": {},
+    "gate_count_stats": {},
+    "two_qubit_gate_stats": {},
+    "avg_code_length": 0.0,
     "details": [
       {
         "id": "BM-016",
         "tier": "advanced",
         "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 13.862623691558838,
-        "code_quality_score": 1.0,
-        "circuit_depth": 22,
-        "num_gates": 48,
-        "two_qubit_gates": 8,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.1871869564056396,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-016",
         "tier": "advanced",
         "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 16.984729051589966,
-        "code_quality_score": 1.0,
-        "circuit_depth": 29,
-        "num_gates": 40,
-        "two_qubit_gates": 10,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.2067766189575195,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-016",
         "tier": "advanced",
         "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 14.399892330169678,
-        "code_quality_score": 1.0,
-        "circuit_depth": 28,
-        "num_gates": 41,
-        "two_qubit_gates": 12,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.25193452835083,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-011",
         "tier": "algorithm",
         "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 84.4925765991211,
-        "code_quality_score": 1.0,
-        "circuit_depth": 7,
-        "num_gates": 20,
-        "two_qubit_gates": 3,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.1870200634002686,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-011",
         "tier": "algorithm",
         "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 79.48182368278503,
-        "code_quality_score": 1.0,
-        "circuit_depth": 11,
-        "num_gates": 23,
-        "two_qubit_gates": 6,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.2869441509246826,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-011",
         "tier": "algorithm",
         "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 88.49543237686157,
-        "code_quality_score": 1.0,
-        "circuit_depth": 7,
-        "num_gates": 20,
-        "two_qubit_gates": 3,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.2773056030273438,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-001",
         "tier": "basic",
         "query": "Create a 2-qubit Bell state circuit with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 8.573864698410034,
-        "code_quality_score": 1.0,
-        "circuit_depth": 3,
-        "num_gates": 3,
-        "two_qubit_gates": 2,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.166490077972412,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-001",
         "tier": "basic",
         "query": "Create a 2-qubit Bell state circuit with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 7.251208543777466,
-        "code_quality_score": 1.0,
-        "circuit_depth": 3,
-        "num_gates": 3,
-        "two_qubit_gates": 2,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.1609055995941162,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-001",
         "tier": "basic",
         "query": "Create a 2-qubit Bell state circuit with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 7.697259187698364,
-        "code_quality_score": 1.0,
-        "circuit_depth": 3,
-        "num_gates": 3,
-        "two_qubit_gates": 2,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.1672992706298828,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-006",
         "tier": "intermediate",
         "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
-        "success": true,
-        "validation_passed": true,
-        "latency": 20.193092107772827,
-        "code_quality_score": 1.0,
-        "circuit_depth": 22,
-        "num_gates": 44,
-        "two_qubit_gates": 0,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.1777458190917969,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-006",
         "tier": "intermediate",
         "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
-        "success": true,
-        "validation_passed": true,
-        "latency": 16.672558546066284,
-        "code_quality_score": 1.0,
-        "circuit_depth": 19,
-        "num_gates": 40,
-        "two_qubit_gates": 0,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.175490379333496,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-006",
         "tier": "intermediate",
         "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
-        "success": true,
-        "validation_passed": true,
-        "latency": 17.789618015289307,
-        "code_quality_score": 1.0,
-        "circuit_depth": 22,
-        "num_gates": 44,
-        "two_qubit_gates": 0,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.20817232131958,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-017",
         "tier": "advanced",
         "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 19.92448329925537,
-        "code_quality_score": 1.0,
-        "circuit_depth": 28,
-        "num_gates": 29,
-        "two_qubit_gates": 6,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.088754653930664,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-017",
         "tier": "advanced",
         "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 16.956658840179443,
-        "code_quality_score": 1.0,
-        "circuit_depth": 29,
-        "num_gates": 30,
-        "two_qubit_gates": 6,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.1198561191558838,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-017",
         "tier": "advanced",
         "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 17.150962829589844,
-        "code_quality_score": 1.0,
-        "circuit_depth": 29,
-        "num_gates": 30,
-        "two_qubit_gates": 6,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.13261079788208,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       }
     ]
   },
@@ -1242,168 +1286,168 @@
     "variant": "no_final_validator",
     "label": "No Final Validator",
     "total_cases": 5,
-    "success_rate": 0.8,
+    "success_rate": 0.0,
     "success_rate_ci": {
-      "mean": 0.8,
-      "ci_lower": 0.5481406466534955,
-      "ci_upper": 0.9295257935638959,
+      "mean": 0.0,
+      "ci_lower": 0.0,
+      "ci_upper": 0.20388926630434784,
       "n": 15
     },
-    "validation_rate": 0.8,
-    "avg_latency": 63.530673821767174,
+    "validation_rate": 0.0,
+    "avg_latency": 1.2726187388102213,
     "latency_stats": {
-      "mean": 63.530673821767174,
-      "std": 59.755319742035034,
-      "ci_lower": 33.29030968256225,
-      "ci_upper": 93.7710379609721,
+      "mean": 1.2726187388102213,
+      "std": 0.22429295179616818,
+      "ci_lower": 1.1591108441917284,
+      "ci_upper": 1.3861266334287141,
       "n": 15
     },
     "code_quality_stats": {
-      "mean": 0.9166666666666666,
-      "std": 0.1738910441572401,
-      "ci_lower": 0.8286656565714536,
-      "ci_upper": 1.0046676767618796,
+      "mean": 0.2,
+      "std": 0.0,
+      "ci_lower": 0.2,
+      "ci_upper": 0.2,
       "n": 15
     },
-    "circuit_depth_stats": {
-      "mean": 17.733333333333334,
-      "std": 10.22927637900625,
-      "ci_lower": 12.556605237539838,
-      "ci_upper": 22.91006142912683,
-      "n": 15
-    },
-    "gate_count_stats": {
-      "mean": 27.2,
-      "std": 16.178468936919128,
-      "ci_lower": 19.012565074049952,
-      "ci_upper": 35.387434925950046,
-      "n": 15
-    },
-    "two_qubit_gate_stats": {
-      "mean": 4.933333333333334,
-      "std": 4.199773236508757,
-      "ci_lower": 2.8079548310947846,
-      "ci_upper": 7.0587118355718825,
-      "n": 15
-    },
-    "avg_code_length": 2917.3333333333335,
+    "circuit_depth_stats": {},
+    "gate_count_stats": {},
+    "two_qubit_gate_stats": {},
+    "avg_code_length": 0.0,
     "details": [
       {
         "id": "BM-016",
         "tier": "advanced",
         "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 37.46182441711426,
-        "code_quality_score": 1.0,
-        "circuit_depth": 32,
-        "num_gates": 38,
-        "two_qubit_gates": 16,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.2621726989746094,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-016",
         "tier": "advanced",
         "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 25.00441837310791,
-        "code_quality_score": 1.0,
-        "circuit_depth": 27,
-        "num_gates": 63,
-        "two_qubit_gates": 8,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.2421021461486816,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-016",
         "tier": "advanced",
         "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 33.27113580703735,
-        "code_quality_score": 1.0,
-        "circuit_depth": 21,
-        "num_gates": 25,
-        "two_qubit_gates": 8,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.2975211143493652,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-011",
         "tier": "algorithm",
         "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 193.90646958351135,
-        "code_quality_score": 1.0,
-        "circuit_depth": 11,
-        "num_gates": 23,
-        "two_qubit_gates": 6,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.2117249965667725,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-011",
         "tier": "algorithm",
         "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 144.4958837032318,
-        "code_quality_score": 1.0,
-        "circuit_depth": 11,
-        "num_gates": 23,
-        "two_qubit_gates": 6,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.1886100769042969,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-011",
         "tier": "algorithm",
         "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 183.48836731910706,
-        "code_quality_score": 1.0,
-        "circuit_depth": 11,
-        "num_gates": 23,
-        "two_qubit_gates": 6,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.2000141143798828,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-001",
         "tier": "basic",
         "query": "Create a 2-qubit Bell state circuit with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 13.661645412445068,
-        "code_quality_score": 1.0,
-        "circuit_depth": 3,
-        "num_gates": 3,
-        "two_qubit_gates": 2,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.2464237213134766,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-001",
         "tier": "basic",
         "query": "Create a 2-qubit Bell state circuit with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 13.962701559066772,
-        "code_quality_score": 1.0,
-        "circuit_depth": 3,
-        "num_gates": 3,
-        "two_qubit_gates": 2,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.250880241394043,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-001",
         "tier": "basic",
         "query": "Create a 2-qubit Bell state circuit with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 13.561622619628906,
-        "code_quality_score": 1.0,
-        "circuit_depth": 3,
-        "num_gates": 3,
-        "two_qubit_gates": 2,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.2143547534942627,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-006",
@@ -1411,25 +1455,14 @@
         "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
         "success": false,
         "validation_passed": false,
-        "latency": 56.37880802154541,
-        "code_quality_score": 0.55,
-        "circuit_depth": 18,
-        "num_gates": 36,
-        "two_qubit_gates": 0,
-        "errors": []
-      },
-      {
-        "id": "BM-006",
-        "tier": "intermediate",
-        "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
-        "success": true,
-        "validation_passed": true,
-        "latency": 45.534016609191895,
-        "code_quality_score": 1.0,
-        "circuit_depth": 22,
-        "num_gates": 44,
-        "two_qubit_gates": 0,
-        "errors": []
+        "latency": 2.061755895614624,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-006",
@@ -1437,25 +1470,29 @@
         "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
         "success": false,
         "validation_passed": false,
-        "latency": 48.58567500114441,
-        "code_quality_score": 0.6500000000000001,
-        "circuit_depth": 18,
-        "num_gates": 36,
-        "two_qubit_gates": 0,
-        "errors": []
+        "latency": 1.1337978839874268,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
-        "id": "BM-017",
-        "tier": "advanced",
-        "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 49.062822103500366,
-        "code_quality_score": 1.0,
-        "circuit_depth": 28,
-        "num_gates": 29,
-        "two_qubit_gates": 6,
-        "errors": []
+        "id": "BM-006",
+        "tier": "intermediate",
+        "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.1011576652526855,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-017",
@@ -1463,25 +1500,44 @@
         "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
         "success": false,
         "validation_passed": false,
-        "latency": 57.073476791381836,
-        "code_quality_score": 0.55,
-        "circuit_depth": 29,
-        "num_gates": 30,
-        "two_qubit_gates": 6,
-        "errors": []
+        "latency": 1.2497854232788086,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-017",
         "tier": "advanced",
         "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 37.511240005493164,
-        "code_quality_score": 1.0,
-        "circuit_depth": 29,
-        "num_gates": 29,
-        "two_qubit_gates": 6,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.2555079460144043,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
+      },
+      {
+        "id": "BM-017",
+        "tier": "advanced",
+        "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
+        "success": false,
+        "validation_passed": false,
+        "latency": 1.1734724044799805,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation: Too many tokens per day, please wait before trying again."
+        ]
       }
     ]
   },
@@ -1489,90 +1545,78 @@
     "variant": "minimal",
     "label": "Only Designer",
     "total_cases": 5,
-    "success_rate": 0.9333333333333333,
+    "success_rate": 0.0,
     "success_rate_ci": {
-      "mean": 0.9333333333333333,
-      "ci_lower": 0.70182922447576,
-      "ci_upper": 0.9881334113938052,
+      "mean": 0.0,
+      "ci_lower": 0.0,
+      "ci_upper": 0.20388926630434784,
       "n": 15
     },
-    "validation_rate": 0.9333333333333333,
-    "avg_latency": 13.042115195592244,
+    "validation_rate": 0.0,
+    "avg_latency": 7.323272720972697,
     "latency_stats": {
-      "mean": 13.042115195592244,
-      "std": 4.894219499936468,
-      "ci_lower": 10.565298395109739,
-      "ci_upper": 15.518931996074748,
+      "mean": 7.323272720972697,
+      "std": 1.5628951142545124,
+      "ci_lower": 6.532338665720813,
+      "ci_upper": 8.11420677622458,
       "n": 15
     },
     "code_quality_stats": {
-      "mean": 0.9766666666666667,
-      "std": 0.09036961141150636,
-      "ci_lower": 0.9309333333333334,
-      "ci_upper": 1.0224,
+      "mean": 0.2,
+      "std": 0.0,
+      "ci_lower": 0.2,
+      "ci_upper": 0.2,
       "n": 15
     },
-    "circuit_depth_stats": {
-      "mean": 18.0,
-      "std": 10.891069029961413,
-      "ci_lower": 12.294909155985197,
-      "ci_upper": 23.705090844014805,
-      "n": 14
-    },
-    "gate_count_stats": {
-      "mean": 26.428571428571427,
-      "std": 14.913670990657613,
-      "ci_lower": 18.616312816915986,
-      "ci_upper": 34.24083004022687,
-      "n": 14
-    },
-    "two_qubit_gate_stats": {
-      "mean": 5.428571428571429,
-      "std": 4.925823409719056,
-      "ci_lower": 2.8482673320027256,
-      "ci_upper": 8.008875525140132,
-      "n": 14
-    },
-    "avg_code_length": 1953.8666666666666,
+    "circuit_depth_stats": {},
+    "gate_count_stats": {},
+    "two_qubit_gate_stats": {},
+    "avg_code_length": 0.0,
     "details": [
       {
         "id": "BM-016",
         "tier": "advanced",
         "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 16.122809648513794,
-        "code_quality_score": 1.0,
-        "circuit_depth": 20,
-        "num_gates": 26,
-        "two_qubit_gates": 6,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 7.491004705429077,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-016",
         "tier": "advanced",
         "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 13.435705184936523,
-        "code_quality_score": 1.0,
-        "circuit_depth": 21,
-        "num_gates": 28,
-        "two_qubit_gates": 8,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 9.063790559768677,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-016",
         "tier": "advanced",
         "query": "Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 15.195196390151978,
-        "code_quality_score": 1.0,
-        "circuit_depth": 23,
-        "num_gates": 31,
-        "two_qubit_gates": 12,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 9.53122353553772,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-011",
@@ -1580,155 +1624,179 @@
         "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
         "success": false,
         "validation_passed": false,
-        "latency": 10.553486585617065,
-        "code_quality_score": 0.6500000000000001,
+        "latency": 7.508520603179932,
+        "code_quality_score": 0.2,
         "circuit_depth": null,
         "num_gates": null,
         "two_qubit_gates": null,
-        "errors": []
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-011",
         "tier": "algorithm",
         "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 10.783299922943115,
-        "code_quality_score": 1.0,
-        "circuit_depth": 11,
-        "num_gates": 23,
-        "two_qubit_gates": 6,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 7.030986785888672,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-011",
         "tier": "algorithm",
         "query": "Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 10.911389350891113,
-        "code_quality_score": 1.0,
-        "circuit_depth": 11,
-        "num_gates": 23,
-        "two_qubit_gates": 6,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 8.741686344146729,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-001",
         "tier": "basic",
         "query": "Create a 2-qubit Bell state circuit with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 5.68626856803894,
-        "code_quality_score": 1.0,
-        "circuit_depth": 3,
-        "num_gates": 3,
-        "two_qubit_gates": 2,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 8.23858904838562,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-001",
         "tier": "basic",
         "query": "Create a 2-qubit Bell state circuit with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 5.740564346313477,
-        "code_quality_score": 1.0,
-        "circuit_depth": 3,
-        "num_gates": 3,
-        "two_qubit_gates": 2,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 5.820420503616333,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-001",
         "tier": "basic",
         "query": "Create a 2-qubit Bell state circuit with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 5.503435850143433,
-        "code_quality_score": 1.0,
-        "circuit_depth": 3,
-        "num_gates": 3,
-        "two_qubit_gates": 2,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 8.890290260314941,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-006",
         "tier": "intermediate",
         "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
-        "success": true,
-        "validation_passed": true,
-        "latency": 21.6213538646698,
-        "code_quality_score": 1.0,
-        "circuit_depth": 23,
-        "num_gates": 52,
-        "two_qubit_gates": 2,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 3.963416337966919,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-006",
         "tier": "intermediate",
         "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
-        "success": true,
-        "validation_passed": true,
-        "latency": 16.31822633743286,
-        "code_quality_score": 1.0,
-        "circuit_depth": 19,
-        "num_gates": 40,
-        "two_qubit_gates": 0,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 7.324301481246948,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-006",
         "tier": "intermediate",
         "query": "Implement a 3-qubit Grover search algorithm with oracle and diffusion",
-        "success": true,
-        "validation_passed": true,
-        "latency": 13.522452354431152,
-        "code_quality_score": 1.0,
-        "circuit_depth": 18,
-        "num_gates": 36,
-        "two_qubit_gates": 0,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 8.028733491897583,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-017",
         "tier": "advanced",
         "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 14.426583290100098,
-        "code_quality_score": 1.0,
-        "circuit_depth": 28,
-        "num_gates": 30,
-        "two_qubit_gates": 6,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 4.995756149291992,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-017",
         "tier": "advanced",
         "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 19.80144715309143,
-        "code_quality_score": 1.0,
-        "circuit_depth": 29,
-        "num_gates": 30,
-        "two_qubit_gates": 6,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 6.185801267623901,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       },
       {
         "id": "BM-017",
         "tier": "advanced",
         "query": "Implement a discrete-time quantum walk on a 3-qubit line with measurement",
-        "success": true,
-        "validation_passed": true,
-        "latency": 16.009509086608887,
-        "code_quality_score": 1.0,
-        "circuit_depth": 40,
-        "num_gates": 42,
-        "two_qubit_gates": 18,
-        "errors": []
+        "success": false,
+        "validation_passed": false,
+        "latency": 7.03456974029541,
+        "code_quality_score": 0.2,
+        "circuit_depth": null,
+        "num_gates": null,
+        "two_qubit_gates": null,
+        "errors": [
+          "Designer failed: Failed after 3 attempts: An error occurred (ThrottlingException) when calling the Converse operation (reached max retries: 2): Too many tokens per day, please wait before trying again."
+        ]
       }
     ]
   }

@@ -1,4 +1,7 @@
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 626230557862.dkr.ecr.us-east-1.amazonaws.com
+set AWS_REGION=us-east-1
+for /f "delims=" %A in ('aws sts get-caller-identity --query Account --output text') do set AWS_ACCOUNT_ID=%A
+
+aws ecr get-login-password --region %AWS_REGION% | docker login --username AWS --password-stdin %AWS_ACCOUNT_ID%.dkr.ecr.%AWS_REGION%.amazonaws.com
 docker build -t qcanvas-api:latest -f backend/Dockerfile .
-docker tag qcanvas-api:latest 626230557862.dkr.ecr.us-east-1.amazonaws.com/qcanvas-api:latest
-docker push 626230557862.dkr.ecr.us-east-1.amazonaws.com/qcanvas-api:latest
+docker tag qcanvas-api:latest %AWS_ACCOUNT_ID%.dkr.ecr.%AWS_REGION%.amazonaws.com/qcanvas-api:latest
+docker push %AWS_ACCOUNT_ID%.dkr.ecr.%AWS_REGION%.amazonaws.com/qcanvas-api:latest
