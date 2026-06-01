@@ -1,0 +1,8 @@
+Mode,Success Rate,Validation Rate,Avg Latency (s),Code Quality,Circuit Depth,Total Gates,2Q Gates,Code Length
+Ideal System (Hypothetical),100.0%,100.0%,1.5 ± 0.0,1.00,5,10,2,300.0
+Full System,83.3%,83.3%,97.7 ± 85.1,0.93,3,5,2,719.0833333333334
+No RAG,50.0%,50.0%,162.8 ± 136.6,0.78,5,10,1,921.9166666666666
+No Validator,41.7%,41.7%,68.0 ± 34.6,0.88,4,6,2,697.6666666666666
+No Optimizer,0.0%,0.0%,95.5 ± 69.1,0.62,0,0,0,331.5
+No Final Validator,58.3%,58.3%,108.4 ± 71.1,0.85,4,7,1,671.4166666666666
+Only Designer,33.3%,33.3%,23.6 ± 7.6,0.68,4,7,2,1034.6666666666667
