@@ -30,6 +30,7 @@ from ..rag.retriever import Retriever
 from ..cirq_rag_code_assistant.config import get_config
 from ..cirq_rag_code_assistant.config.logging import get_logger
 from ..agent_prompts import OPTIMIZER_SYSTEM
+from ..evaluation.metrics import assess_code_objectively, compute_code_quality_score
 
 logger = get_logger(__name__)
 
@@ -120,9 +121,10 @@ class OptimizerAgent(BaseAgent):
         if algorithm:
             query_parts.insert(1, algorithm)
         query = " ".join(query_parts)
+        top_k = get_config().get("rag", {}).get("retrieval", {}).get("top_k_results", 5)
         
         try:
-            results = self.retriever.retrieve(query=query, top_k=3)
+            results = self.retriever.retrieve(query=query, top_k=top_k)
             return results
         except Exception as e:
             logger.warning(f"Failed to retrieve optimization references: {e}")
@@ -263,6 +265,24 @@ Fixed code:"""
                     compiled = self.compiler.compile(optimized_code, execute=True)
                     if compiled["success"]:
                         optimized_circuit = compiled["circuit"]
+                        original_validation = assess_code_objectively(original_code)
+                        optimized_validation = assess_code_objectively(optimized_code)
+                        original_quality = compute_code_quality_score(
+                            original_code,
+                            original_validation,
+                        )["code_quality_score"]
+                        optimized_quality = compute_code_quality_score(
+                            optimized_code,
+                            optimized_validation,
+                        )["code_quality_score"]
+
+                        if optimized_quality < original_quality:
+                            logger.info(
+                                "Optimized code scored lower than the original; keeping the original circuit"
+                            )
+                            optimized_code = original_code
+                            optimized_circuit = circuit
+                            compiled = self.compiler.compile(original_code, execute=True)
                     else:
                         logger.warning(f"LLM optimization produced invalid code: {compiled.get('errors')}")
                 else:

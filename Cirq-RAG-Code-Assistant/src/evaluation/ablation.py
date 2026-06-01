@@ -25,6 +25,7 @@ from .benchmark import (
     _extract_circuit_metrics,
 )
 from .metrics import compute_code_quality_score, compute_statistics, wilson_ci
+from .metrics import assess_code_objectively
 from ..tools.compiler import CirqCompiler
 from ..cirq_rag_code_assistant.config.logging import get_logger
 
@@ -62,15 +63,14 @@ def _evaluate_case_outcome(
     quality: Dict[str, Any],
 ) -> Tuple[bool, bool]:
     """
-    Return (pipeline_success, validation_passed) using the formal code quality score.
+    Return (pipeline_success, validation_passed) using objective runtime checks.
     A score of 1.0 means perfect syntax, compilation, measurements, non-empty, and correct imports.
     """
     if not code or not result.get("success", False):
         return False, False
 
-    score = quality.get("code_quality_score", 0.0)
-    passed = score >= 0.99
-    
+    passed = validation.get("validation_passed", False) and quality.get("code_quality_score", 0.0) >= 0.99
+
     return passed, passed
 
 
@@ -297,11 +297,12 @@ class AblationStudy:
                     latency = time.time() - case_start
 
                     code = result.get("optimized_code") or result.get("code") or ""
-                    validation = get_validation_from_result(result)
+                    pipeline_validation = get_validation_from_result(result)
 
-                    if not validation and code:
-                        compiled = CirqCompiler().compile(code, execute=True)
-                        validation = {"compilation": compiled, "validation_passed": compiled.get("success", False)}
+                    if code:
+                        validation = assess_code_objectively(code)
+                    else:
+                        validation = {"validation_passed": False, "compilation": {"success": False}}
 
                     quality = compute_code_quality_score(code, validation)
                     success, validation_passed = _evaluate_case_outcome(
@@ -345,6 +346,7 @@ class AblationStudy:
                             "query": query,
                             "success": False,
                             "validation_passed": False,
+                            "pipeline_validation_passed": pipeline_validation.get("validation_passed", False),
                             "latency": latency,
                             "code_quality_score": 0.0,
                             "error": str(e),

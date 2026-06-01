@@ -19,6 +19,7 @@ from ..agents.designer import DesignerAgent
 from ..agents.optimizer import OptimizerAgent
 from ..agents.validator import ValidatorAgent
 from ..agents.educational import EducationalAgent
+from ..evaluation.metrics import assess_code_objectively, compute_code_quality_score
 from ..cirq_rag_code_assistant.config import get_config
 from ..cirq_rag_code_assistant.config.logging import get_logger
 
@@ -91,6 +92,28 @@ class Orchestrator:
         s = aliases.get(s, s)
         allowed = frozenset({"low", "intermediate", "high", "very_high"})
         return s if s in allowed else "intermediate"
+
+    def _score_code(self, code: Optional[str]) -> Dict[str, Any]:
+        """Score code with the same objective validation used by the benchmark tables."""
+        if not code:
+            return {"score": 0.0, "validation": {"validation_passed": False}}
+
+        validation = assess_code_objectively(code)
+        quality = compute_code_quality_score(code, validation)
+        return {
+            "score": quality.get("code_quality_score", 0.0),
+            "validation": validation,
+            "quality": quality,
+        }
+
+    def _prefer_code(self, current_code: str, candidate_code: Optional[str]) -> str:
+        """Keep the code version that scores higher under the objective benchmark metric."""
+        if not candidate_code:
+            return current_code
+
+        current_score = self._score_code(current_code).get("score", 0.0)
+        candidate_score = self._score_code(candidate_code).get("score", 0.0)
+        return candidate_code if candidate_score >= current_score else current_code
 
     def generate_code(
         self,
@@ -175,6 +198,14 @@ class Orchestrator:
                 )
                 
                 result["validation"] = validate_result
+                repaired_code = validate_result.get("fixed_code") or validate_result.get("llm_analysis", {}).get("fixed_code")
+                if repaired_code:
+                    improved_code = self._prefer_code(current_code, repaired_code)
+                    if improved_code != current_code:
+                        logger.info("   Validator repair improved the candidate code; adopting repaired version")
+                        current_code = improved_code
+                        result["optimized_code"] = current_code
+                        result["code"] = current_code
                 if not validate_result.get("validation_passed"):
                     logger.warning(f"⚠️ Initial validation found issues")
                     # Continue to optimizer which may fix issues
@@ -205,8 +236,10 @@ class Orchestrator:
                     if optimize_result.get("success"):
                         optimized_code = optimize_result.get("optimized_code")
                         if optimized_code and optimized_code != current_code:
-                            current_code = optimized_code
+                            chosen_code = self._prefer_code(current_code, optimized_code)
+                            current_code = chosen_code
                             result["optimized_code"] = current_code
+                            result["code"] = current_code if current_code else result["code"]
                             result["optimization_metrics"] = optimize_result.get("differences", {})
                             
                             # Re-validate after optimization (Optimizer ⟷ Validator loop)
@@ -216,6 +249,14 @@ class Orchestrator:
                                     "query": query,
                                     "algorithm": algorithm,
                                 })
+                                repaired_code = revalidate_result.get("fixed_code") or revalidate_result.get("llm_analysis", {}).get("fixed_code")
+                                if repaired_code:
+                                    improved_code = self._prefer_code(current_code, repaired_code)
+                                    if improved_code != current_code:
+                                        logger.info("   Re-validation repair improved the candidate code; adopting repaired version")
+                                        current_code = improved_code
+                                        result["optimized_code"] = current_code
+                                        result["code"] = current_code
                                 if revalidate_result.get("validation_passed"):
                                     logger.info(f"   ✅ Re-validation passed, stopping optimization loop")
                                     break
@@ -249,6 +290,14 @@ class Orchestrator:
                 )
                 
                 result["final_validation"] = final_validate_result
+                repaired_code = final_validate_result.get("fixed_code") or final_validate_result.get("llm_analysis", {}).get("fixed_code")
+                if repaired_code:
+                    improved_code = self._prefer_code(final_code, repaired_code)
+                    if improved_code != final_code:
+                        logger.info("   Final validation repair improved the candidate code; adopting repaired version")
+                        result["optimized_code"] = improved_code
+                        result["code"] = improved_code
+                        final_code = improved_code
                 
                 if not final_validate_result.get("validation_passed"):
                     logger.warning(f"⚠️ Final validation has warnings (code may still work)")

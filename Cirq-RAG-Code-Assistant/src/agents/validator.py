@@ -239,9 +239,10 @@ class ValidatorAgent(BaseAgent):
         if algorithm:
             query_parts.insert(1, algorithm)
         query = " ".join(query_parts)
+        top_k = get_config().get("rag", {}).get("retrieval", {}).get("top_k_results", 5)
         
         try:
-            references = self.retriever.retrieve(query=query, top_k=3)
+            references = self.retriever.retrieve(query=query, top_k=top_k)
             
             if not references:
                 logger.debug("No validation references found")

@@ -429,7 +429,8 @@ For each operation, show the full state transformation:
         
         if algorithm:
             query = f"{algorithm} algorithm tutorial explanation"
-            results = self.retriever.retrieve(query, top_k=3)
+            top_k = get_config().get("rag", {}).get("retrieval", {}).get("top_k_results", 5)
+            results = self.retriever.retrieve(query, top_k=top_k)
             
             for result in results:
                 entry = result.get("entry", {})

@@ -1,8 +1,9 @@
 """
 Metrics Collector Module
 
-Collects evaluation metrics including the published code-quality formula
-and statistical helpers for multi-trial benchmarks.
+Collects evaluation metrics including the published code-quality formula,
+objective code validation helpers, and statistical helpers for multi-trial
+benchmarks.
 """
 
 import ast
@@ -128,18 +129,15 @@ def compute_code_quality_score(
     validation_result: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
-    Improved code quality formula:
+    Published code quality formula:
 
-    CodeQuality(c) = 0.20 × SyntaxValid
-                  + 0.20 × CompilationSuccess
-                  + 0.10 × HasMeasurement
-                  + 0.10 × HasSimulation
+    CodeQuality(c) = 0.30 × SyntaxValid
+                  + 0.30 × CompilationSuccess
+                  + 0.20 × HasMeasurement
                   + 0.10 × CircuitNonEmpty
                   + 0.10 × CorrectImports
-                  + 0.05 × HasQubitDefinition
-                  + 0.05 × HasComments
-                  + 0.05 × IsConcise
-                  + 0.05 × IsOptimized
+
+    All components are binary, so the score is in [0, 1].
     """
     validation_result = validation_result or {}
     compilation = validation_result.get("compilation", {})
@@ -148,32 +146,57 @@ def compute_code_quality_score(
         "syntax_valid": 1.0 if _syntax_valid(code) else 0.0,
         "compilation_success": 1.0 if compilation.get("success", False) else 0.0,
         "has_measurement": 1.0 if _has_measurement(code, validation_result) else 0.0,
-        "has_simulation": 1.0 if _has_simulation(code) else 0.0,
         "circuit_non_empty": 1.0 if _circuit_non_empty(validation_result) else 0.0,
         "correct_imports": 1.0 if _correct_imports(code) else 0.0,
-        "has_qubit_definition": 1.0 if _has_qubit_definition(code) else 0.0,
-        "has_comments": 1.0 if _has_comments(code) else 0.0,
-        "is_concise": 1.0 if _is_concise(code) else 0.0,
-        "is_optimized": 1.0 if _is_optimized(code, validation_result) else 0.0,
     }
 
     score = (
-        0.20 * components["syntax_valid"]
-        + 0.20 * components["compilation_success"]
-        + 0.10 * components["has_measurement"]
-        + 0.10 * components["has_simulation"]
+        0.30 * components["syntax_valid"]
+        + 0.30 * components["compilation_success"]
+        + 0.20 * components["has_measurement"]
         + 0.10 * components["circuit_non_empty"]
         + 0.10 * components["correct_imports"]
-        + 0.05 * components["has_qubit_definition"]
-        + 0.05 * components["has_comments"]
-        + 0.05 * components["is_concise"]
-        + 0.05 * components["is_optimized"]
     )
 
     return {
         "code_quality_score": score,
         "components": components,
     }
+
+
+def assess_code_objectively(code: str) -> Dict[str, Any]:
+    """Compile and validate generated code with objective runtime checks."""
+    from ..tools.compiler import CirqCompiler
+
+    compiler = CirqCompiler()
+    compilation = compiler.compile(code, execute=True)
+
+    objective_validation = {
+        "compilation": compilation,
+        "circuit_validation": {},
+        "validation_passed": False,
+        "errors": compilation.get("errors", []),
+    }
+
+    if not compilation.get("success", False):
+        return objective_validation
+
+    circuit = compilation.get("circuit")
+    if circuit is not None:
+        try:
+            objective_validation["circuit_validation"] = compiler.validate_circuit(circuit)
+        except Exception as exc:
+            objective_validation["errors"] = objective_validation.get("errors", []) + [str(exc)]
+            return objective_validation
+
+    objective_validation["validation_passed"] = (
+        compilation.get("success", False)
+        and objective_validation["circuit_validation"].get("valid", False)
+        and _correct_imports(code)
+        and _circuit_non_empty(objective_validation)
+        and _has_measurement(code, objective_validation)
+    )
+    return objective_validation
 
 
 def compute_statistics(values: List[float]) -> Dict[str, float]:

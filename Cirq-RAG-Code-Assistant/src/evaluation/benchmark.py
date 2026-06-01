@@ -11,7 +11,13 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 from ..orchestration.orchestrator import Orchestrator
-from .metrics import MetricsCollector, compute_code_quality_score, compute_statistics, wilson_ci
+from .metrics import (
+    MetricsCollector,
+    assess_code_objectively,
+    compute_code_quality_score,
+    compute_statistics,
+    wilson_ci,
+)
 from ..tools.compiler import CirqCompiler
 from ..tools.analyzer import CircuitAnalyzer
 from ..cirq_rag_code_assistant.config import get_config
@@ -281,6 +287,7 @@ class BenchmarkSuite:
             "trial": trial,
             "success": False,
             "validation_passed": False,
+            "pipeline_validation_passed": False,
             "errors": [],
             "latency_seconds": 0.0,
             "code_quality_score": 0.0,
@@ -319,18 +326,21 @@ class BenchmarkSuite:
         test_result["latency_seconds"] = time.time() - start
 
         validation = get_validation_from_result(result)
-        test_result["success"] = result.get("success", False)
-        test_result["validation_passed"] = validation.get("validation_passed", False)
+        test_result["pipeline_validation_passed"] = validation.get("validation_passed", False)
         test_result["errors"] = result.get("errors", [])
 
         code = result.get("optimized_code") or result.get("code") or ""
         if code:
-            quality = compute_code_quality_score(code, validation)
+            objective_validation = assess_code_objectively(code)
+            quality = compute_code_quality_score(code, objective_validation)
+            test_result["success"] = objective_validation.get("validation_passed", False)
+            test_result["validation_passed"] = objective_validation.get("validation_passed", False)
+            test_result["objective_validation"] = objective_validation
             test_result["code_quality_score"] = quality["code_quality_score"]
             test_result["quality_components"] = quality["components"]
-            self.metrics_collector.collect_code_quality(code, validation)
+            self.metrics_collector.collect_code_quality(code, objective_validation)
 
-            circuit_metrics = _extract_circuit_metrics(code, validation)
+            circuit_metrics = _extract_circuit_metrics(code, objective_validation)
             test_result.update(circuit_metrics)
 
         return test_result

@@ -189,7 +189,7 @@ Generated code:"""
         self,
         query: str,
         algorithm: Optional[str] = None,
-        top_k: int = 3,
+        top_k: Optional[int] = None,
         system_prompt: Optional[str] = None,
         **kwargs
     ) -> Dict[str, Any]:
@@ -205,6 +205,10 @@ Generated code:"""
         Returns:
             Dictionary with generated code, metadata, and confidence
         """
+        if top_k is None:
+            cfg = get_config()
+            top_k = cfg.get("rag", {}).get("retrieval", {}).get("top_k_results", 5)
+
         # Retrieve relevant context
         if self.retriever:
             logger.info(f"Retrieving context for query: {query[:50]}...")
