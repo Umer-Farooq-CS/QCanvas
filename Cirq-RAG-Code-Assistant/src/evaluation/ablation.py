@@ -346,7 +346,7 @@ class AblationStudy:
                             "query": query,
                             "success": False,
                             "validation_passed": False,
-                            "pipeline_validation_passed": pipeline_validation.get("validation_passed", False),
+                            "pipeline_validation_passed": False,
                             "latency": latency,
                             "code_quality_score": 0.0,
                             "error": str(e),

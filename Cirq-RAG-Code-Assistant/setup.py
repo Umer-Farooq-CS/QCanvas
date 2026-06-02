@@ -18,11 +18,21 @@ except FileNotFoundError:
 # Read requirements from requirements.txt
 try:
     with open("requirements.txt", "r", encoding="utf-8") as fh:
-        requirements = [
-            line.strip()
-            for line in fh.readlines()
-            if line.strip() and not line.startswith("#")
-        ]
+        raw_lines = [l.strip() for l in fh.readlines() if l.strip() and not l.strip().startswith("#")]
+        requirements = []
+        for line in raw_lines:
+            if line.startswith("-r "):
+                ref = line.split(None, 1)[1]
+                try:
+                    with open(ref, "r", encoding="utf-8") as reffh:
+                        requirements.extend(
+                            [l.strip() for l in reffh.readlines() if l.strip() and not l.strip().startswith("#")]
+                        )
+                except FileNotFoundError:
+                    # ignore missing referenced file; keep the original line
+                    requirements.append(line)
+            else:
+                requirements.append(line)
 except FileNotFoundError:
     requirements = []
 

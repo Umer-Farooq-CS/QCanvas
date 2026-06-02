@@ -41,6 +41,58 @@ results = suite.run_benchmarks(test_cases=prompts)
 multi = suite.run_benchmarks_multi_trial(num_trials=5)
 ```
 
+## Running the full ablation study (recommended for paper)
+
+1. Ensure your environment is activated and dependencies are installed (includes `scipy`):
+
+```bash
+python -m pip install -r requirements-dev.txt
+```
+
+2. Configure provider (local Ollama or AWS Bedrock) in `config/config.json`. If using AWS, ensure credentials are available.
+
+3. Run the ablation study notebook or use the CLI to run the full multi-trial evaluation:
+
+```bash
+# Run Notebook 15 step2 (open in Jupyter and set NUM_TRIALS=5, RUN_ABLATION=True)
+# OR use the CLI wrapper if present:
+python -m src.cli.main ablation --num-trials 5 --output results/ablation_results_step2.json
+```
+
+4. After completion, verify the generated files:
+
+- `results/ablation_results_step2.json` — raw per-trial details
+- `results/ablation_summary_step2.csv` — aggregated summary for paper tables
+- `results/step2_statistical_comparisons.csv` — McNemar and paired t-test results
+
+## How to confirm correctness (logical & semantic)
+
+1. Unit tests: run `pytest` to ensure APIs behave as expected:
+
+```bash
+pytest -q
+```
+
+2. Sanity checks on outputs:
+
+- Ensure each entry in `ablation_results_step2.json` has `details` length = `num_trials * num_cases` per variant.
+- Check `success_rate` and `validation_rate` lie between 0 and 1 and CI bounds are sane.
+
+3. Semantic validation of generated code (per-trial):
+
+- Use `src/evaluation/metrics.assess_code_objectively()` to confirm `validation_passed` is True for expected cases.
+- Spot-check circuits by loading `results/ablation_results_step2.json` and compiling the `code` field with `CirqCompiler().compile(code, execute=True)`; ensure compilation `success==True`.
+
+4. Reproducibility checks:
+
+- Re-run 2–3 random prompts and confirm metrics vary within computed CI ranges. Large deviations indicate non-deterministic provider behaviour or changed model config.
+
+5. Human spot-check:
+
+- Manually review a sample of generated circuits for semantic correctness (use the notebook `12_visualization.ipynb` or the new `15_step2_multi_trial.ipynb` to inspect `details`).
+
+If you want, I can add automated unit tests that compile every generated code snippet in the results file and report failures.
+
 ## Code quality formula
 
 ```
