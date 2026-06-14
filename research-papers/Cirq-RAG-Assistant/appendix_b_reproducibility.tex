@@ -1,0 +1,92 @@
+\section*{Appendix B: Reproducibility and Local Fallback Guide}
+\label{sec:appendix_b}
+
+To reproduce the experimental results presented in this paper, readers can deploy the Cirq RAG Code Assistant using either the production cloud stack (AWS Bedrock) or a local offline fallback (Ollama). 
+
+\subsection*{Environment Setup}
+The implementation runs on Python 3.9+ and requires the standard virtual environment and dependencies:
+\begin{verbatim}
+# Clone the repository
+git clone https://github.com/Umer-Farooq-CS/Cirq-RAG-Code-Assistant.git
+cd Cirq-RAG-Code-Assistant
+
+# Create and activate virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+\end{verbatim}
+
+\subsection*{AWS Bedrock Stack (Production)}
+By default, the paper's production results were run using AWS Bedrock. Ensure that your local environment has AWS credentials configured in \texttt{~/.aws/credentials}:
+\begin{verbatim}
+[default]
+aws_access_key_id = YOUR_ACCESS_KEY
+aws_secret_access_key = YOUR_SECRET_KEY
+region = us-east-1
+\end{verbatim}
+Verify that the model configurations in \texttt{config/config.json} are pointed to the AWS providers:
+\begin{itemize}
+    \item \textbf{Designer Agent:} \texttt{aws} provider with model \texttt{anthropic.claude-sonnet-4-6}
+    \item \textbf{Optimizer Agent:} \texttt{aws} provider with model \texttt{anthropic.claude-opus-4-6-v1}
+    \item \textbf{Validator Agent:} \texttt{aws} provider with model \texttt{anthropic.claude-sonnet-4-6}
+    \item \textbf{Educational Agent:} \texttt{aws} provider with model \texttt{anthropic.claude-haiku-4-5-20251001-v1:0}
+    \item \textbf{Embeddings Backend:} \texttt{aws} provider with model \texttt{amazon.nova-2-multimodal-embeddings-v1:0}
+\end{itemize}
+
+\subsection*{Local Ollama Fallback (Offline)}
+Readers without AWS Bedrock access can run the entire pipeline locally using Ollama. First, install Ollama and pull the recommended open-source code-generation model:
+\begin{verbatim}
+ollama pull qwen2.5-coder:14b-instruct-q4_K_M
+\end{verbatim}
+
+Next, update the \texttt{config/config.json} file to switch all agents to the local fallback stack:
+\begin{verbatim}
+{
+  "models": {
+    "embedding": {
+      "provider": "local",
+      "model_name": "BAAI/bge-base-en-v1.5"
+    }
+  },
+  "agents": {
+    "designer": {
+      "model": {
+        "provider": "ollama",
+        "model": "qwen2.5-coder:14b-instruct-q4_K_M"
+      }
+    },
+    "optimizer": {
+      "model": {
+        "provider": "ollama",
+        "model": "qwen2.5-coder:14b-instruct-q4_K_M"
+      }
+    },
+    "validator": {
+      "model": {
+        "provider": "ollama",
+        "model": "qwen2.5-coder:14b-instruct-q4_K_M"
+      }
+    },
+    "educational": {
+      "model": {
+        "provider": "ollama",
+        "model": "qwen2.5-coder:14b-instruct-q4_K_M"
+      }
+    }
+  }
+}
+\end{verbatim}
+
+\subsection*{Running the Evaluation Suite}
+To run the evaluation suite and recompile the tables:
+\begin{verbatim}
+# Run the 25 benchmark prompts (single trial)
+python -m src.cli.main benchmark --output outputs/reports/benchmark.json
+
+# Execute the multi-trial ablation study and generate CSV files
+# Open notebooks/15_step2_multi_trial.ipynb and run all cells
+\end{verbatim}
+Note that local Ollama results will slightly differ from the AWS Bedrock metrics reported in the paper due to LLM reasoning capacity limits, but the relative performance margins between the ablation variants remain highly consistent.

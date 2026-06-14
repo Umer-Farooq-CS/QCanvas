@@ -1,0 +1,205 @@
+\section*{Appendix A: Benchmark Prompt Catalogue}
+\label{sec:appendix_a}
+
+
+This appendix catalogues all 25 benchmark prompts used to evaluate the Cirq RAG Code Assistant, categorized across five difficulty tiers (Basic, Intermediate, Algorithm, Advanced, and Explanation-only). For each prompt, we detail the unique identifier, the query string, the target algorithm, the expected qubits and gates, the validation criteria, and three known failure modes.
+
+
+\subsection*{Basic Tier}
+\begin{description}
+    \item[BM-001: Create a 2-qubit Bell state ci...] \ \\
+    \textbf{Query:} ``Create a 2-qubit Bell state circuit with measurement'' \\
+    \textbf{Target Algorithm:} \texttt{bell\_state} \\
+    \textbf{Expected Qubits/Gates:} 2 qubits; \texttt{H, CNOT} \\
+    \textbf{Validation Criteria:} \texttt{must\_have\_entanglement} \\
+    \textbf{Known Failure Modes:} (1) missing H gate, (2) missing CNOT, (3) no measurement.
+
+    \item[BM-002: Create a 3-qubit GHZ state cir...] \ \\
+    \textbf{Query:} ``Create a 3-qubit GHZ state circuit with measurement'' \\
+    \textbf{Target Algorithm:} \texttt{ghz} \\
+    \textbf{Expected Qubits/Gates:} 3 qubits; \texttt{H, CNOT} \\
+    \textbf{Validation Criteria:} \texttt{must\_have\_entanglement} \\
+    \textbf{Known Failure Modes:} (1) wrong qubit count, (2) missing entangling gates, (3) no measurement.
+
+    \item[BM-003: Apply X then H on a single qub...] \ \\
+    \textbf{Query:} ``Apply X then H on a single qubit and measure'' \\
+    \textbf{Target Algorithm:} \texttt{single\_qubit} \\
+    \textbf{Expected Qubits/Gates:} 1 qubits; \texttt{X, H} \\
+    \textbf{Validation Criteria:} \texttt{circuit\_non\_empty} \\
+    \textbf{Known Failure Modes:} (1) missing measurement, (2) wrong gate order, (3) syntax error.
+
+    \item[BM-004: Build a CNOT identity test cir...] \ \\
+    \textbf{Query:} ``Build a CNOT identity test circuit on 2 qubits with measurement'' \\
+    \textbf{Target Algorithm:} \texttt{cnot\_identity} \\
+    \textbf{Expected Qubits/Gates:} 2 qubits; \texttt{CNOT} \\
+    \textbf{Validation Criteria:} \texttt{compilation\_success} \\
+    \textbf{Known Failure Modes:} (1) no CNOT, (2) unmeasured qubits, (3) import error.
+
+    \item[BM-005: Implement a 2-qubit swap test ...] \ \\
+    \textbf{Query:} ``Implement a 2-qubit swap test circuit with measurement'' \\
+    \textbf{Target Algorithm:} \texttt{swap\_test} \\
+    \textbf{Expected Qubits/Gates:} 3 qubits; \texttt{H, CNOT, SWAP} \\
+    \textbf{Validation Criteria:} \texttt{must\_have\_measurement} \\
+    \textbf{Known Failure Modes:} (1) missing ancilla, (2) no measurement, (3) wrong qubit wiring.
+
+\end{description}
+
+
+\subsection*{Intermediate Tier}
+\begin{description}
+    \item[BM-006: Implement a 3-qubit Grover sea...] \ \\
+    \textbf{Query:} ``Implement a 3-qubit Grover search algorithm with oracle and diffusion'' \\
+    \textbf{Target Algorithm:} \texttt{grover} \\
+    \textbf{Expected Qubits/Gates:} 3 qubits; \texttt{H, CNOT, Z} \\
+    \textbf{Validation Criteria:} \texttt{algorithm\_correct} \\
+    \textbf{Known Failure Modes:} (1) missing oracle, (2) missing diffusion, (3) no measurement.
+
+    \item[BM-007: Implement a 3-qubit Quantum Fo...] \ \\
+    \textbf{Query:} ``Implement a 3-qubit Quantum Fourier Transform circuit'' \\
+    \textbf{Target Algorithm:} \texttt{qft} \\
+    \textbf{Expected Qubits/Gates:} 3 qubits; \texttt{H, CNOT} \\
+    \textbf{Validation Criteria:} \texttt{algorithm\_correct} \\
+    \textbf{Known Failure Modes:} (1) wrong rotation order, (2) missing H gates, (3) no measurement.
+
+    \item[BM-008: Implement quantum teleportatio...] \ \\
+    \textbf{Query:} ``Implement quantum teleportation on 3 qubits with measurement'' \\
+    \textbf{Target Algorithm:} \texttt{teleportation} \\
+    \textbf{Expected Qubits/Gates:} 3 qubits; \texttt{H, CNOT} \\
+    \textbf{Validation Criteria:} \texttt{must\_have\_entanglement} \\
+    \textbf{Known Failure Modes:} (1) missing Bell pair, (2) missing corrections, (3) no measurement.
+
+    \item[BM-009: Create a 2-qubit phase estimat...] \ \\
+    \textbf{Query:} ``Create a 2-qubit phase estimation toy circuit with measurement'' \\
+    \textbf{Target Algorithm:} \texttt{phase\_estimation} \\
+    \textbf{Expected Qubits/Gates:} 2 qubits; \texttt{H, CNOT} \\
+    \textbf{Validation Criteria:} \texttt{compilation\_success} \\
+    \textbf{Known Failure Modes:} (1) missing control qubit, (2) no measurement, (3) deprecated API.
+
+    \item[BM-010: Build a 3-qubit Toffoli (CCX) ...] \ \\
+    \textbf{Query:} ``Build a 3-qubit Toffoli (CCX) demonstration circuit with measurement'' \\
+    \textbf{Target Algorithm:} \texttt{toffoli} \\
+    \textbf{Expected Qubits/Gates:} 3 qubits; \texttt{CCX, CNOT} \\
+    \textbf{Validation Criteria:} \texttt{circuit\_non\_empty} \\
+    \textbf{Known Failure Modes:} (1) wrong Toffoli decomposition, (2) no measurement, (3) syntax error.
+
+\end{description}
+
+
+\subsection*{Algorithm Tier}
+\begin{description}
+    \item[BM-011: Create a simple 4-qubit VQE an...] \ \\
+    \textbf{Query:} ``Create a simple 4-qubit VQE ansatz circuit with parameterized rotations and measurement'' \\
+    \textbf{Target Algorithm:} \texttt{vqe} \\
+    \textbf{Expected Qubits/Gates:} 4 qubits; \texttt{RX, RY, RZ} \\
+    \textbf{Validation Criteria:} \texttt{algorithm\_correct} \\
+    \textbf{Known Failure Modes:} (1) missing parameters, (2) no measurement, (3) wrong ansatz depth.
+
+    \item[BM-012: Implement a 4-qubit QAOA circu...] \ \\
+    \textbf{Query:} ``Implement a 4-qubit QAOA circuit for a 4-node cycle graph with measurement'' \\
+    \textbf{Target Algorithm:} \texttt{qaoa} \\
+    \textbf{Expected Qubits/Gates:} 4 qubits; \texttt{ZZ, RX} \\
+    \textbf{Validation Criteria:} \texttt{algorithm\_correct} \\
+    \textbf{Known Failure Modes:} (1) missing mixer layer, (2) missing cost layer, (3) no measurement.
+
+    \item[BM-013: Implement Deutsch-Jozsa algori...] \ \\
+    \textbf{Query:} ``Implement Deutsch-Jozsa algorithm for a 3-qubit balanced oracle with measurement'' \\
+    \textbf{Target Algorithm:} \texttt{deutsch\_jozsa} \\
+    \textbf{Expected Qubits/Gates:} 4 qubits; \texttt{H, CNOT} \\
+    \textbf{Validation Criteria:} \texttt{algorithm\_correct} \\
+    \textbf{Known Failure Modes:} (1) missing oracle, (2) wrong ancilla usage, (3) no measurement.
+
+    \item[BM-014: Create a 4-qubit quantum Fouri...] \ \\
+    \textbf{Query:} ``Create a 4-qubit quantum Fourier transform circuit with measurement'' \\
+    \textbf{Target Algorithm:} \texttt{qft} \\
+    \textbf{Expected Qubits/Gates:} 4 qubits; \texttt{H, CNOT} \\
+    \textbf{Validation Criteria:} \texttt{algorithm\_correct} \\
+    \textbf{Known Failure Modes:} (1) wrong qubit count, (2) missing controlled phases, (3) no measurement.
+
+    \item[BM-015: Implement Simon's algorithm on...] \ \\
+    \textbf{Query:} ``Implement Simon's algorithm on 4 qubits with measurement'' \\
+    \textbf{Target Algorithm:} \texttt{simon} \\
+    \textbf{Expected Qubits/Gates:} 4 qubits; \texttt{H, CNOT} \\
+    \textbf{Validation Criteria:} \texttt{compilation\_success} \\
+    \textbf{Known Failure Modes:} (1) missing oracle, (2) no measurement, (3) incorrect period finding structure.
+
+\end{description}
+
+
+\subsection*{Advanced Tier}
+\begin{description}
+    \item[BM-016: Sketch a QSVT-style phase poly...] \ \\
+    \textbf{Query:} ``Sketch a QSVT-style phase polynomial circuit on 3 qubits with measurement'' \\
+    \textbf{Target Algorithm:} \texttt{qsvt} \\
+    \textbf{Expected Qubits/Gates:} 3 qubits; \texttt{H, CNOT} \\
+    \textbf{Validation Criteria:} \texttt{compilation\_success} \\
+    \textbf{Known Failure Modes:} (1) empty circuit, (2) no measurement, (3) invalid phase polynomial gates.
+
+    \item[BM-017: Implement a discrete-time quan...] \ \\
+    \textbf{Query:} ``Implement a discrete-time quantum walk on a 3-qubit line with measurement'' \\
+    \textbf{Target Algorithm:} \texttt{quantum\_walk} \\
+    \textbf{Expected Qubits/Gates:} 3 qubits; \texttt{H, CNOT} \\
+    \textbf{Validation Criteria:} \texttt{circuit\_non\_empty} \\
+    \textbf{Known Failure Modes:} (1) missing coin operator, (2) no measurement, (3) wrong connectivity.
+
+    \item[BM-018: Build a simple amplitude estim...] \ \\
+    \textbf{Query:} ``Build a simple amplitude estimation circuit on 3 qubits with measurement'' \\
+    \textbf{Target Algorithm:} \texttt{amplitude\_estimation} \\
+    \textbf{Expected Qubits/Gates:} 3 qubits; \texttt{H, CNOT} \\
+    \textbf{Validation Criteria:} \texttt{compilation\_success} \\
+    \textbf{Known Failure Modes:} (1) missing Grover iterations, (2) no measurement, (3) incorrect ancilla usage.
+
+    \item[BM-019: Create a 3-qubit Hamiltonian s...] \ \\
+    \textbf{Query:} ``Create a 3-qubit Hamiltonian simulation Trotter step circuit with measurement'' \\
+    \textbf{Target Algorithm:} \texttt{trotter} \\
+    \textbf{Expected Qubits/Gates:} 3 qubits; \texttt{RX, RZ, CNOT} \\
+    \textbf{Validation Criteria:} \texttt{compilation\_success} \\
+    \textbf{Known Failure Modes:} (1) missing Trotter slices, (2) no measurement, (3) wrong Hamiltonian terms.
+
+    \item[BM-020: Implement a variational quantu...] \ \\
+    \textbf{Query:} ``Implement a variational quantum eigensolver layer for a 4-qubit Heisenberg chain with measurement'' \\
+    \textbf{Target Algorithm:} \texttt{vqe} \\
+    \textbf{Expected Qubits/Gates:} 4 qubits; \texttt{RX, RY, CNOT} \\
+    \textbf{Validation Criteria:} \texttt{algorithm\_correct} \\
+    \textbf{Known Failure Modes:} (1) no entangling layer, (2) no measurement, (3) missing parameters.
+
+\end{description}
+
+
+\subsection*{Explanation Tier}
+\begin{description}
+    \item[BM-021: Explain why the Hadamard gate ...] \ \\
+    \textbf{Query:} ``Explain why the Hadamard gate creates superposition on a single qubit'' \\
+    \textbf{Target Algorithm:} \texttt{None} \\
+    \textbf{Expected Qubits/Gates:} 0 qubits; \texttt{} \\
+    \textbf{Validation Criteria:} \texttt{explanation\_only} \\
+    \textbf{Known Failure Modes:} (1) returns code instead of explanation, (2) incorrect physics, (3) missing measurement discussion.
+
+    \item[BM-022: Explain how CNOT creates entan...] \ \\
+    \textbf{Query:} ``Explain how CNOT creates entanglement in a Bell state circuit'' \\
+    \textbf{Target Algorithm:} \texttt{None} \\
+    \textbf{Expected Qubits/Gates:} 0 qubits; \texttt{} \\
+    \textbf{Validation Criteria:} \texttt{explanation\_only} \\
+    \textbf{Known Failure Modes:} (1) no mention of entanglement, (2) incorrect gate description, (3) missing Cirq example.
+
+    \item[BM-023: Explain the role of measuremen...] \ \\
+    \textbf{Query:} ``Explain the role of measurement in Cirq circuits and show a minimal example'' \\
+    \textbf{Target Algorithm:} \texttt{None} \\
+    \textbf{Expected Qubits/Gates:} 0 qubits; \texttt{} \\
+    \textbf{Validation Criteria:} \texttt{explanation\_only} \\
+    \textbf{Known Failure Modes:} (1) no measurement example, (2) wrong cirq.measure usage, (3) confuses simulation with measurement.
+
+    \item[BM-024: Explain why VQE uses a paramet...] \ \\
+    \textbf{Query:} ``Explain why VQE uses a parameterized ansatz and what optimization means in that context'' \\
+    \textbf{Target Algorithm:} \texttt{None} \\
+    \textbf{Expected Qubits/Gates:} 0 qubits; \texttt{} \\
+    \textbf{Validation Criteria:} \texttt{explanation\_only} \\
+    \textbf{Known Failure Modes:} (1) no ansatz mention, (2) incorrect optimization description, (3) missing Cirq context.
+
+    \item[BM-025: Explain the difference between...] \ \\
+    \textbf{Query:} ``Explain the difference between Grover diffusion and the oracle in search circuits'' \\
+    \textbf{Target Algorithm:} \texttt{None} \\
+    \textbf{Expected Qubits/Gates:} 0 qubits; \texttt{} \\
+    \textbf{Validation Criteria:} \texttt{explanation\_only} \\
+    \textbf{Known Failure Modes:} (1) conflates oracle and diffusion, (2) no circuit intuition, (3) incorrect complexity claim.
+
+\end{description}

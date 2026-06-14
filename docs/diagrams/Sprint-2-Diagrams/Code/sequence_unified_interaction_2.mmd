@@ -1,0 +1,41 @@
+%%{init: { 'theme': 'base', 'themeVariables': { 'fontFamily': 'Arial, sans-serif', 'fontSize': '14px', 'primaryColor': '#F3F4F6', 'primaryTextColor': '#111827', 'lineColor': '#374151', 'edgeLabelBackground': '#FFFFFF', 'actorLineColor': '#111827', 'actorTextColor': '#111827' }}}%%
+sequenceDiagram
+    autonumber
+    actor User as User Browser
+    participant FE as Next.js Frontend
+    participant API as FastAPI Routes
+    participant CS as ConversionService
+    participant SS as SimulationService
+    participant QB as QSim Backend
+
+    %% --- PHASE 1: CIRCUIT CONVERSION ---
+    Note over User, CS: Phase 1: Circuit Conversion & Transpilation
+    User->>FE: Select Framework & Click "Convert"
+    FE->>API: POST /api/converter/convert
+    activate API
+    API->>CS: convert_to_qasm(code, framework)
+    activate CS
+    CS->>CS: Transpile & Extract Stats
+    CS-->>API: Return QASM + Stats
+    deactivate CS
+    API-->>FE: JSON {qasm_code, stats}
+    deactivate API
+    FE-->>User: Render QASM View & Metrics
+
+    %% --- PHASE 2: SIMULATION EXECUTION ---
+    Note over User, QB: Phase 2: Quantum Simulation Execution
+    User->>FE: Select Backend & Click "Run"
+    FE->>API: POST /api/simulator/execute-qsim
+    activate API
+    API->>SS: execute_qasm_with_qsim(qasm)
+    activate SS
+    SS->>QB: Initialize & Load Circuit
+    activate QB
+    QB->>QB: Run Quantum Simulation
+    QB-->>SS: Raw Counts & Metadata
+    deactivate QB
+    SS-->>API: Processed Results
+    deactivate SS
+    API-->>FE: JSON {results}
+    deactivate API
+    FE-->>User: Render Histogram & Probability Distribution

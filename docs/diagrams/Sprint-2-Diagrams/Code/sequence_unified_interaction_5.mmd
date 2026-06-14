@@ -1,0 +1,66 @@
+%%{init: { 
+  'theme': 'base', 
+  'themeVariables': { 
+    'fontFamily': 'Arial, sans-serif',
+    'actorFontSize': '20px',
+    'noteFontSize': '20px',
+    'fontSize': '20px',
+    'actorFontWeight': 'bold',
+    'noteFontWeight': 'bold',
+    'primaryColor': '#F3F4F6', 
+    'primaryTextColor': '#000000', 
+    'lineColor': '#000000', 
+    'edgeLabelBackground': '#FFFFFF', 
+    'actorLineColor': '#000000', 
+    'actorTextColor': '#000000'
+  }
+}}%%
+sequenceDiagram
+    autonumber
+    
+    actor Usr as Usr
+    participant FE as UI
+    participant API as API
+    participant CS as CS
+    participant SS as SS
+    participant QB as QB
+
+    %% --- PHASE 1 ---
+    Note over Usr, CS: [ Phase 1: Conversion ]
+    
+    Usr->>FE: Convert
+    FE->>API: POST<br/>/convert
+    activate API
+    
+    API->>CS: Transp
+    activate CS
+    Note over CS: Transpiling
+    CS-->>API: QASM
+    deactivate CS
+    
+    API-->>FE: JSON
+    deactivate API
+    FE-->>Usr: Render
+
+    %% --- PHASE 2 ---
+    Note over Usr, QB: [ Phase 2: Simulation ]
+    
+    Usr->>FE: Run
+    FE->>API: POST<br/>/execute
+    activate API
+    
+    API->>SS: Init
+    activate SS
+    
+    SS->>QB: Load
+    activate QB
+    Note over QB: Executing
+    QB-->>SS: Counts
+    deactivate QB
+    
+    SS-->>API: Process
+    deactivate SS
+    
+    API-->>FE: JSON
+    deactivate API
+    FE-->>Usr: Plot

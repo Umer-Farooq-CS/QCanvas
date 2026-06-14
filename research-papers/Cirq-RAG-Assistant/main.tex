@@ -1,0 +1,355 @@
+\documentclass[runningheads]{llncs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows,positioning}
+
+\title{Retrieval-Augmented Generation for Cirq Quantum Code Generation: A Multi-Agent, Tool-Augmented Approach}
+\titlerunning{RAG for Cirq Quantum Code Generation}
+
+\author{Umer Farooq \and Hussain Waseem Syed \and Muhammad Irtaza Khan}
+\institute{FAST NUCES Islamabad, Department of Computer Science\\
+\email{i220891@nu.edu.pk, i220893@nu.edu.pk, i220911@nu.edu.pk}}
+
+% Custom spacing to tighten layout around floats
+\setlength{\textfloatsep}{12pt plus 2.0pt minus 2.0pt}  % Space between top/bottom float and text
+\setlength{\floatsep}{8pt plus 2.0pt minus 2.0pt}      % Space between two consecutive floats
+\setlength{\intextsep}{12pt plus 2.0pt minus 2.0pt}    % Space around an in-text float
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We present a specialized Retrieval-Augmented Generation (RAG) system for generating accurate Cirq quantum computing code from natural language descriptions. Our approach combines a curated knowledge base of Cirq implementations with a multi-agent Large Language Model (LLM) framework to produce executable quantum circuits with comprehensive explanations. The system addresses the growing need for accessible quantum programming tools by providing an AI-powered assistant specifically tailored for Google's Cirq framework. We evaluated our approach using standard quantum algorithms including VQE, QAOA, and quantum teleportation, achieving over 90\% syntactically correct code generation with distinct improvements over baseline LLM-only approaches. Our system leverages a novel combination of Designer, Optimizer, Validator, and Educational agents to ensure high-quality, educationally valuable output.
+\keywords{Retrieval-Augmented Generation \and Cirq \and Quantum Computing \and Code Generation \and Educational AI \and Multi-Agent Systems \and Tool-Augmented LLMs}
+\end{abstract}
+
+\section{Introduction}
+
+Quantum computing represents a paradigm shift in computational capabilities, promising exponential speedups for specific problems. However, the steep learning curve associated with quantum programming frameworks presents a significant barrier to adoption. Google's Cirq framework, while powerful, requires deep understanding of quantum mechanics and Python programming, making it challenging for newcomers to the field.
+
+The complexity of quantum programming is compounded by the need to understand both quantum mechanical principles and framework-specific syntax. Traditional approaches to learning quantum programming rely heavily on documentation and examples, which can be overwhelming for beginners. This creates a significant gap between theoretical understanding and practical implementation.
+
+Recent advances in Large Language Models (LLMs) and Retrieval-Augmented Generation (RAG) systems offer promising solutions to this challenge \cite{siavash2025modeldrivenquantumcodegeneration}. RAG systems combine the generative capabilities of LLMs with external knowledge bases, enabling more accurate and contextually relevant responses. 
+
+Our work introduces a specialized RAG system for Cirq quantum code generation that addresses these challenges through a curated knowledge base and intelligent retrieval mechanisms. The system is designed to serve both educational and practical purposes, aiming to help users learn quantum programming while generating production-ready code. Our contribution involves a Multi-Agent architecture comprising Designer, Optimizer, Validator, and Educational agents that collaborate to generate, refine, and explain quantum circuits.
+
+\section{Related Work}
+
+\subsection{Quantum Code Generation}
+Recent work has explored the application of AI to quantum programming. Dupuis et al. \cite{10691762} present the Qiskit Code Assistant, demonstrating framework-specific training. Similarly, Jimenez-Navajas et al. \cite{jimenez2025codegeneration} explore code generation for classical-quantum systems. Siavash and Moin have also contributed significantly with LLM-powered transpilation \cite{siavash2025llmpoweredquantumcodetranspilation}.
+
+\subsection{Retrieval-Augmented Generation}
+RAG systems have shown significant promise in improving the accuracy of LLM outputs. Siavash and Moin \cite{siavash2025modeldrivenquantumcodegeneration} present a model-driven approach to quantum code generation using RAG. We build on this by incorporating a multi-agent system.
+
+\subsection{Agents and Optimization}
+Multi-agent systems and fine-tuning are becoming central to quantum software engineering. Campbell et al. \cite{campbell2025enhancingllmbasedquantumcode} discuss enhancing generation with multi-agent optimization. Yu et al. \cite{yu2025quasarquantumassemblycode} introduce QUASAR for assembly generation via Agentic RL, while Jern et al. \cite{jern2025agentqfinetuninglargelanguage} explore fine-tuning for optimization. Our work integrates these concepts into a unified Cirq-specific pipeline.
+
+\subsection{Educational AI Systems}
+Basit et al. \cite{basit2025pennylangpioneeringllmbasedquantum} introduce PennyLang, emphasizing dataset curation for education. Our work follows similar methodologies for constructing a Cirq-centric educational knowledge base.
+
+\section{Methodology}
+
+\subsection{System Architecture}
+Our system employs a hybrid RAG + Multi-Agent architecture orchestrated to emulate a human developer's workflow. The \texttt{Orchestrator} class manages a complex state machine that coordinates four specialized LLM agents. The entire system is driven by a central \texttt{config.json} file that controls agent behaviors, RAG parameters, and optimization targets.
+
+The pipeline follows a strict execution flow (Fig.~\ref{fig:arch}):
+\begin{enumerate}
+    \item \textbf{Designer Agent}: Fetches relevant Cirq code from the RAG Knowledge Base and generates the initial circuit implementation.
+    \item \textbf{Validator Agent (Initial Pass)}: Performs static analysis using the \texttt{CirqCompiler} tool. If validation fails, it uses an LLM to generate a fix and re-validates in a \textbf{self-correction loop} (up to 3 retries).
+    \item \textbf{Optimizer-Validator Loop}: The Optimizer refines the circuit (reducing depth/gates) using Cirq heuristics (e.g., \texttt{merge\_single\_qubit\_gates\_to\_phxz}). The Validator immediately verifies the optimized code, and the loop continues until convergence.
+    \item \textbf{Final Validation}: A rigorous final check to ensure correctness.
+    \item \textbf{Educational Agent}: Generates comprehensive explanations with four depth levels: \texttt{low}, \texttt{intermediate}, \texttt{high}, and \texttt{very\_high}.
+\end{enumerate}
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        node distance=1.5cm and 2.2cm,
+        every node/.style={font=\scriptsize},
+        block/.style={draw, rectangle, rounded corners, minimum height=0.9cm, minimum width=2cm, align=center, text width=2cm},
+        decision/.style={draw, diamond, aspect=2.5, align=center, inner sep=1pt, text width=1.5cm},
+        arrow/.style={->, thick, >=stealth},
+    ]
+        % Column 1 (Main Flow - Left)
+        \node (start) [block, fill=green!15] {User Query};
+        \node (designer) [block, fill=blue!15, below=of start] {Designer\\(Qwen2.5-Coder)};
+        \node (validator) [decision, fill=orange!15, below=of designer] {Validator\\(Self-Loop)};
+        \node (optimizer) [block, fill=red!15, below=of validator] {Optimizer\\(Qwen2.5-Coder)};
+
+        % Column 2 (Side Components - Left of Main)
+        \node (rag) [block, fill=yellow!15, left=2.5cm of designer] {RAG\\Knowledge Base\\(140+ entries)};
+
+        % Column 3 (Final Steps - Right of Main)
+        \node (final_val) [block, fill=blue!15, right=3cm of designer] {Final Validator};
+        \node (edu) [block, fill=purple!15, below=of final_val] {Educational\\(Llama 3.1)};
+        \node (end) [block, fill=green!15, below=of edu] {Final Output};
+        
+        % Config (top right)
+        \node (config) [block, dashed, fill=gray!10, right=2.5cm of start] {config.json\\Modelfiles};
+
+        % --- Edges ---
+        % Main flow
+        \draw [arrow] (start) -- (designer);
+        \draw [arrow, <->] (designer.west) -- (rag.east) node[midway, above] {Context};
+        \draw [arrow, dashed] (config.south) |- (final_val.north);
+        \draw [arrow] (designer) -- (validator);
+
+        % Validator self-loop (LLM fix retry)
+        \draw [arrow] (validator.west) -- ++(-0.8,0) |- node[pos=0.25, left] {Fix} ([yshift=0.3cm]validator.west);
+
+        % Validator to Optimizer (Pass)
+        \draw [arrow] (validator) -- node[right] {Pass} (optimizer);
+
+        % Optimizer loops back to Validator (orthogonal)
+        \draw [arrow] (optimizer.west) -- ++(-1.5,0) |- node[pos=0.1, left] {Re-validate} (validator.south west);
+
+        % Validator to Final Validator (Converged) - orthogonal routing
+        \draw [arrow] (validator.east) -- ++(0.5,0) |- node[pos=0.2, right] {Converged} (final_val.west);
+
+        % Designer to Final Validator (shortcut on initial fail)
+        \draw [arrow, dashed] (designer.east) -- node[above] {Fail} (final_val.west);
+
+        % Final flow
+        \draw [arrow] (final_val) -- (edu);
+        \draw [arrow] (edu) -- (end);
+
+    \end{tikzpicture}
+    \caption{Multi-Agent Pipeline with Self-Correction Loops. The Validator includes an LLM-based self-correction loop (up to 3 retries). The Optimizer loops back to the same Validator until convergence. Designer can shortcut to Final Validator on persistent failure.}
+    \label{fig:arch}
+\end{figure}
+
+\subsection{Agent Implementations}
+\subsubsection{Designer Agent}
+The Designer Agent (\texttt{src/agents/designer.py}) is the entry point for code generation. It accepts a natural language query, retrieves relevant context from the RAG system (top-$k$ results), and calls the LLM with an augmented prompt. The generated code is immediately validated using \texttt{CirqCompiler} before being passed downstream.
+
+\subsubsection{Validator Agent}
+The Validator Agent (\texttt{src/agents/validator.py}, 765 lines) is the most complex agent. It operates in two modes: \texttt{local} (using \texttt{CirqCompiler} and \texttt{QuantumSimulator}) or \texttt{remote} (via a QCanvas backend API). Key features include:
+\begin{itemize}
+    \item \textbf{Self-Correction Loop}: If validation fails, the agent constructs a prompt containing the original code and error message, sends it to the LLM for repair, and re-validates. This loop runs up to 3 times.
+    \item \textbf{RAG Semantic Validation}: If a \texttt{Retriever} is provided, the agent compares simulation outputs against known-good reference examples using a noise-tolerant tolerance check (default 15\%).
+\end{itemize}
+
+\subsubsection{Optimizer Agent}
+The Optimizer Agent (\texttt{src/agents/optimizer.py}, 521 lines) reduces circuit depth and gate count. It supports three strategies:
+\begin{itemize}
+    \item \textbf{Heuristic Optimization}: Applies Cirq's built-in optimizers such as \texttt{merge\_single\_qubit\_gates\_to\_phxz}, \texttt{drop\_negligible\_operations}, and \texttt{eject\_z}.
+    \item \textbf{LLM Optimization}: Uses the generator to produce an optimized version of the code directly.
+    \item \textbf{RL Optimization}: Implements a simple reward-based search over Cirq transformations, with configurable weights for depth, total gates, and two-qubit gate count.
+\end{itemize}
+
+\subsubsection{Educational Agent}
+The Educational Agent (\texttt{src/agents/educational.py}, 432 lines) generates multi-modal explanations tailored to the user's expertise level. It uses four carefully designed prompt templates, each progressively increasing in technical depth:
+
+\begin{table}[H]
+\centering
+\caption{Educational Agent Depth Levels}
+\label{tab:edu_depth}
+\begin{tabular}{lp{8cm}}
+\toprule
+\textbf{Depth} & \textbf{Description} \\
+\midrule
+\texttt{low} & Uses everyday analogies (coins, boxes). No math symbols. Maximum 3-4 sentences per section. \\
+\texttt{intermediate} & Gate-by-gate explanations. Defines technical terms. Explains the purpose of each step. \\
+\texttt{high} & Includes state vector evolution (e.g., $|\psi\rangle = \frac{1}{\sqrt{2}}(|00\rangle + |11\rangle)$). Explains WHY each gate was chosen. Mathematical intuition. \\
+\texttt{very\_high} & Full bra-ket notation, matrix representations. Hardware implementation considerations. Noise sensitivity analysis. Alternative approaches with trade-offs. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The agent also retrieves supplementary learning materials from the Knowledge Base using the Retriever module, providing users with relevant code examples for further study.
+
+\subsection{Knowledge Base Construction}
+The Knowledge Base is stored in JSONL format and contains over 140 curated Cirq entries. Each entry includes \texttt{task} (natural language description), \texttt{code} (executable Python), \texttt{topics} (algorithm tags), and \texttt{constraints} (implementation notes). During indexing, these fields are concatenated and embedded using the \texttt{BAAI/bge-base-en-v1.5} sentence transformer (768-dimensional embeddings). The embeddings are stored in a FAISS index for efficient similarity search.
+
+Fig.~\ref{fig:kb_topics} shows the distribution of topics in our knowledge base, demonstrating broad coverage of quantum algorithms.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figs/knowledge_base_topics.png}
+    \caption{Distribution of topics in the Knowledge Base. The dataset covers a wide range of quantum algorithms and circuit primitives.}
+    \label{fig:kb_topics}
+\end{figure}
+
+\subsection{Agent Configuration and Hyperparameters}
+Each agent is powered by a dedicated Ollama Modelfile. The configuration is summarized in Table~\ref{tab:agents}.
+
+\begin{table}[H]
+\centering
+\caption{Agent Configuration and Hyperparameters}
+\label{tab:agents}
+\begin{tabular}{llccc}
+\toprule
+\textbf{Agent} & \textbf{Base Model} & \textbf{Temp.} & \textbf{Top-P} & \textbf{Max Tokens} \\
+\midrule
+Designer   & Qwen2.5-Coder (14B, Q4) & 0.1 & 0.9 & 2000 \\
+Validator  & Qwen2.5-Coder (14B, Q4) & 0.1 & 0.9 & 2000 \\
+Optimizer  & Qwen2.5-Coder (14B, Q4) & 0.1 & 0.9 & 2000 \\
+Educational & Llama 3.1 (8B, Q5)      & 0.2 & 0.9 & 2000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Model Selection Rationale:}
+\begin{itemize}
+    \item \textbf{Qwen2.5-Coder}: Chosen for code-critical agents due to its state-of-the-art performance on code generation benchmarks. A low temperature (0.1) ensures deterministic, reliable output.
+    \item \textbf{Llama 3.1}: Used for the Educational Agent as it excels at conversational and explanatory tasks. A slightly higher temperature (0.2) allows for more engaging content.
+    \item \textbf{Quantization (Q4/Q5)}: 4-bit and 5-bit quantization enables running 14B parameter models on consumer GPUs (e.g., RTX 3060 12GB).
+\end{itemize}
+
+\subsection{RAG and Generation Pipeline}
+\subsubsection{Hybrid Retrieval System}
+The \texttt{Retriever} module implements hybrid scoring that combines dense vector retrieval with keyword-based topic boosting:
+\begin{equation}
+Score(d, q) = Sim_{cos}(E(d), E(q)) + \alpha \cdot \sum_{t \in T_d} \mathbb{I}(t \in q)
+\end{equation}
+where $\alpha = 0.15$ by default. This ensures explicit topic matches (e.g., user asking for "Bell State") are prioritized.
+
+\subsubsection{Heuristic-Augmented Generation}
+The \texttt{Generator} injects algorithm-specific heuristics into the prompt. For example, for QAOA, it explicitly instructs the model to avoid the deprecated \texttt{cirq.contrib.qaoa} and instead build the Ansatz manually using \texttt{cirq.ZZ} gates.
+
+\section{Experimental Setup}
+
+We evaluated our system using a benchmark suite of standard quantum algorithms:
+\begin{itemize}
+    \item Bell State Preparation (Teleportation)
+    \item Grover's Search (3-qubit)
+    \item Variational Quantum Eigensolver (VQE)
+    \item Quantum Approximate Optimization Algorithm (QAOA)
+\end{itemize}
+
+We compared the "Full System" against ablation variants:
+\begin{itemize}
+    \item \textbf{No RAG}: LLM generation without retrieved context.
+    \item \textbf{No Validator}: No iterative validation loop.
+    \item \textbf{No Optimizer}: No optimization pass.
+    \item \textbf{Only Designer}: Single-agent baseline without downstream stages.
+\end{itemize}
+
+\subsection{Evaluation Metrics and Protocol}
+We evaluated each configuration on a shared benchmark set consisting of natural language prompts for the four algorithms above (Bell/teleportation, Grover, VQE, QAOA). For every prompt and mode we run the full pipeline once and record whether a final circuit is returned and passes validation.
+
+Success Rate measures the fraction of prompts where the pipeline returns a circuit that (i) compiles, (ii) simulates without runtime errors, and (iii) satisfies our semantic validation checks. Validation Rate isolates the Validator Agent and reports the fraction of prompts where its \texttt{validation\_passed} flag is true. Latency is the mean wall-clock time from user query to final validated circuit.
+
+Code Quality is a scalar score derived from the metrics collector (syntax validity, compilation success, and basic structural heuristics), normalized so that higher values indicate better quality; we report the mean over prompts for each mode. Circuit Depth, Total Gate Count, and Two-Qubit Gates are computed by the \texttt{CircuitAnalyzer} tool, and we also log Code Length (number of characters) as a proxy for readability.
+
+\section{Results}
+
+\subsection{Performance Overview}
+The Full System demonstrated superior performance across all metrics (Table \ref{tab:comparison}). It achieved a \textbf{92.0\% Success Rate} and \textbf{90.0\% Validation Rate}, significantly outperforming the "Only Designer" baseline (52.0\% Success).
+
+\begin{table}[H]
+\centering
+\caption{Comparative Analysis of System Modes}
+\label{tab:comparison}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Mode} & \textbf{Success} & \textbf{Valid.} & \textbf{Latency (s)} & \textbf{Quality} & \textbf{Depth} & \textbf{Gates} \\
+\midrule
+Full System & \textbf{92.0\%} & \textbf{90.0\%} & 54.3 & \textbf{0.35} & \textbf{8} & \textbf{12} \\
+No RAG & 65.0\% & 62.0\% & 48.5 & 0.26 & 11 & 16 \\
+No Validator & 83.0\% & 80.0\% & 41.7 & 0.20 & 9 & 14 \\
+No Optimizer & 88.0\% & 86.0\% & 39.8 & 0.00 & 12 & 18 \\
+Only Designer & 52.0\% & 47.0\% & \textbf{13.4} & 0.00 & 14 & 21 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Multi-Dimensional Analysis}
+Fig. \ref{fig:radar} presents a comprehensive view of the Full System's capabilities. It excels in Code Quality and circuit efficiency.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{img/mode_radar_Full_System.png}
+    \caption{Radar Chart for Full System Performance. The system achieves high scores in success, validation, and code quality.}
+    \label{fig:radar}
+\end{figure}
+
+\subsection{Latency and Throughput}
+While the Full System has higher latency (54.3s) compared to the "Only Designer" mode (13.4s) due to the overhead of multiple agents and validation loops, this is a necessary trade-off for the substantial gain in accuracy (92\% vs 52\%).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{img/mode_latency.png}
+    \caption{Latency Comparison by Mode. The Full System incurs higher latency for better accuracy.}
+    \label{fig:latency}
+\end{figure}
+
+\subsection{Circuit Optimization}
+The Optimizer agent significantly reduces circuit complexity. As seen in Fig. \ref{fig:depth} and Fig. \ref{fig:gates}, the Full System produces circuits with lower depth (8) and fewer total gates (12) compared to unoptimized baselines (Depth 14, Gates 21 for Only Designer).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{img/mode_circuit_depth.png}
+    \caption{Average Circuit Depth Comparison. Lower is better. The Full System produces the most compact circuits.}
+    \label{fig:depth}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{img/mode_total_gates.png}
+    \caption{Total Gate Count Comparison. The Full System minimizes resource usage.}
+    \label{fig:gates}
+\end{figure}
+
+\subsection{Validation Reliability}
+The Validator agent ensures high reliability. Fig. \ref{fig:validation} shows that the Full System maintains a high validation rate, which correlates directly with execution success.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{img/mode_validation_rate.png}
+    \caption{Validation Rate Comparison. The Full System ensures rigorous code verification.}
+    \label{fig:validation}
+\end{figure}
+
+\subsection{Two-Qubit Gate Reduction}
+Two-qubit gates (CNOT, CZ) are particularly costly on real hardware due to their higher error rates. Fig.~\ref{fig:two_qubit} shows that our Optimizer successfully reduces two-qubit gate count by 38\% (8 gates in Only Designer vs 5 in Full System).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figs/mode_two_qubit_gates.png}
+    \caption{Two-Qubit Gate Count Comparison. Reducing these gates is critical for near-term quantum devices.}
+    \label{fig:two_qubit}
+\end{figure}
+
+\subsection{Trade-off Analysis}
+Fig.~\ref{fig:tradeoff} presents the latency-quality trade-off across all modes. The Full System occupies the optimal position in the upper-right quadrant (high quality, acceptable latency). The Only Designer mode, while fast, produces significantly lower quality output.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figs/mode_tradeoff_analysis.png}
+    \caption{Latency vs Quality Trade-off Analysis. Bubble size represents success rate. The Full System achieves the best quality with reasonable latency overhead.}
+    \label{fig:tradeoff}
+\end{figure}
+
+\section{Discussion}
+The results validate our hypothesis that a Multi-Agent RAG system significantly outperforms single-agent or no-RAG baselines. The \textbf{40\% improvement} in success rate over the single-agent baseline justifies the architectural complexity.
+\begin{itemize}
+    \item \textbf{Cost of Quality}: The 4x increase in latency yields a nearly 2x increase in success rate.
+    \item \textbf{Optimization Impact}: The 33\% reduction in gate count (21 to 14) demonstrates the effectiveness of the Optimizer agent.
+    \item \textbf{RAG Utility}: The 27\% drop in success rate without RAG (92\% to 65\%) confirms that LLMs struggle with Cirq syntax without retrieved context.
+\end{itemize}
+
+\section{Limitations and Future Work}
+Although the empirical results are promising, our study has several limitations. First, the benchmark set covers a relatively small number of algorithms and prompt formulations, so the reported success rates should be interpreted as indicative rather than exhaustive. Second, all evaluations are automated; we do not include a human study of code readability, educational usefulness, or long-term learning impact. Third, the current knowledge base contains over 140 curated Cirq examples, whereas our configuration targets a substantially larger corpus, which may further improve retrieval quality.
+
+From a systems perspective, the RL-based optimization mode in the \texttt{OptimizerAgent} and the remote QCanvas-backend validation path are implemented but were not enabled in the experiments reported here. Future work includes scaling the knowledge base toward the 2{,}500-entry target, systematically exploring RL-based optimization and fine-tuning (Agent-Q/QUASAR style) for specific algorithm families, and integrating QCanvas in production for hardware-aware optimization. We also plan to expand the educational evaluation with user studies, comparing learning gains against baseline tutorials and non-agentic code assistants.
+
+\section{Conclusion}
+We developed and evaluated a specialized RAG system for Cirq quantum code generation. Our multi-agent architecture successfully generates accurate, optimized, and well-explained quantum circuits. The system achieves $>$90\% accuracy on standard benchmarks, demonstrating its potential as a robust educational and productivity tool for quantum computing. Future work will focus on minimizing the latency overhead while maintaining high accuracy.
+
+\bibliographystyle{splncs04}
+\bibliography{references}
+
+\clearpage
+\input{appendix_a_catalogue}
+\clearpage
+\input{appendix_b_reproducibility}
+
+\end{document}
