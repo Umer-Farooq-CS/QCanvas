@@ -350,6 +350,7 @@ All baseline models were queried with direct prompts (omitting RAG context retri
 \centering
 \caption{Performance Comparison against External Baselines}
 \label{tab:baselines}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{lccccc}
 \toprule
 \textbf{Mode / Model} & \textbf{Success Rate} & \textbf{Code Quality} & \textbf{Avg Latency (s)} & \textbf{Circuit Depth} & \textbf{Total Gates} \\
@@ -360,6 +361,7 @@ GPT-4o (No RAG) & 75.0\% & 0.86 & \textbf{3.50} & 5.1 & \textbf{7.2} \\
 Qwen-2.5-Coder (No RAG) & 55.0\% & 0.84 & 17.14 & 5.6 & 8.1 \\
 \bottomrule
 \end{tabular}
+}
 \end{table}
 
 \noindent
