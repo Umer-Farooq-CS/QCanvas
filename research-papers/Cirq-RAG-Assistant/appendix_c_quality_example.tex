@@ -1,0 +1,105 @@
+\section{Code Quality Score: Worked Examples}
+\label{sec:appendix_c_quality}
+
+This appendix provides concrete worked examples demonstrating how the weighted Code Quality metric (Equation~\ref{eq:code_quality}) is evaluated for different Cirq code implementations.
+
+\subsection{Example 1: Optimal Entangled State Code (Score = 1.00)}
+The following code snippet successfully prepares a 2-qubit Bell state ($|\Phi^+\rangle$), measures both qubits, and runs a simulation:
+
+\begin{lstlisting}[language=Python]
+import cirq
+
+# Initialize qubits
+q0, q1 = cirq.LineQubit.range(2)
+
+# Create circuit
+circuit = cirq.Circuit(
+    cirq.H(q0),
+    cirq.CNOT(q0, q1),
+    cirq.measure(q0, q1, key='result')
+)
+
+# Run simulation
+sim = cirq.Simulator()
+result = sim.run(circuit, repetitions=1024)
+print(result)
+\end{lstlisting}
+
+\noindent
+\textbf{Sub-metric Evaluation:}
+\begin{itemize}
+    \item \textbf{SyntaxValid(c) = 1}: The code successfully parses into a valid Python Abstract Syntax Tree (AST) using \texttt{ast.parse()}.
+    \item \textbf{CompilationSuccess(c) = 1}: The code compiles and executes successfully without throwing any exceptions.
+    \item \textbf{HasMeasurement(c) = 1}: The code applies a measurement gate (\texttt{cirq.measure}) to the qubits, and the resulting circuit contains at least one \texttt{cirq.MeasurementGate}.
+    \item \textbf{CircuitNonEmpty(c) = 1}: The circuit contains three operations (H, CNOT, and measurement), which is greater than zero.
+    \item \textbf{CorrectImports(c) = 1}: The code contains a valid import statement for \texttt{cirq} and does not attempt to import unsupported or deprecated libraries.
+\end{itemize}
+
+\noindent
+\textbf{Code Quality Score Calculation:}
+\begin{align*}
+\text{CodeQuality}(c) &= 0.30(1) + 0.30(1) + 0.20(1) + 0.10(1) + 0.10(1) \\
+&= 0.30 + 0.30 + 0.20 + 0.10 + 0.10 \\
+&= 1.00
+\end{align
+
+\subsection{Example 2: Code with Syntax Errors (Score = 0.10)}
+The following code snippet has a syntax error (missing parentheses for the \texttt{print} function in Python 3):
+
+\begin{lstlisting}[language=Python]
+import cirq
+
+q = cirq.LineQubit(0)
+circuit = cirq.Circuit(
+    cirq.H(q),
+    cirq.measure(q, key='r')
+)
+print circuit
+\end{lstlisting}
+
+\noindent
+\textbf{Sub-metric Evaluation:}
+\begin{itemize}
+    \item \textbf{SyntaxValid(c) = 0}: The code fails to parse into a Python AST due to the invalid \texttt{print circuit} syntax, raising a \texttt{SyntaxError}.
+    \item \textbf{CompilationSuccess(c) = 0}: Since the code has a syntax error, it cannot compile or run.
+    \item \textbf{HasMeasurement(c) = 0}: Although the text contains the word \texttt{measure}, AST analysis and compiler execution cannot extract a valid circuit to verify the measurement gate.
+    \item \textbf{CircuitNonEmpty(c) = 0}: The circuit object is not initialized or verified.
+    \item \textbf{CorrectImports(c) = 1}: The import statement \texttt{import cirq} is present and valid.
+\end{itemize}
+
+\noindent
+\textbf{Code Quality Score Calculation:}
+\begin{align*}
+\text{CodeQuality}(c) &= 0.30(0) + 0.30(0) + 0.20(0) + 0.10(0) + 0.10(1) \\
+&= 0.10
+\end{align*}
+
+\subsection{Example 3: Valid Syntax but No Circuit Operations (Score = 0.70)}
+The following code block is syntactically valid and executes without throwing errors, but it does not define or populate any operations on the circuit:
+
+\begin{lstlisting}[language=Python]
+import cirq
+
+# Setup simulator but do not define any gates
+q = cirq.LineQubit(0)
+circuit = cirq.Circuit()
+sim = cirq.Simulator()
+\end{lstlisting}
+
+\noindent
+\textbf{Sub-metric Evaluation:}
+\begin{itemize}
+    \item \textbf{SyntaxValid(c) = 1}: The code is syntactically correct and parses into an AST.
+    \item \textbf{CompilationSuccess(c) = 1}: The code executes successfully without runtime errors.
+    \item \textbf{HasMeasurement(c) = 0}: The code does not define any measurement operations.
+    \item \textbf{CircuitNonEmpty(c) = 0}: The circuit is empty (contains zero operations).
+    \item \textbf{CorrectImports(c) = 1}: The import statement \texttt{import cirq} is present and valid.
+\end{itemize}
+
+\noindent
+\textbf{Code Quality Score Calculation:}
+\begin{align*}
+\text{CodeQuality}(c) &= 0.30(1) + 0.30(1) + 0.20(0) + 0.10(0) + 0.10(1) \\
+&= 0.30 + 0.30 + 0.00 + 0.00 + 0.10 \\
+&= 0.70
+\end{align*}

@@ -180,8 +180,12 @@ Generated code:"""
                 )
             # Anthropic client will use ANTHROPIC_API_KEY env var automatically
             self.client = anthropic.Anthropic()
+        elif self.provider == "gemini":
+            self.gemini_api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+            self.client = None
+            self.ollama_base_url = None
         else:
-            raise ValueError(f"Unsupported provider: {provider}. Use 'ollama', 'aws', 'openai', or 'anthropic'.")
+            raise ValueError(f"Unsupported provider: {provider}. Use 'ollama', 'aws', 'openai', 'anthropic', or 'gemini'.")
         
         logger.info(f"Initialized Generator with {provider}/{model}")
     
@@ -290,6 +294,34 @@ CRITICAL CONSTRAINTS FOR QAOA:
                     },
                 )
                 generated_text = response["output"]["message"]["content"][0]["text"]
+            elif self.provider == "gemini":
+                if not self.gemini_api_key:
+                    raise ValueError("Gemini API key is required. Set GEMINI_API_KEY or GOOGLE_API_KEY environment variable.")
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent?key={self.gemini_api_key}"
+                system_text = system_prompt if system_prompt is not None else DESIGNER_SYSTEM
+                payload = {
+                    "contents": [
+                        {
+                            "role": "user",
+                            "parts": [{"text": prompt}]
+                        }
+                    ],
+                    "systemInstruction": {
+                        "parts": [{"text": system_text}]
+                    },
+                    "generationConfig": {
+                        "temperature": self.temperature,
+                        "maxOutputTokens": self.max_tokens
+                    }
+                }
+                resp = requests.post(url, json=payload, timeout=kwargs.get("timeout", 300))
+                resp.raise_for_status()
+                data = resp.json()
+                try:
+                    generated_text = data["candidates"][0]["content"]["parts"][0]["text"]
+                except (KeyError, IndexError) as e:
+                    logger.error(f"Failed to parse Gemini response: {data}")
+                    raise RuntimeError("Invalid response structure from Gemini API") from e
             else:  # ollama - uses Modelfile's SYSTEM prompt
                 url = f"{self.ollama_base_url.rstrip('/')}/api/generate"
                 payload = {
@@ -600,6 +632,33 @@ CRITICAL CONSTRAINTS FOR QAOA:
                     },
                 )
                 generated_text = response["output"]["message"]["content"][0]["text"]
+            elif self.provider == "gemini":
+                if not self.gemini_api_key:
+                    raise ValueError("Gemini API key is required. Set GEMINI_API_KEY or GOOGLE_API_KEY environment variable.")
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent?key={self.gemini_api_key}"
+                payload = {
+                    "contents": [
+                        {
+                            "role": "user",
+                            "parts": [{"text": prompt}]
+                        }
+                    ],
+                    "systemInstruction": {
+                        "parts": [{"text": system_text}]
+                    },
+                    "generationConfig": {
+                        "temperature": self.temperature,
+                        "maxOutputTokens": self.max_tokens
+                    }
+                }
+                resp = requests.post(url, json=payload, timeout=kwargs.get("timeout", 300))
+                resp.raise_for_status()
+                data = resp.json()
+                try:
+                    generated_text = data["candidates"][0]["content"]["parts"][0]["text"]
+                except (KeyError, IndexError) as e:
+                    logger.error(f"Failed to parse Gemini response: {data}")
+                    raise RuntimeError("Invalid response structure from Gemini API") from e
             else:  # ollama
                 url = f"{self.ollama_base_url.rstrip('/')}/api/chat"
                 payload = {
