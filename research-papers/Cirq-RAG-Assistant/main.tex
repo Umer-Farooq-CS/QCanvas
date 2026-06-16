@@ -43,13 +43,13 @@ Our work introduces a specialized RAG system for Cirq quantum code generation th
 \section{Related Work}
 
 \subsection{Quantum Code Generation}
-Recent work has explored the application of AI to quantum programming. Dupuis et al. \cite{10691762} present the Qiskit Code Assistant, demonstrating framework-specific training. Similarly, Jimenez-Navajas et al. \cite{jimenez2025codegeneration} explore code generation for classical-quantum systems. Siavash and Moin have also contributed significantly with LLM-powered transpilation \cite{siavash2025llmpoweredquantumcodetranspilation}.
+Recent work has explored the application of AI to quantum programming. Dupuis et al. \cite{10691762} present the Qiskit Code Assistant, demonstrating framework-specific training. Similarly, Jimenez-Navajas et al. \cite{jimenez2025codegeneration} explore code generation for classical-quantum systems. Siavash and Moin have also contributed significantly with LLM-powered transpilation \cite{siavash2025llmpoweredquantumcodetranspilation}. Beyond framework-specific tools, standard language models trained on code have shown substantial capabilities in general code generation tasks, as demonstrated in seminal work like OpenAI Codex by Chen et al. \cite{chen2021evaluating}.
 
 \subsection{Retrieval-Augmented Generation}
-RAG systems have shown significant promise in improving the accuracy of LLM outputs. Siavash and Moin \cite{siavash2025modeldrivenquantumcodegeneration} present a model-driven approach to quantum code generation using RAG. We build on this by incorporating a multi-agent system.
+RAG systems have shown significant promise in improving the accuracy of LLM outputs. Siavash and Moin \cite{siavash2025modeldrivenquantumcodegeneration} present a model-driven approach to quantum code generation using RAG. We build on this by incorporating a multi-agent system. Originally introduced by Lewis et al. \cite{lewis2020retrieval} to enhance language models on knowledge-intensive NLP tasks, RAG has since been adapted to software engineering and code generation to mitigate hallucinations and update local syntax conventions.
 
 \subsection{Agents and Optimization}
-Multi-agent systems and fine-tuning are becoming central to quantum software engineering. Campbell et al. \cite{campbell2025enhancingllmbasedquantumcode} discuss enhancing generation with multi-agent optimization. Yu et al. \cite{yu2025quasarquantumassemblycode} introduce QUASAR for assembly generation via Agentic RL, while Jern et al. \cite{jern2025agentqfinetuninglargelanguage} explore fine-tuning for optimization. Our work integrates these concepts into a unified Cirq-specific pipeline.
+Multi-agent systems and fine-tuning are becoming central to quantum software engineering. Campbell et al. \cite{campbell2025enhancingllmbasedquantumcode} discuss enhancing generation with multi-agent optimization. Yu et al. \cite{yu2025quasarquantumassemblycode} introduce QUASAR for assembly generation via Agentic RL, while Jern et al. \cite{jern2025agentqfinetuninglargelanguage} explore fine-tuning for optimization. Our work integrates these concepts into a unified Cirq-specific pipeline. Furthermore, multi-agent architectures that incorporate iterative validation and testing loops—such as AgentCoder by Chen et al. \cite{chen2023agentcoder}—have proven effective in correcting bugs and enhancing overall code quality before final execution.
 
 \subsection{Educational AI Systems}
 Basit et al. \cite{basit2025pennylangpioneeringllmbasedquantum} introduce PennyLang, emphasizing dataset curation for education. Our work follows similar methodologies for constructing a Cirq-centric educational knowledge base.
@@ -221,7 +221,7 @@ We evaluated our system using a benchmark suite of standard quantum algorithms:
     \item Bell State Preparation (Teleportation)
     \item Grover's Search (3-qubit)
     \item Variational Quantum Eigensolver (VQE)
-    \item Quantum Approximate Optimization Algorithm (QAOA)
+    \item Quantum Approximate Optimization Algorithm (QAOA) \cite{farhi2014quantum}
 \end{itemize}
 
 We compared the "Full System" against ablation variants:
