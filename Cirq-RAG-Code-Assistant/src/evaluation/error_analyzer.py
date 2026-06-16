@@ -7,14 +7,26 @@ logger = get_logger(__name__)
 
 ERROR_TAXONOMY = {
     "Syntax Errors": [
-        "SyntaxError", "IndentationError", "NameError", "ImportError", "ModuleNotFoundError"
+        "syntaxerror", "indentationerror", "nameerror", "importerror", "modulenotfounderror"
     ],
     "Wrong Cirq API": [
-        "AttributeError", "TypeError", "ValueError", "cirq"
+        "attributeerror", "typeerror", "valueerror", "cirq.contrib", "deprecated", "no attribute", "unexpected keyword argument"
     ],
     "Invalid Measurements": [
-        "measure", "MeasurementGate", "unmeasured"
+        "measurement", "measure", "unmeasured", "no measurement operations", "missing measurement"
     ],
+    "Poor RAG Retrieval": [
+        "retrieval", "no context", "empty knowledge base", "similarity threshold"
+    ],
+    "Optimizer-Induced Errors": [
+        "optimization failed", "empty circuit", "optimizer-induced", "depth reduction error"
+    ],
+    "Explanation Inaccuracies": [
+        "explanation", "educational agent", "invalid description", "bra-ket mismatch"
+    ],
+    "Incorrect Quantum Logic": [
+        "incorrect state", "fidelity mismatch", "logic error", "quantum state validation failed"
+    ]
 }
 
 class ErrorAnalyzer:
@@ -29,32 +41,61 @@ class ErrorAnalyzer:
         Inspects the result dictionary and maps the failure to a category in the taxonomy.
         """
         errors = result.get("errors", [])
+        stage = result.get("stage", "")
+        
+        # Prioritize optimizer-induced errors if the stage matches
+        if stage in ("optimization", "optimizer", "optimizing"):
+            return "Optimizer-Induced Errors"
+            
         if not errors:
-            # If no explicit error string but failed
-            if not result.get("validation_passed", False):
+            # If no explicit error string but validation/success failed
+            if not result.get("validation_passed", False) or not result.get("success", False):
+                if result.get("rag_references_used") == 0:
+                    return "Poor RAG Retrieval"
                 return "Incorrect Quantum Logic"
             return "Unknown Error"
 
         error_text = " ".join(str(e) for e in errors).lower()
 
         # Check for syntax errors
-        for err_type in ERROR_TAXONOMY["Syntax Errors"]:
-            if err_type.lower() in error_text:
+        for keyword in ERROR_TAXONOMY["Syntax Errors"]:
+            if keyword in error_text:
                 return "Syntax Errors"
 
+        # Check for explanation errors
+        for keyword in ERROR_TAXONOMY["Explanation Inaccuracies"]:
+            if keyword in error_text:
+                return "Explanation Inaccuracies"
+
         # Check for measurement errors
-        if "measure" in error_text or "measurement" in error_text:
-            return "Invalid Measurements"
+        for keyword in ERROR_TAXONOMY["Invalid Measurements"]:
+            if keyword in error_text:
+                return "Invalid Measurements"
+
+        # Check for optimizer-induced errors
+        for keyword in ERROR_TAXONOMY["Optimizer-Induced Errors"]:
+            if keyword in error_text:
+                return "Optimizer-Induced Errors"
+
+        # Check for poor RAG retrieval
+        for keyword in ERROR_TAXONOMY["Poor RAG Retrieval"]:
+            if keyword in error_text:
+                return "Poor RAG Retrieval"
 
         # Check for wrong Cirq API
+        for keyword in ERROR_TAXONOMY["Wrong Cirq API"]:
+            if keyword in error_text:
+                return "Wrong Cirq API"
+
+        # Check for incorrect quantum logic
+        for keyword in ERROR_TAXONOMY["Incorrect Quantum Logic"]:
+            if keyword in error_text:
+                return "Incorrect Quantum Logic"
+
+        # Fallbacks
         if "cirq" in error_text or "attributeerror" in error_text or "typeerror" in error_text:
             return "Wrong Cirq API"
 
-        # Check for optimizer-induced errors
-        if result.get("stage") == "optimization":
-            return "Optimizer-Induced Errors"
-
-        # Fallback to incorrect quantum logic if it failed validation but no specific python error
         return "Incorrect Quantum Logic"
 
     def analyze_results(self, test_results: List[Dict[str, Any]]) -> Dict[str, int]:

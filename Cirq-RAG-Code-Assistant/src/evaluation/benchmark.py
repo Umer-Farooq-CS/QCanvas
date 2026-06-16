@@ -234,6 +234,7 @@ class BenchmarkSuite:
 
             latencies = [t["latency_seconds"] for t in trials]
             qualities = [t["code_quality_score"] for t in trials]
+            hybrid_scores = [t["hybrid_quantum_score"] for t in trials if t.get("hybrid_quantum_score") is not None]
             depths = [t["circuit_depth"] for t in trials if t["circuit_depth"] is not None]
             gates = [t["num_gates"] for t in trials if t["num_gates"] is not None]
 
@@ -248,6 +249,7 @@ class BenchmarkSuite:
                 "success_rate_ci": wilson_ci(successes, num_trials),
                 "latency_stats": compute_statistics(latencies),
                 "code_quality_stats": compute_statistics(qualities),
+                "hybrid_quantum_score_stats": compute_statistics(hybrid_scores) if hybrid_scores else {},
                 "circuit_depth_stats": compute_statistics(depths) if depths else {},
                 "gate_count_stats": compute_statistics(gates) if gates else {},
                 "trials": trials,
@@ -332,11 +334,12 @@ class BenchmarkSuite:
         code = result.get("optimized_code") or result.get("code") or ""
         if code:
             objective_validation = assess_code_objectively(code)
-            quality = compute_code_quality_score(code, objective_validation)
+            quality = compute_code_quality_score(code, objective_validation, prompt_id=test_result["test_id"])
             test_result["success"] = objective_validation.get("validation_passed", False)
             test_result["validation_passed"] = objective_validation.get("validation_passed", False)
             test_result["objective_validation"] = objective_validation
             test_result["code_quality_score"] = quality["code_quality_score"]
+            test_result["hybrid_quantum_score"] = quality.get("hybrid_quantum_score")
             test_result["quality_components"] = quality["components"]
             self.metrics_collector.collect_code_quality(code, objective_validation)
 

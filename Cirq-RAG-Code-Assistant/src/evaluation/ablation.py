@@ -304,7 +304,7 @@ class AblationStudy:
                     else:
                         validation = {"validation_passed": False, "compilation": {"success": False}}
 
-                    quality = compute_code_quality_score(code, validation)
+                    quality = compute_code_quality_score(code, validation, prompt_id=case.get("id"))
                     success, validation_passed = _evaluate_case_outcome(
                         variant, result, code, validation, quality
                     )
