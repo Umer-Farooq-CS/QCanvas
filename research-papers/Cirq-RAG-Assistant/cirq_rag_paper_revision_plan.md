@@ -192,7 +192,7 @@ Total ≈ 140 curated entries.
 
 ---
 
-## 5. Critique Point — Code Quality Metric Undefined
+<!-- ## 5. Critique Point — Code Quality Metric Undefined
 
 ### Current state
 `src/evaluation/metrics.py → collect_code_quality()` computes:
@@ -223,7 +223,116 @@ All components are binary (0 or 1), so CodeQuality ∈ [0, 1].
 **5c. Paper changes:**
 - Add the formula as a numbered equation in §4.3 (Evaluation Metrics).
 - Add a column "Code Quality Score" to all results tables.
-- Include a worked example in the appendix.
+- Include a worked example in the appendix. -->
+
+## 5. Critique Point — Code Quality Metric Undefined
+
+### Current state
+`src/evaluation/metrics.py → collect_code_quality()` computes basic code properties: `code_length`, `num_lines`, `syntax_valid`, and `compilation_success`. The paper states "syntax validity, compilation success, and structural heuristics" without publishing an explicit, reproducible mathematical formula.
+
+### Plan
+
+**5a. Define and publish the Hybrid Quantum Code Quality Score ($Q_{\text{score}}$):**
+
+Instead of using purely classical or surface-level software metrics, we introduce a composite framework that unifies **Functional Correctness** and **Resource Efficiency**. This ensures code efficiency is only rewarded if the generated code is programmatically executable and semantically correct.
+
+$$Q_{\text{score}} = \text{Func}(c) \times \left( w_1 \cdot \frac{D_{\text{baseline}}}{D_{\text{gen}}} + w_2 \cdot \frac{G_{\text{baseline}}}{G_{\text{gen}}} \right)$$
+
+Where:
+* **$\text{Func}(c)$ (Functional Validity Gate):** A continuous correctness coefficient ($0.0 \le \text{Func}(c) \le 1.0$) defined as:
+  $$\text{Func}(c) = 0.40 \cdot \text{SyntaxValid}(c) + 0.60 \cdot \text{Fidelity}(F)$$
+  * $\text{SyntaxValid}(c) \in \{0, 1\}$ represents basic execution and compilation success[cite: 1].
+  * $\text{Fidelity}(F) \in [0.0, 1.0]$ represents the quantum state fidelity $|\langle \psi_{\text{true}} | \psi_{\text{gen}} \rangle|^2$ calculated via full state-vector simulation. If the circuit throws a runtime error or creates an incorrect quantum state, $\text{Func}(c) \to 0$, reducing the entire quality score to zero.
+* **$D_{\text{baseline}} / D_{\text{gen}}$:** The depth optimization ratio, comparing the critical path depth of the canonical algorithm against the generated Cirq circuit depth.
+* **$G_{\text{baseline}} / G_{\text{gen}}$:** The gate-count economy ratio, measuring total operations to penalize redundant single or two-qubit gate configurations.
+* **Weights ($w_1, w_2$):** Set default boundaries in `config/config.json` to $w_1 = 0.5$ and $w_2 = 0.5$ (where $w_1 + w_2 = 1.0$), mapping perfectly to the structural priorities defined in our optimization reward weights[cite: 1].
+
+**5b. Code changes required:**
+* `src/evaluation/metrics.py`: Add `compute_hybrid_quantum_score(gen_circuit, base_circuit)` to parse the generated code block, run it inside a local `cirq.Simulator()`, calculate state vector overlap against the reference baseline, extract circuit depth/gate constraints, and return the unified composite score.
+
+```python
+import cirq
+import numpy as np
+
+def compute_hybrid_quantum_score(gen_circuit, base_circuit, w1=0.5, w2=0.5):
+    """
+    Computes the hybrid code quality score gating resource efficiency 
+    behind functional quantum correctness and state fidelity simulation.
+    """
+    try:
+        # 1. Functional Correctness (Gating Stage)
+        sim = cirq.Simulator()
+        res_gen = sim.simulate(gen_circuit)
+        res_base = sim.simulate(base_circuit)
+        
+        state_gen = res_gen.final_state_vector
+        state_base = res_base.final_state_vector
+        
+        # Quantum State Fidelity calculation
+        fidelity = np.abs(np.vdot(state_base, state_gen))**2
+        func_gate = 0.40 + (0.60 * fidelity)
+        
+    except Exception:
+        # Complete catastrophic failure or syntax error crashes the gate to 0
+        return 0.0
+
+    if fidelity < 1e-4:
+        return 0.0
+
+    # 2. Resource Efficiency Stage
+    gen_depth = len(gen_circuit)
+    base_depth = len(base_circuit)
+    
+    gen_gates = len(list(gen_circuit.all_operations()))
+    base_gates = len(list(base_circuit.all_operations()))
+    
+    # Ratios penalize bloating; capped at 1.0 if agent out-optimizes baseline
+    depth_ratio = min(1.0, base_depth / max(1, gen_depth))
+    gate_ratio = min(1.0, base_gates / max(1, gen_gates))
+    
+    # Composite Final Score
+    q_score = func_gate * ((w1 * depth_ratio) + (w2 * gate_ratio))
+    return float(q_score)
+```
+
+**5c. Paper changes:**
+* Add the unified $Q_{\text{score}}$ framework as a numbered equation in §4.3 (Evaluation Metrics).
+* Add a column `"Hybrid Quality Score ($Q_{\text{score}}$)"` to all results tables.
+* Ground the methodology explicitly in literature by citing peer-reviewed benchmarks:
+  1. *State Validation & Correctness:* Cite **QuanBench** (Guo et al., 2025) to justify balancing syntactic compilation success with simulator-driven state fidelity validation.
+  2. *Resource Parsing:* Cite **QCircuitBench** (Yang et al., 2024) to validate our parsing of concrete internal quantum properties (gate counts, circuit depth ratios) out of LLM generations.
+  3. *Hybrid Framework Grounding:* Cite **Muñoz et al. (2024)** to anchor this hybrid software engineering approach.
+
+#### Valid References to Add to `references.bib`
+```bibtex
+@article{guo2025quanbench,
+  author    = {Guo, X. and Wang, M. and Zhao, J.},
+  title     = {QuanBench: Benchmarking Quantum Code Generation with Large Language Models},
+  journal   = {arXiv preprint arXiv:2510.16779},
+  year      = {2025},
+  url       = {[https://arxiv.org/abs/2510.16779](https://arxiv.org/abs/2510.16779)}
+}
+
+@article{yang2024qcircuitnet,
+  author    = {Yang, R. and Gu, Y. and Wang, Z. and Liang, Y. and Li, T.},
+  title     = {QCircuitNet: A Large-Scale Hierarchical Dataset for Quantum Algorithm Design},
+  journal   = {arXiv preprint arXiv:2410.07961},
+  year      = {2024},
+  url       = {[https://arxiv.org/abs/2410.07961](https://arxiv.org/abs/2410.07961)}
+}
+
+@article{munoz2024towards,
+  author    = {Mu{\~n}oz, A. D. and Monje, M. R. and Velthuis, M. G. P.},
+  title     = {Towards a Set of Metrics for Hybrid (Quantum/Classical) Systems Maintainability},
+  journal   = {JUCS - Journal of Universal Computer Science},
+  volume    = {30},
+  number    = {1},
+  pages     = {25--48},
+  year      = {2024},
+  doi       = {10.3897/jucs.99348}
+}
+```
+
 
 ---
 

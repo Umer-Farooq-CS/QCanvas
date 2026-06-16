@@ -1,0 +1,13 @@
+System,Dimension,Mean,StdDev
+full_system,correctness,4.30,0.65
+full_system,readability,4.43,0.63
+full_system,explanation,4.53,0.57
+full_system,idiomacy,4.47,0.51
+no_rag,correctness,2.50,0.90
+no_rag,readability,2.77,0.77
+no_rag,explanation,2.73,0.78
+no_rag,idiomacy,2.53,0.82
+gpt4o,correctness,3.17,1.02
+gpt4o,readability,4.27,0.58
+gpt4o,explanation,3.63,0.76
+gpt4o,idiomacy,3.10,0.55
