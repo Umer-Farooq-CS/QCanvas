@@ -62,7 +62,7 @@ Our system employs a hybrid RAG + Multi-Agent architecture orchestrated to emula
 The pipeline follows a strict execution flow (Fig.~\ref{fig:arch}):
 \begin{enumerate}
     \item \textbf{Designer Agent}: Fetches relevant Cirq code from the RAG Knowledge Base and generates the initial circuit implementation.
-    \item \textbf{Validator Agent (Initial Pass)}: Performs static analysis using the \texttt{CirqCompiler} tool. If validation fails, it uses an LLM to generate a fix and re-validates in a \textbf{self-correction loop} (up to 3 retries).
+    \item \textbf{Validator Agent (Initial Pass)}: Performs static analysis using the \texttt{Cirq\-Compiler} tool. If validation fails, it uses an LLM to generate a fix and re-validates in a \textbf{self-correction loop} (up to 3 retries).
     \item \textbf{Optimizer-Validator Loop}: The Optimizer refines the circuit (reducing depth/gates) using Cirq heuristics (e.g., \texttt{merge\_single\_qubit\_gates\_to\_phxz}). The Validator immediately verifies the optimized code, and the loop continues until convergence.
     \item \textbf{Final Validation}: A rigorous final check to ensure correctness.
     \item \textbf{Educational Agent}: Generates comprehensive explanations with four depth levels: \texttt{low}, \texttt{intermediate}, \texttt{high}, and \texttt{very\_high}.
@@ -139,7 +139,7 @@ The Validator Agent (\texttt{src/agents/validator.py}, 765 lines) is the most co
 \subsubsection{Optimizer Agent}
 The Optimizer Agent (\texttt{src/agents/optimizer.py}, 521 lines) reduces circuit depth and gate count. It supports three strategies:
 \begin{itemize}
-    \item \textbf{Heuristic Optimization}: Applies Cirq's built-in optimizers such as \texttt{merge\_single\_qubit\_gates\_to\_phxz}, \texttt{drop\_negligible\_operations}, and \texttt{eject\_z}.
+    \item \textbf{Heuristic Optimization}: Applies Cirq's built-in optimizers such as \texttt{merge\_\-single\_qubit\_gates\_to\_phxz}, \texttt{drop\_negligible\_operations}, and \texttt{eject\_z}.
     \item \textbf{LLM Optimization}: Uses the generator to produce an optimized version of the code directly.
     \item \textbf{RL Optimization}: Implements a simple reward-based search over Cirq transformations, with configurable weights for depth, total gates, and two-qubit gate count.
 \end{itemize}
@@ -172,7 +172,7 @@ Fig.~\ref{fig:kb_topics} shows the distribution of topics in our knowledge base,
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\textwidth]{figs/knowledge_base_topics.png}
+    \includegraphics[width=1\textwidth]{figs/knowledge_base_topics.png}
     \caption{Distribution of topics in the Knowledge Base. The dataset covers a wide range of quantum algorithms and circuit primitives.}
     \label{fig:kb_topics}
 \end{figure}
@@ -282,7 +282,7 @@ Fig. \ref{fig:radar} presents a comprehensive view of the Full System's capabili
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.6\textwidth]{img/mode_radar_Full_System.png}
+    \includegraphics[width=0.8\textwidth]{img/mode_radar_Full_System.png}
     \caption{Radar Chart for Full System Performance. The system achieves high scores in success, validation, and code quality.}
     \label{fig:radar}
 \end{figure}
@@ -292,7 +292,7 @@ While the Full System has higher latency (8.54s) compared to the "Only Designer"
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\textwidth]{img/mode_latency.png}
+    \includegraphics[width=0.9\textwidth]{img/mode_latency.png}
     \caption{Latency Comparison by Mode. The Full System incurs higher latency for better accuracy.}
     \label{fig:latency}
 \end{figure}
@@ -302,7 +302,7 @@ The Optimizer agent significantly reduces circuit complexity. As seen in Fig. \r
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\textwidth]{img/mode_circuit_depth.png}
+    \includegraphics[width=0.85\textwidth]{img/mode_circuit_depth.png}
     \caption{Average Circuit Depth Comparison. Lower is better. The Full System produces the most compact circuits.}
     \label{fig:depth}
 \end{figure}
@@ -439,7 +439,7 @@ The results validate our hypothesis that a Multi-Agent RAG system significantly 
 \section{Limitations and Future Work}
 Although the empirical results are promising, our study has several limitations. First, the benchmark set covers a relatively small number of algorithms and prompt formulations, so the reported success rates should be interpreted as indicative rather than exhaustive. Second, although we conducted a blind human study evaluating correctness, readability, explanation, and idiomacy over 30 samples, a larger scale user study measuring long-term educational learning gains in a classroom setting remains future work. Third, the current knowledge base contains over 140 curated Cirq examples, whereas our configuration targets a substantially larger corpus, which may further improve retrieval quality.
 
-From a systems perspective, the RL-based optimization mode in the \texttt{OptimizerAgent} and the remote QCanvas-backend validation path are implemented but were not enabled in the experiments reported here. Future work includes scaling the knowledge base toward the 2{,}500-entry target, systematically exploring RL-based optimization and fine-tuning (Agent-Q/QUASAR style) for specific algorithm families, and integrating QCanvas in production for hardware-aware optimization. We also plan to expand the educational evaluation with user studies, comparing learning gains against baseline tutorials and non-agentic code assistants.
+From a systems perspective, the RL-based optimization mode in the \texttt{Optimiz\-erAgent} and the remote QCanvas-backend validation path are implemented but were not enabled in the experiments reported here. Future work includes scaling the knowledge base toward the 2{,}500-entry target, systematically exploring RL-based optimization and fine-tuning (Agent-Q/QUASAR style) for specific algorithm families, and integrating QCanvas in production for hardware-aware optimization. We also plan to expand the educational evaluation with user studies, comparing learning gains against baseline tutorials and non-agentic code assistants.
 
 \section{Conclusion}
 We developed and evaluated a specialized RAG system for Cirq quantum code generation. Our multi-agent architecture successfully generates accurate, optimized, and well-explained quantum circuits. The system achieves $>$80\% accuracy on standard benchmarks, demonstrating its potential as a robust educational and productivity tool for quantum computing. Future work will focus on minimizing the latency overhead while maintaining high accuracy.
@@ -451,7 +451,7 @@ We developed and evaluated a specialized RAG system for Cirq quantum code genera
 \input{appendix_a_catalogue}
 \clearpage
 \input{appendix_b_reproducibility}
-\clearpage
-\input{appendix_c_quality_example}
+% \clearpage
+% \input{appendix_c_quality_example}
 
 \end{document}
