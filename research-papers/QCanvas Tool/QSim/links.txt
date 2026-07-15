@@ -1,0 +1,2 @@
+FastQubit API - Orchestration and execution control plane for the QSim quantum simulation platform: https://aneeq-ahmed-malik.github.io/FastQubit/swagger.html#
+FastQSim SDK Documentation: https://aneeq-ahmed-malik.github.io/QSim/
