@@ -5,6 +5,12 @@ import uuid
 import random
 from datetime import datetime, timedelta, date
 
+# Ensure utf-8 output encoding for emojis on Windows consoles
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 # Add backend directory to path
 backend_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, backend_dir)
@@ -113,24 +119,26 @@ def populate_dummy_data():
         ]
         
         for i, (email, username, full_name, role) in enumerate(user_data):
-            user = User(
-                email=email,
-                username=username,
-                full_name=full_name,
-                bio=USER_BIOS[i],
-                role=role,
-                is_active=True,
-                is_verified=True,
-                created_at=datetime.utcnow() - timedelta(days=random.randint(10, 60))
-            )
-            user.set_password("password123")
-            db.add(user)
+            user = db.query(User).filter((User.email == email) | (User.username == username)).first()
+            if not user:
+                user = User(
+                    email=email,
+                    username=username,
+                    full_name=full_name,
+                    bio=USER_BIOS[i],
+                    role=role,
+                    is_active=True,
+                    is_verified=True,
+                    created_at=datetime.utcnow() - timedelta(days=random.randint(10, 60))
+                )
+                user.set_password("password123")
+                db.add(user)
             users.append(user)
         
         db.commit()
         for u in users:
             db.refresh(u)
-        print(f"   ✅ Created {len(users)} users")
+        print(f"   ✅ Processed {len(users)} users")
             
         # ────────────────────────────
         # 2. PROJECTS
@@ -332,47 +340,54 @@ def populate_dummy_data():
         for i, title in enumerate(snippet_titles):
             author = users[i % len(users)]
             fw = FRAMEWORKS[i % len(FRAMEWORKS)]
-            snippet = SharedSnippet(
-                id=f"share-{title.lower().replace(' ', '-')}-{i+1}",
-                author_id=author.id,
-                author_name=author.full_name,
-                title=title,
-                description=f"A community shared example demonstrating {title.lower()}.",
-                framework=fw,
-                difficulty=random.choice(DIFFICULTIES),
-                category=random.choice(CATEGORIES),
-                tags=SHARED_TAGS[i % len(SHARED_TAGS)],
-                code=SAMPLE_CODES[fw],
-                filename=f"{title.lower().replace(' ', '_')}.py",
-                created_at=datetime.utcnow() - timedelta(days=random.randint(1, 14))
-            )
-            db.add(snippet)
-            snippet_count += 1
-        print(f"   ✅ Created {snippet_count} shared snippets")
+            snippet_id = f"share-{title.lower().replace(' ', '-')}-{i+1}"
+            snippet = db.query(SharedSnippet).filter(SharedSnippet.id == snippet_id).first()
+            if not snippet:
+                snippet = SharedSnippet(
+                    id=snippet_id,
+                    author_id=author.id,
+                    author_name=author.full_name,
+                    title=title,
+                    description=f"A community shared example demonstrating {title.lower()}.",
+                    framework=fw,
+                    difficulty=random.choice(DIFFICULTIES),
+                    category=random.choice(CATEGORIES),
+                    tags=SHARED_TAGS[i % len(SHARED_TAGS)],
+                    code=SAMPLE_CODES[fw],
+                    filename=f"{title.lower().replace(' ', '_')}.py",
+                    created_at=datetime.utcnow() - timedelta(days=random.randint(1, 14))
+                )
+                db.add(snippet)
+                snippet_count += 1
+        print(f"   ✅ Processed shared snippets ({snippet_count} added)")
 
         # ────────────────────────────
         # 10. ACHIEVEMENTS
         # ────────────────────────────
         print("🏆 Creating Achievements...")
         achievement_objs = []
+        ach_added = 0
         for ach_data in ACHIEVEMENTS:
-            achievement = Achievement(
-                name=ach_data["name"],
-                description=ach_data["description"],
-                category=ach_data["category"],
-                criteria=ach_data["criteria"],
-                reward_xp=ach_data["reward_xp"],
-                rarity=ach_data["rarity"],
-                icon_name=ach_data["icon_name"],
-                is_hidden=False
-            )
-            db.add(achievement)
+            achievement = db.query(Achievement).filter(Achievement.name == ach_data["name"]).first()
+            if not achievement:
+                achievement = Achievement(
+                    name=ach_data["name"],
+                    description=ach_data["description"],
+                    category=ach_data["category"],
+                    criteria=ach_data["criteria"],
+                    reward_xp=ach_data["reward_xp"],
+                    rarity=ach_data["rarity"],
+                    icon_name=ach_data["icon_name"],
+                    is_hidden=False
+                )
+                db.add(achievement)
+                ach_added += 1
             achievement_objs.append(achievement)
         
         db.flush()
         for a in achievement_objs:
             db.refresh(a)
-        print(f"   ✅ Created {len(achievement_objs)} achievements")
+        print(f"   ✅ Processed {len(achievement_objs)} achievements ({ach_added} newly created)")
         
         # ────────────────────────────
         # 11. USER GAMIFICATION
@@ -380,19 +395,21 @@ def populate_dummy_data():
         print("🎮 Creating User Gamification stats...")
         gam_count = 0
         for user in users:
-            xp = random.randint(0, 5000)
-            level = max(1, xp // 500)
-            gamification = UserGamification(
-                user_id=user.id,
-                total_xp=xp,
-                level=level,
-                current_streak=random.randint(0, 14),
-                longest_streak=random.randint(3, 30),
-                last_activity_date=date.today() - timedelta(days=random.randint(0, 3))
-            )
-            db.add(gamification)
-            gam_count += 1
-        print(f"   ✅ Created {gam_count} gamification profiles")
+            gamification = db.query(UserGamification).filter(UserGamification.user_id == user.id).first()
+            if not gamification:
+                xp = random.randint(0, 5000)
+                level = max(1, xp // 500)
+                gamification = UserGamification(
+                    user_id=user.id,
+                    total_xp=xp,
+                    level=level,
+                    current_streak=random.randint(0, 14),
+                    longest_streak=random.randint(3, 30),
+                    last_activity_date=date.today() - timedelta(days=random.randint(0, 3))
+                )
+                db.add(gamification)
+                gam_count += 1
+        print(f"   ✅ Processed gamification profiles ({gam_count} added)")
 
         # ────────────────────────────
         # 12. GAMIFICATION ACTIVITIES
@@ -424,14 +441,19 @@ def populate_dummy_data():
             num_achievements = random.randint(1, min(3, len(achievement_objs)))
             chosen = random.sample(achievement_objs, num_achievements)
             for ach in chosen:
-                ua = UserAchievement(
-                    user_id=user.id,
-                    achievement_id=ach.id,
-                    progress={"current": ach.criteria.get("target", 1), "target": ach.criteria.get("target", 1)},
-                    unlocked_at=datetime.utcnow() - timedelta(days=random.randint(1, 30)),
-                )
-                db.add(ua)
-                ua_count += 1
+                existing_ua = db.query(UserAchievement).filter(
+                    UserAchievement.user_id == user.id,
+                    UserAchievement.achievement_id == ach.id
+                ).first()
+                if not existing_ua:
+                    ua = UserAchievement(
+                        user_id=user.id,
+                        achievement_id=ach.id,
+                        progress={"current": ach.criteria.get("target", 1), "target": ach.criteria.get("target", 1)},
+                        unlocked_at=datetime.utcnow() - timedelta(days=random.randint(1, 30)),
+                    )
+                    db.add(ua)
+                    ua_count += 1
         print(f"   ✅ Created {ua_count} user achievements")
 
         # ────────────────────────────

@@ -5,6 +5,12 @@ Interactive script with validation and confirmation.
 import sys
 import os
 
+# Ensure utf-8 output encoding for emojis on Windows consoles
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 # Add backend directory to path
 backend_dir = os.path.abspath(os.path.dirname(__file__))
 sys.path.insert(0, backend_dir)
@@ -29,13 +35,13 @@ def create_user():
     print("\nSelect Role:")
     print("  1. User (default)")
     print("  2. Admin")
-    print("  3. Researcher")
+    print("  3. Demo")
     role_choice = input("Choice [1]: ").strip() or "1"
     
     role_map = {
         "1": UserRole.USER,
         "2": UserRole.ADMIN,
-        "3": UserRole.RESEARCHER
+        "3": UserRole.DEMO
     }
     role = role_map.get(role_choice, UserRole.USER)
     
