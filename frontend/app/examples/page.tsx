@@ -5,11 +5,13 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Copy, Play, Code } from '@/components/Icons';
-import { Menu, X, Share2 } from 'lucide-react';
+import { Share2, Search } from 'lucide-react';
 import toast from 'react-hot-toast'
 import { useFileStore } from '@/lib/store'
 import { sharedApi } from '@/lib/api'
 import Navbar from '@/components/Navbar'
+import SiteFooter from '@/components/site/SiteFooter'
+import CodeSample from '@/components/site/CodeSample'
 import { useAuthStore } from '@/lib/authStore'
 
 interface Example {
@@ -1040,291 +1042,215 @@ export default function ExamplesPage() {
     return matchesCategory && matchesFramework && matchesDifficulty && matchesSearch
   })
 
-  // Intersection Observer for scroll animations
-  useEffect(() => {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('reveal-show')
-        }
-      })
-    }, { threshold: 0.1 })
-
-    // Use a small timeout to ensure elements are in the DOM
-    const timeoutId = setTimeout(() => {
-      document.querySelectorAll('.reveal-on-scroll').forEach(el => {
-        observer.observe(el)
-      })
-    }, 100)
-
-    return () => {
-      clearTimeout(timeoutId)
-      observer.disconnect()
-    }
-  }, [activeTab, filteredExamples])
-
   const copyToClipboard = (code: string) => {
     navigator.clipboard.writeText(code)
-    toast.success('Code copied to clipboard!')
+    toast.success('Code copied')
   }
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'beginner': return 'bg-green-500'
-      case 'intermediate': return 'bg-yellow-500'
-      case 'advanced': return 'bg-red-500'
-      default: return 'bg-gray-500'
-    }
-  }
-
-  const getFrameworkColor = (framework: string) => {
+  const frameworkDot = (framework: string) => {
     switch (framework) {
-      case 'qiskit': return 'bg-blue-500'
-      case 'cirq': return 'bg-purple-500'
-      case 'pennylane': return 'bg-green-500'
-      default: return 'bg-gray-500'
+      case 'qiskit': return 'bg-qc-qiskit'
+      case 'cirq': return 'bg-qc-cirq'
+      case 'pennylane': return 'bg-qc-pennylane'
+      default: return 'bg-qc-subtle'
     }
   }
+
+  const label = (value: string) =>
+    value === 'pennylane' ? 'PennyLane' : value.charAt(0).toUpperCase() + value.slice(1)
+
+  const selectClass = 'qc-input qc-select'
 
   return (
-    <div className="min-h-screen bg-[#0a0a1a] relative overflow-x-hidden text-white">
-      {/* Background Effects */}
-      <div className="absolute inset-0 bg-grid-pattern opacity-30 pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a1a] via-transparent to-[#0a0a1a] pointer-events-none" />
-      <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[800px] h-[600px] hero-spotlight opacity-30 blur-3xl pointer-events-none" />
-      {/* Navigation */}
+    <div className="qc-page">
       <Navbar />
 
-      {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center px-4 pt-20">
-        {/* Subtle background orbs — fewer, more vibrant */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-32 -right-32 w-[500px] h-[500px] bg-indigo-500 opacity-[0.07] rounded-full blur-[100px]"></div>
-          <div className="absolute -bottom-32 -left-32 w-[500px] h-[500px] bg-violet-500 opacity-[0.07] rounded-full blur-[100px]"></div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-cyan-500 opacity-[0.05] rounded-full blur-[80px]"></div>
-        </div>
-
-        <div className="text-center max-w-6xl mx-auto relative z-10 animate-fade-in-up">
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full quantum-gradient mb-6 shadow-2xl animate-scale-in">
-            <Code className="w-12 h-12 text-white force-white-icon" />
+      <main id="main" className="qc-container pb-24 pt-28">
+        <header className="flex flex-wrap items-end justify-between gap-6 border-b border-qc-line pb-10">
+          <div className="max-w-2xl">
+            <p className="qc-eyebrow">Examples</p>
+            <h1 className="mt-3 font-display text-display-1 font-semibold text-qc-fg">
+              Circuits you can run
+            </h1>
+            <p className="mt-4 text-lg leading-relaxed text-qc-muted">
+              Working programs in Cirq, Qiskit and PennyLane, from a first Bell
+              state to Grover&apos;s search. Open one in the editor or copy the
+              code.
+            </p>
           </div>
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 animate-blur-in">
-            Quantum <span className="quantum-gradient bg-clip-text text-transparent">Examples</span>
-          </h1>
-          <p className="text-xl md:text-2xl text-editor-text mb-8 max-w-3xl mx-auto leading-relaxed stagger-delay-2 opacity-0 animate-fade-in-up">
-            Explore quantum computing examples across different frameworks. Copy, modify, and run these circuits in QCanvas.
-          </p>
-        </div>
-      </section>
 
-      {/* Filters & Tabs */}
-      <main className="px-4 py-8 flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto space-y-6">
-          
-          {/* Tabs */}
-          <div className="flex justify-center mb-8">
-            <div className="inline-flex p-1 bg-black/40 backdrop-blur-xl border border-white/10 rounded-xl space-x-1">
+          <div
+            role="tablist"
+            aria-label="Example source"
+            className="inline-flex rounded-lg border border-qc-line bg-qc-surface p-1"
+          >
+            {(['official', 'community'] as const).map((tab) => (
               <button
-                onClick={() => setActiveTab('official')}
-                className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 ${
-                  activeTab === 'official'
-                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg force-white-icon'
-                    : 'text-black dark:text-gray-400 hover:text-white hover:bg-white/5'
+                key={tab}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab}
+                onClick={() => setActiveTab(tab)}
+                className={`qc-focus flex items-center gap-2 rounded-md px-3.5 py-1.5 text-sm transition-colors duration-150 ${
+                  activeTab === tab
+                    ? 'bg-qc-surface-3 text-qc-fg'
+                    : 'text-qc-muted hover:text-qc-fg'
                 }`}
               >
-                <Code className="w-4 h-4 force-white-icon" />
-                Official Examples
+                {tab === 'official' ? (
+                  <Code className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <Share2 className="h-4 w-4" aria-hidden="true" />
+                )}
+                {tab === 'official' ? 'Official' : 'Community'}
               </button>
-              <button
-                onClick={() => setActiveTab('community')}
-                className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 ${
-                  activeTab === 'community'
-                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg force-white-icon'
-                    : 'text-black dark:text-gray-400 hover:text-white hover:bg-white/5 '
-                }`}
-              >
-                <Share2 className="w-4 h-4" />
-                Community Shared
-              </button>
-            </div>
-          </div>
-
-          <div className="quantum-glass-dark rounded-2xl p-6 backdrop-blur-xl border border-white/10">
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Search */}
-              <div>
-                <label htmlFor="search-input" className="block text-sm font-medium text-editor-text mb-2">Search</label>
-                <input
-                  id="search-input"
-                  type="text"
-                  placeholder="Search examples..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-3 py-2 bg-black/20 border border-white/5 rounded-lg focus-quantum text-white placeholder-gray-400"
-                />
-              </div>
-
-              {/* Category Filter */}
-              <div>
-                <label htmlFor="category-select" className="block text-sm font-medium text-editor-text mb-2">Category</label>
-                <select
-                  id="category-select"
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full px-3 py-2 bg-black/5 dark:bg-black border border-white/5 rounded-lg focus-quantum text-black dark:text-white"
-                >
-                  <option value="all" className="bg-white text-black dark:bg-black dark:text-white">All Categories</option>
-                  {categories.map(category => (
-                    <option key={category} value={category} className="bg-white text-black dark:bg-black dark:text-white">{category}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Framework Filter */}
-              <div>
-                <label htmlFor="framework-select" className="block text-sm font-medium text-editor-text mb-2">Framework</label>
-                <select
-                  id="framework-select"
-                  value={selectedFramework}
-                  onChange={(e) => setSelectedFramework(e.target.value)}
-                  className="w-full px-3 py-2 bg-black/5 dark:bg-black border border-white/5 rounded-lg focus-quantum text-black dark:text-white"
-                >
-                  <option value="all" className="bg-white text-black dark:bg-black dark:text-white">All Frameworks</option>
-                  {frameworks.map(framework => (
-                    <option key={framework} value={framework} className="bg-white text-black dark:bg-black dark:text-white">{framework.charAt(0).toUpperCase() + framework.slice(1)}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Difficulty Filter */}
-              <div>
-                <label htmlFor="difficulty-select" className="block text-sm font-medium text-editor-text mb-2">Difficulty</label>
-                <select
-                  id="difficulty-select"
-                  value={selectedDifficulty}
-                  onChange={(e) => setSelectedDifficulty(e.target.value)}
-                  className="w-full px-3 py-2 bg-black/5 dark:bg-black border border-white/5 rounded-lg focus-quantum text-black dark:text-white"
-                >
-                  <option value="all" className="bg-white text-black dark:bg-black dark:text-white">All Levels</option>
-                  {difficulties.map(difficulty => (
-                    <option key={difficulty} value={difficulty} className="bg-white text-black dark:bg-black dark:text-white">{difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-        </div>
-      {/* Examples Grid */}
-      <div className="px-4 py-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredExamples.map((example, idx) => (
-              <div
-                key={example.id}
-                className="reveal-on-scroll quantum-glass-dark rounded-2xl overflow-hidden border border-white/10 hover:border-quantum-blue-light transition-all duration-300 flex flex-col group hover-lift shadow-lg hover:shadow-quantum-blue-light/10"
-                style={{ transitionDelay: `${(idx % 6) * 100}ms` }}
-              >
-  <div className="p-6">
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-xl font-semibold text-white mb-1">{example.title}</h3>
-                      {'author' in example && (
-                        <p className="text-xs text-blue-300 mb-2 font-medium flex items-center gap-1.5 opacity-90">
-                           <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
-                           By: {(example as CommunityExample).author}
-                        </p>
-                      )}
-                      <p className="text-editor-text text-sm mb-3">{example.description}</p>
-                    </div>
-                  </div>
-
-                  {/* Tags */}
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium text-white ${getFrameworkColor(example.framework)}`}>
-                      {example.framework}
-                    </span>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium text-white ${getDifficultyColor(example.difficulty)}`}>
-                      {example.difficulty}
-                    </span>
-                    {example.tags.slice(0, 2).map(tag => (
-                      <span key={tag} className="px-2 py-1 rounded-full text-xs font-medium text-black dark:text-gray-300 bg-gray-700">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => copyToClipboard(example.code)}
-                      className="flex-1 btn-quantum flex items-center justify-center py-2 text-sm"
-                    >
-                      <Copy className="w-4 h-4 mr-2" />
-                      Copy Code
-                    </button>
-                    <button
-                      onClick={() => openInEditor(example)}
-                      className="flex-1 btn-ghost flex items-center justify-center py-2 text-sm"
-                    >
-                      <Play className="w-4 h-4 mr-2" />
-                      Try in QCanvas
-                    </button>
-                  </div>
-                </div>
-
-                {/* Code Preview */}
-                <div className="bg-black/20 p-4 border-t border-white/5">
-                  <pre className="text-xs text-editor-text overflow-x-auto max-w-full">
-                    <code className="whitespace-pre-wrap break-words">{example.code.split('\n').slice(0, 8).join('\n')}...</code>
-                  </pre>
-                </div>
-              </div>
             ))}
           </div>
+        </header>
 
-          {/* Empty State */}
-          {activeTab === 'community' && isLoadingCommunity ? (
-            <div className="flex flex-col items-center justify-center py-20 space-y-4">
-               <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
-               <p className="text-editor-text">Loading community projects...</p>
-            </div>
-          ) : filteredExamples.length === 0 ? (
-            <div className="text-center py-16 quantum-glass-dark rounded-2xl border border-white/10">
-              <Code className="w-16 h-16 text-black dark:text-gray-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">
-                {activeTab === 'community' ? 'No community projects found' : 'No examples found'}
-              </h3>
-              <p className="text-editor-text max-w-md mx-auto">
-                {activeTab === 'community' 
-                  ? 'Be the first to share a quantum project! Open the editor and click the Share button.' 
-                  : 'Try adjusting your filters or search terms.'}
-              </p>
-            </div>
-          ) : null}
-        </div>
-      </div>
-      </main>
+        {/* Filters */}
+        <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))]">
+          <div className="relative sm:col-span-2 lg:col-span-1">
+            <label htmlFor="search-input" className="sr-only">Search examples</label>
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-qc-subtle" aria-hidden="true" />
+            <input
+              id="search-input"
+              type="search"
+              placeholder="Search by name, algorithm or tag"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="qc-input !pl-9"
+            />
+          </div>
 
-      {/* Footer */}
-      <footer className="px-4 py-8 border-t border-white/5">
-        <div className="max-w-7xl mx-auto text-center">
-          <p className="text-editor-text">
-            Ready to explore quantum computing? Copy any example and try it in QCanvas!
-          </p>
-          <div className="flex justify-center space-x-6 mt-4">
-            <Link href="/about" className="text-editor-text hover:text-white transition-colors">
-              About QCanvas
-            </Link>
-            <Link href="/docs" className="text-editor-text hover:text-white transition-colors">
-              Documentation
-            </Link>
-            <a href="https://github.com" className="text-editor-text hover:text-white transition-colors">
-              GitHub
-            </a>
+          <div>
+            <label htmlFor="category-select" className="sr-only">Category</label>
+            <select
+              id="category-select"
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className={selectClass}
+            >
+              <option value="all">All categories</option>
+              {categories.map(category => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="framework-select" className="sr-only">Framework</label>
+            <select
+              id="framework-select"
+              value={selectedFramework}
+              onChange={(e) => setSelectedFramework(e.target.value)}
+              className={selectClass}
+            >
+              <option value="all">All frameworks</option>
+              {frameworks.map(framework => (
+                <option key={framework} value={framework}>{label(framework)}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="difficulty-select" className="sr-only">Difficulty</label>
+            <select
+              id="difficulty-select"
+              value={selectedDifficulty}
+              onChange={(e) => setSelectedDifficulty(e.target.value)}
+              className={selectClass}
+            >
+              <option value="all">All levels</option>
+              {difficulties.map(difficulty => (
+                <option key={difficulty} value={difficulty}>{label(difficulty)}</option>
+              ))}
+            </select>
           </div>
         </div>
-      </footer>
+
+        <p className="mt-4 text-sm text-qc-subtle" aria-live="polite">
+          {activeTab === 'community' && isLoadingCommunity
+            ? 'Loading community projects…'
+            : `${filteredExamples.length} ${filteredExamples.length === 1 ? 'example' : 'examples'}`}
+        </p>
+
+        {/* Grid */}
+        <ul className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {filteredExamples.map((example) => (
+            <li
+              key={example.id}
+              className="qc-card flex min-w-0 flex-col overflow-hidden transition-colors duration-150 hover:border-qc-line-strong"
+            >
+              <div className="flex flex-1 flex-col p-5">
+                <h2 className="text-[17px] font-semibold leading-snug text-qc-fg">{example.title}</h2>
+                {'author' in example && (
+                  <p className="mt-1 text-xs text-qc-subtle">
+                    Shared by {(example as CommunityExample).author}
+                  </p>
+                )}
+                <p className="mt-2 text-sm leading-relaxed text-qc-muted">{example.description}</p>
+
+                <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 pt-4 text-xs text-qc-muted">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className={`h-1.5 w-1.5 rounded-full ${frameworkDot(example.framework)}`} aria-hidden="true" />
+                    {label(example.framework)}
+                  </span>
+                  <span aria-hidden="true" className="text-qc-line-strong">/</span>
+                  <span>{label(example.difficulty)}</span>
+                  {example.tags.slice(0, 2).map(tag => (
+                    <span key={tag} className="font-mono text-[11px] text-qc-subtle">#{tag}</span>
+                  ))}
+                </div>
+              </div>
+
+              <CodeSample
+                code={example.code.split('\n').slice(0, 8).join('\n')}
+                className="max-h-36 !overflow-hidden border-y border-qc-line px-5 py-4 !text-[11.5px] !leading-[1.65] [mask-image:linear-gradient(to_bottom,black_55%,transparent)]"
+              />
+
+              <div className="flex items-center gap-2 p-3">
+                <button
+                  type="button"
+                  onClick={() => openInEditor(example)}
+                  className="qc-btn qc-btn-primary qc-btn-sm"
+                >
+                  <Play className="h-3.5 w-3.5" aria-hidden="true" />
+                  Open in editor
+                </button>
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(example.code)}
+                  className="qc-btn qc-btn-quiet qc-btn-sm"
+                >
+                  <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                  Copy
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+
+        {activeTab === 'community' && isLoadingCommunity ? (
+          <div className="flex items-center justify-center gap-3 py-20 text-sm text-qc-muted" role="status">
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-qc-line-strong border-t-qc-accent" aria-hidden="true" />
+            Loading community projects…
+          </div>
+        ) : filteredExamples.length === 0 ? (
+          <div className="mt-4 rounded-xl border border-dashed border-qc-line-strong px-6 py-16 text-center">
+            <h2 className="font-medium text-qc-fg">
+              {activeTab === 'community' ? 'No community projects yet' : 'No examples match these filters'}
+            </h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-qc-muted">
+              {activeTab === 'community'
+                ? 'Open the editor and use Share to publish a circuit here.'
+                : 'Clear the search or pick a different framework or level.'}
+            </p>
+          </div>
+        ) : null}
+      </main>
+
+      <SiteFooter />
     </div>
   )
 }
