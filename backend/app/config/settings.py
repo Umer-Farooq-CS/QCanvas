@@ -108,6 +108,11 @@ class Settings(BaseSettings):
     # Number of trusted proxies that append to X-Forwarded-For (ALB = 1;
     # Cloudflare -> ALB = 2). 0 ignores X-Forwarded-For entirely.
     FORWARDED_TRUSTED_HOPS: int = 1
+    # Forwarded headers (X-Forwarded-For / CLIENT_IP_HEADER) are honoured ONLY
+    # when the TCP peer is in one of these CIDRs, i.e. the request really came
+    # through our load balancer. Clients connecting directly can't spoof their IP.
+    # Defaults cover private networks (where an AWS ALB connects from).
+    TRUSTED_PROXY_CIDRS: str = "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8,::1/128,fc00::/7"
     # Optional header that already carries the real client IP (e.g. "CF-Connecting-IP").
     CLIENT_IP_HEADER: str = ""
 

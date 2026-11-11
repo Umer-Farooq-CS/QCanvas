@@ -452,7 +452,14 @@ class SimulationService:
             args = RunArgs(
                 qasm_input=normalized_qasm,
                 backend=backend,
-                shots=shots
+                shots=shots,
+                # Authoritative cap, checked on the built circuit inside qsim
+                # (the route's regex pre-check is only a fast early reject).
+                max_qubits=(
+                    min(self.settings.SIM_MAX_QUBITS, self.settings.SIM_MAX_QUBITS_PENNYLANE)
+                    if str(backend).strip().lower() == "pennylane"
+                    else self.settings.SIM_MAX_QUBITS
+                ),
             )
             
             # Execute with QSim and measure time

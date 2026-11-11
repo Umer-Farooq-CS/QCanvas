@@ -10,6 +10,9 @@ class RunArgs:
     backend: str = 'cirq'  # e.g., 'cirq', 'qiskit', 'pennylane'
     shots: int = 1024  # 0 for exact statevector/probs
     seed: Optional[int] = None  # Optional RNG seed for reproducible sampling
+    # Hard cap on qubits in the BUILT circuit (enforced before simulation).
+    # None -> QSIM_MAX_QUBITS env var, default 24.
+    max_qubits: Optional[int] = None
 
 
 @dataclass

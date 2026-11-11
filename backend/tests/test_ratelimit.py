@@ -253,3 +253,26 @@ def test_rate_limiting_can_be_disabled(app, override_db, monkeypatch):
     body = {"email": "someone@example.com", "password": "x" * 8}
     codes = {client.post("/api/auth/login", json=body).status_code for _ in range(3)}
     assert 429 not in codes
+
+
+def test_forwarded_for_ignored_from_untrusted_peer():
+    """A client connecting directly (public IP) can't spoof X-Forwarded-For."""
+    from app.core.middleware import client_ip_from_scope
+
+    scope = {
+        "type": "http",
+        "client": ("198.51.100.20", 5555),
+        "headers": [(b"x-forwarded-for", b"1.2.3.4")],
+    }
+    assert client_ip_from_scope(scope) == "198.51.100.20"
+
+
+def test_forwarded_for_honoured_from_load_balancer_peer():
+    from app.core.middleware import client_ip_from_scope
+
+    scope = {
+        "type": "http",
+        "client": ("10.0.3.17", 5555),  # ALB private address
+        "headers": [(b"x-forwarded-for", b"203.0.113.9")],
+    }
+    assert client_ip_from_scope(scope) == "203.0.113.9"

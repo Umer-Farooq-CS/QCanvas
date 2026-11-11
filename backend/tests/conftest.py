@@ -34,6 +34,16 @@ def app():
 def _isolate(monkeypatch):
     from app.config.settings import settings
     from app.core.middleware import limiter
+    from app.core import middleware as _mw
+
+    # Starlette's TestClient connects as peer "testclient". Treat it as our
+    # trusted load balancer so tests can simulate distinct clients via
+    # X-Forwarded-For; real IP peers still go through the CIDR check.
+    _real_trust = _mw._peer_is_trusted_proxy
+    monkeypatch.setattr(
+        _mw, "_peer_is_trusted_proxy",
+        lambda peer: peer == "testclient" or _real_trust(peer),
+    )
     from app.core.concurrency import simulation_runner, conversion_runner
 
     monkeypatch.setattr(settings, "AUDIT_LOG_ENABLED", False)

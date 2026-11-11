@@ -220,21 +220,26 @@ def test_legacy_execute_has_lower_qubit_cap(app, override_db, anonymous, monkeyp
 # Converter offloading
 # ---------------------------------------------------------------------------
 
-def test_conversion_runs_off_the_event_loop(app, override_db, anonymous, monkeypatch):
+def test_conversion_uses_isolated_child_process(app, override_db, anonymous, monkeypatch):
+    """/convert must go through the isolated runner (user code may be exec'd)."""
     from app.api.routes import converter
 
-    loop_threads = []
+    calls = []
 
-    def fake_convert(code, framework, style="classic"):
-        loop_threads.append(threading.current_thread() is threading.main_thread())
+    async def fake_isolated(code, framework, style="classic"):
+        calls.append((framework, style))
         return {"success": True, "qasm_code": "OPENQASM 3.0;", "framework": framework,
                 "qasm_version": "3.0", "conversion_stats": None}
 
-    monkeypatch.setattr(converter.conversion_service, "convert_to_qasm", fake_convert)
+    def in_process_must_not_run(*a, **k):
+        raise AssertionError("in-process conversion must not be used by /convert")
+
+    monkeypatch.setattr(converter.conversion_service, "convert_to_qasm_isolated", fake_isolated)
+    monkeypatch.setattr(converter.conversion_service, "convert_to_qasm", in_process_must_not_run)
     r = TestClient(app).post("/api/converter/convert", json={"code": "qc = QuantumCircuit(1)", "framework": "qiskit"})
     assert r.status_code == 200, r.text
     assert r.json()["success"] is True
-    assert loop_threads == [False]
+    assert calls == [("qiskit", "classic")]
 
 
 # ---------------------------------------------------------------------------

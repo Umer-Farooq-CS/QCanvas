@@ -59,7 +59,7 @@ def get_circuit():
     qc.cswap(0, 1, 2)  # Fredkin (Controlled-SWAP)
     
     # === ITERATION I FEATURE 5: Special Gates ===
-    qc.global_phase(np.pi/4)  # Global phase
+    qc.global_phase += np.pi/4  # Global phase (a property in Qiskit, not a method)
     qc.id(0)  # Identity
     qc.sx(1)  # Sqrt(X)
     qc.sxdg(2)  # Inverse Sqrt(X)

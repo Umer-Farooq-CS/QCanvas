@@ -59,7 +59,6 @@ prestart_isolated_runner()
 
 # Variables FastQSim's SDK needs inside the child.  They are only passed when
 # the run actually needs FastQSim (online mode or `import fastqsim`).
-_FASTQSIM_CHILD_ENV = ("FASTQUBIT_SESSION_TOKEN", "FASTQUBIT_ENDPOINT", "FASTQSIM_EXECUTION_MODE")
 
 # Check if QSim is available (needed for sandbox execution)
 try:
@@ -239,21 +238,13 @@ async def execute_hybrid(request: HybridExecuteRequest):
     try:
         exec_timeout = effective_timeout(request.timeout)
 
-        # Resolve FastQSim online mode once here (cached; may hit AWS SSM) so
-        # the child process never has to, and provision a session only when
-        # the run will actually talk to FastQSim.  Both are blocking network
-        # calls, so they run off the event loop.
+        # Security: the child runs untrusted user code, so it must never receive
+        # the server's FastQSim credentials (any user could print them). Hybrid
+        # runs therefore always simulate locally inside the child, regardless of
+        # FASTQSIM_ONLINE_MODE or what the user's code mentions. Cloud execution
+        # for hybrid runs would need the parent to submit jobs with its own token.
         online_mode = False
-        if qsim_wrapper is not None:
-            try:
-                online_mode = await asyncio.to_thread(qsim_wrapper.resolve_online_mode)
-            except Exception as e:
-                logger.warning("Could not resolve FastQSim online mode: %s", e)
-        uses_fastqsim = online_mode or ("fastqsim" in request.code)
         child_env: Dict[str, str] = {}
-        if uses_fastqsim:
-            await asyncio.to_thread(_ensure_fastqsim_session)
-            child_env = {k: os.environ[k] for k in _FASTQSIM_CHILD_ENV if os.environ.get(k)}
 
         outcome = await run_isolated_async(
             execute_sandboxed_job,

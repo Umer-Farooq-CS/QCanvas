@@ -21,7 +21,9 @@ the event loop or fail a request.
 """
 from __future__ import annotations
 
+import ipaddress
 import logging
+from functools import lru_cache
 import math
 import queue
 import threading
@@ -54,6 +56,28 @@ def _header_from_scope(scope: Scope, name: str) -> Optional[str]:
     return None
 
 
+@lru_cache(maxsize=8)
+def _trusted_networks(spec: str):
+    nets = []
+    for part in (spec or "").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            nets.append(ipaddress.ip_network(part, strict=False))
+        except ValueError:
+            logger.warning("Ignoring invalid TRUSTED_PROXY_CIDRS entry: %r", part)
+    return tuple(nets)
+
+
+def _peer_is_trusted_proxy(peer: str) -> bool:
+    try:
+        addr = ipaddress.ip_address(peer)
+    except ValueError:
+        return False
+    return any(addr in net for net in _trusted_networks(settings.TRUSTED_PROXY_CIDRS))
+
+
 def client_ip_from_scope(scope: Scope) -> str:
     """
     Best-effort real client IP.
@@ -66,6 +90,14 @@ def client_ip_from_scope(scope: Scope) -> str:
        entry instead, which the client controls, so we don't rely on it here.
     3. The socket peer address.
     """
+    client = scope.get("client")
+    peer = str(client[0]) if client and client[0] else "unknown"
+
+    # Forwarded headers are client-controlled unless the request came through
+    # a trusted proxy. Only honour them when the TCP peer is trusted.
+    if not _peer_is_trusted_proxy(peer):
+        return peer
+
     custom_header = (settings.CLIENT_IP_HEADER or "").strip()
     if custom_header:
         value = _header_from_scope(scope, custom_header)
@@ -80,10 +112,7 @@ def client_ip_from_scope(scope: Scope) -> str:
             if entries:
                 return entries[-hops] if len(entries) >= hops else entries[0]
 
-    client = scope.get("client")
-    if client and client[0]:
-        return str(client[0])
-    return "unknown"
+    return peer
 
 
 def get_client_ip(request: Request) -> str:

@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Union
 
@@ -8,6 +9,42 @@ from .exceptions import QSimError, ParseError, UnsupportedBackend
 from qsim.qasm_parser import parse_openqasm3  # → openqasm3.Module (AST)
 from qsim.visitors.factory import get_visitor  # → BaseVisitor instance
 from qsim.backends.factory import get_backend  # → BaseBackend instance
+
+DEFAULT_MAX_QUBITS = 24
+
+
+def _qubit_count(circuit, spec) -> int:
+    """Qubits in the circuit actually built by the visitor (what drives memory)."""
+    counts = []
+    for attr in ("num_qubits", "n_qubits"):
+        v = getattr(circuit, attr, None)
+        if isinstance(v, int):
+            counts.append(v)
+    all_q = getattr(circuit, "all_qubits", None)
+    if callable(all_q):
+        try:
+            counts.append(len(list(all_q())))
+        except Exception:
+            pass
+    wires = getattr(circuit, "wires", None)
+    if wires is not None:
+        try:
+            counts.append(len(wires))
+        except Exception:
+            pass
+    if spec is not None and spec.get("qubits") is not None:
+        counts.append(len(spec["qubits"]))
+    return max(counts) if counts else 0
+
+
+def _max_qubits(args: RunArgs) -> int:
+    if getattr(args, "max_qubits", None):
+        return int(args.max_qubits)
+    try:
+        return int(os.environ.get("QSIM_MAX_QUBITS", DEFAULT_MAX_QUBITS))
+    except ValueError:
+        return DEFAULT_MAX_QUBITS
+
 
 def run_qasm(args: Union[RunArgs, dict]) -> SimResult:
     """
@@ -43,6 +80,16 @@ def run_qasm(args: Union[RunArgs, dict]) -> SimResult:
         # 3. Backend: Run simulation. The visitor's output spec makes every
         #    backend report bitstrings in the same layout (see BaseBackend).
         spec = visitor.output_spec() if hasattr(visitor, 'output_spec') else None
+
+        # Enforce the qubit cap on the circuit that was actually built (not on
+        # the QASM text, which can declare sizes via expressions/consts).
+        limit = _max_qubits(args)
+        n_built = _qubit_count(circuit, spec)
+        if n_built > limit:
+            raise QSimError(
+                f"Circuit uses {n_built} qubits; the limit on this server is {limit}."
+            )
+
         raw_result = backend.run(circuit, args.shots, spec=spec, seed=getattr(args, 'seed', None))
         counts = backend.to_counts(raw_result)
 

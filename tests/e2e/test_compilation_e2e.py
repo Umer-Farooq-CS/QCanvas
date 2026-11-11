@@ -145,6 +145,20 @@ def _load_frontend_iteration_i_demo_cases() -> list[CompileCase]:
     ]
 
 
+# Known gap: this demo uses qml.MultiRZ / qml.adjoint / qml.ctrl, which the
+# converter used to silently DROP (producing wrong QASM). They now raise a clear
+# "unsupported operation" error. Not needed for the Qiskit-only workshop.
+KNOWN_GAPS = {
+    "iteration_i_complete:pennylane": "MultiRZ/adjoint/ctrl not yet supported (previously silently dropped)",
+}
+
+
+def _xfail_known_gap(case) -> None:
+    reason = KNOWN_GAPS.get(case.name)
+    if reason:
+        pytest.xfail(reason)
+
+
 def _matrix_scale() -> Literal["small", "medium", "large", "huge"]:
     v = os.getenv("QCANVAS_COMPILATION_MATRIX", "small").strip().lower()
     if v not in {"small", "medium", "large", "huge"}:
@@ -302,6 +316,7 @@ def _all_compile_cases() -> list[CompileCase]:
 @pytest.mark.e2e
 @pytest.mark.parametrize("case", _all_compile_cases(), ids=lambda c: c.name)
 def test_compilation_to_openqasm_succeeds(conversion_service, case: CompileCase):
+    _xfail_known_gap(case)
     result = _compile(conversion_service, case, style="classic")
     assert result["success"] is True, f"{case.name}: {result.get('error')}"
     qasm = result.get("qasm_code") or ""
@@ -312,6 +327,7 @@ def test_compilation_to_openqasm_succeeds(conversion_service, case: CompileCase)
 @pytest.mark.e2e
 @pytest.mark.parametrize("case", _all_compile_cases()[0:50], ids=lambda c: f"{c.name}:compact")
 def test_compilation_compact_style_still_valid(conversion_service, case: CompileCase):
+    _xfail_known_gap(case)
     # Keep compact checks limited so local runs stay quick.
     result = _compile(conversion_service, case, style="compact")
     assert result["success"] is True, f"{case.name}: {result.get('error')}"

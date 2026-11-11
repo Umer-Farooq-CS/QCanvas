@@ -10,6 +10,7 @@ project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(c
 sys.path.insert(0, project_root)
 
 from app.models.schemas import ConversionRequest, ConversionResponse, ParseResponse
+from app.services.isolated_exec import UserCodeBusyError
 from app.services.conversion_service import ConversionService
 from app.config.database import get_db
 from sqlalchemy.orm import Session
@@ -122,10 +123,9 @@ async def convert_to_qasm(
         # Perform the conversion off the event loop, at most CONVERT_MAX_CONCURRENCY per worker.
         try:
             async with conversion_runner.slot():
-                # TODO(isolation): swap the next line for
-                #   result = await conversion_service.convert_to_qasm_isolated(code=request_data.code, framework=request_data.framework, style=request_data.style)
-                result = await run_in_threadpool(conversion_service.convert_to_qasm, code=request_data.code, framework=request_data.framework, style=request_data.style)
-        except BusyError:
+                # Runs in an isolated, killable child process (user code may be exec'd).
+                result = await conversion_service.convert_to_qasm_isolated(code=request_data.code, framework=request_data.framework, style=request_data.style)
+        except (BusyError, UserCodeBusyError):
             return busy_response("converter")
 
         if result["success"]:
