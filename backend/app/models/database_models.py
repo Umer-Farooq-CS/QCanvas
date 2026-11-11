@@ -101,6 +101,7 @@ class User(Base):
     
     # Authorization
     role = Column(Enum(UserRole), default=UserRole.USER, nullable=False)
+    admin_access_requested_at = Column(TIMESTAMP, nullable=True)
     
     # API access (encrypted)
     api_key_encrypted = Column(String(255), nullable=True)

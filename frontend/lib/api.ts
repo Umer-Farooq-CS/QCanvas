@@ -636,6 +636,11 @@ export interface AdminApprovalRequest {
   token: string
 }
 
+export interface AdminAccessRequestResponse {
+  status: 'not_requested' | 'pending' | 'approved'
+  message: string
+}
+
 // Auth API
 export const authApi = {
   async login(email: string, password: string): Promise<ApiResponse<AuthResponse>> {
@@ -663,6 +668,19 @@ export const authApi = {
     return apiRequest<{ message: string }>('/api/auth/admin/approve', {
       method: 'POST',
       body: JSON.stringify({ token }),
+    })
+  },
+
+  async getAdminAccessRequestStatus(token: string): Promise<ApiResponse<AdminAccessRequestResponse>> {
+    return apiRequest<AdminAccessRequestResponse>('/api/auth/admin/request', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  },
+
+  async requestAdminAccess(token: string): Promise<ApiResponse<AdminAccessRequestResponse>> {
+    return apiRequest<AdminAccessRequestResponse>('/api/auth/admin/request', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
     })
   },
 

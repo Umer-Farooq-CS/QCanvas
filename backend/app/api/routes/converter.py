@@ -27,7 +27,7 @@ router = APIRouter(prefix="/api/converter", tags=["converter"])
 conversion_service = ConversionService()
 
 @router.post("/convert", response_model=ConversionResponse)
-@limiter.limit("20/minute")
+@limiter.limit("5000/minute")
 async def convert_to_qasm(
     request: Request,
     request_data: ConversionRequest,

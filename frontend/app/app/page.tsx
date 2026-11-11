@@ -177,6 +177,13 @@ export default function AppPage() {
   useEffect(() => {
     if (!isAuthenticated || !token) return;
 
+    const loadExample =
+      new URLSearchParams(window.location.search).get("loadExample") === "1";
+    if (!loadExample) {
+      sessionStorage.removeItem("pending-example");
+      return;
+    }
+
     const pendingJson = sessionStorage.getItem("pending-example");
     if (pendingJson) {
       try {
@@ -193,6 +200,8 @@ export default function AppPage() {
         sessionStorage.removeItem("pending-example");
       }
     }
+
+    window.history.replaceState(null, "", "/app");
   }, [isAuthenticated, token]);
 
   // Handle global save event

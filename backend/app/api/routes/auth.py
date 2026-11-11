@@ -28,6 +28,7 @@ from app.models.schemas import (
     MessageResponse,
     UpdateProfileRequest,
     UpdateProfileResponse,
+    AdminAccessRequestResponse,
 )
 from app.services.otp_service import OTPService
 from app.services.email_service import EmailService
@@ -353,6 +354,85 @@ def register_admin(request: Request, payload: UserRegisterRequest, db: Session =
     )
 
 
+@router.get("/admin/request", response_model=AdminAccessRequestResponse)
+def get_admin_access_request_status(
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role == UserRole.ADMIN:
+        return AdminAccessRequestResponse(
+            status="approved",
+            message="Admin access is approved.",
+        )
+
+    if (
+        current_user.admin_access_requested_at
+        and datetime.utcnow() - current_user.admin_access_requested_at < timedelta(hours=24)
+    ):
+        return AdminAccessRequestResponse(
+            status="pending",
+            message="Your admin access request is awaiting approval.",
+        )
+
+    return AdminAccessRequestResponse(
+        status="not_requested",
+        message="You have not requested admin access.",
+    )
+
+
+@router.post("/admin/request", response_model=AdminAccessRequestResponse)
+@limiter.limit("3/hour")
+def request_admin_access(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role == UserRole.ADMIN:
+        return AdminAccessRequestResponse(
+            status="approved",
+            message="Admin access is already approved.",
+        )
+    if current_user.role != UserRole.USER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account cannot request admin access.",
+        )
+
+    if (
+        current_user.admin_access_requested_at
+        and datetime.utcnow() - current_user.admin_access_requested_at < timedelta(hours=24)
+    ):
+        return AdminAccessRequestResponse(
+            status="pending",
+            message="Your admin access request is already awaiting approval.",
+        )
+
+    current_user.admin_access_requested_at = datetime.utcnow()
+    db.commit()
+
+    approval_token = create_access_token(
+        data={"sub": str(current_user.id), "intent": "admin_access_approval"},
+        expires_delta=timedelta(hours=24),
+    )
+    email_result = EmailService.send_admin_approval_request(
+        full_name=current_user.full_name,
+        username=current_user.username,
+        email=current_user.email,
+        approval_link=_build_admin_approval_link(approval_token),
+    )
+    if not email_result.success:
+        current_user.admin_access_requested_at = None
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=email_result.error or "Unable to send admin approval email",
+        )
+
+    return AdminAccessRequestResponse(
+        status="pending",
+        message="Your admin access request was submitted for approval.",
+    )
+
+
 @router.post(
     "/admin/approve",
     response_model=MessageResponse,
@@ -362,13 +442,16 @@ def register_admin(request: Request, payload: UserRegisterRequest, db: Session =
     }
 )
 def approve_admin(payload: AdminApprovalRequest, db: Session = Depends(get_db)):
-    """Activate a pending admin account after master admin approval."""
+    """Approve a new admin signup or an existing user's admin-access request."""
     token = payload.token.strip()
     if not token:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Approval token is required")
 
     token_payload = verify_token(token)
-    if not token_payload or token_payload.get("intent") != "admin_approval":
+    if not token_payload or token_payload.get("intent") not in {
+        "admin_approval",
+        "admin_access_approval",
+    }:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired approval token")
 
     user_id = token_payload.get("sub")
@@ -379,15 +462,28 @@ def approve_admin(payload: AdminApprovalRequest, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    if user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Approval token does not belong to an admin account")
+    if token_payload.get("intent") == "admin_access_approval":
+        if user.role == UserRole.ADMIN:
+            return MessageResponse(message="Admin account is already approved")
+        if (
+            user.role != UserRole.USER
+            or not user.admin_access_requested_at
+            or datetime.utcnow() - user.admin_access_requested_at >= timedelta(hours=24)
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Admin access request is no longer pending",
+            )
+        user.role = UserRole.ADMIN
+    else:
+        if user.role != UserRole.ADMIN:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Approval token does not belong to an admin account")
+        if user.is_active and user.is_verified:
+            return MessageResponse(message="Admin account is already approved")
+        user.is_active = True
+        user.is_verified = True
+        user.email_verified_at = datetime.utcnow()
 
-    if user.is_active and user.is_verified:
-        return MessageResponse(message="Admin account is already approved")
-
-    user.is_active = True
-    user.is_verified = True
-    user.email_verified_at = datetime.utcnow()
     db.commit()
     db.refresh(user)
 
@@ -717,4 +813,3 @@ def update_profile(
         last_login_at=current_user.last_login_at.isoformat() if current_user.last_login_at else None,
         bio=current_user.bio,
     )
-

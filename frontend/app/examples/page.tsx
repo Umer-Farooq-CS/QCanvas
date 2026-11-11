@@ -1009,10 +1009,10 @@ export default function ExamplesPage() {
       
       // If app tab is not open, navigate to it
       if (isAuthenticated) {
-        router.push('/app')
+        router.push('/app?loadExample=1')
       } else {
         toast('Please sign in to try this example in the editor')
-        router.push('/login')
+        router.push('/login?loadExample=1')
       }
     }, 500)
 

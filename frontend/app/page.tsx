@@ -141,11 +141,11 @@ def grovers_search():
     if (canAccessApp) {
       // If authenticated, store the example data and navigate to app
       sessionStorage.setItem("pending-example", JSON.stringify(example));
-      window.location.href = "/app";
+      window.location.href = "/app?loadExample=1";
     } else {
       // If not authenticated, store the example data and go to login
       sessionStorage.setItem("pending-example", JSON.stringify(example));
-      window.location.href = "/login";
+      window.location.href = "/login?loadExample=1";
     }
   };
 

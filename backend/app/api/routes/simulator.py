@@ -144,7 +144,7 @@ def analyse_qasm_for_achievements(qasm_code: str) -> List[str]:
 
 
 @router.post("/execute")
-@limiter.limit("20/minute")
+@limiter.limit("5000/minute")
 async def execute_qasm(
     request: Request,
     request_data: dict,
@@ -206,7 +206,7 @@ async def execute_qasm(
         raise HTTPException(status_code=500, detail=f"Simulation failed: {str(e)}")
 
 @router.post("/execute-qsim")
-@limiter.limit("20/minute")
+@limiter.limit("5000/minute")
 async def execute_qasm_with_qsim(
     request: Request,
     request_data: dict,

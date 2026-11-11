@@ -25,6 +25,9 @@ import {
   Layers,
   BarChart3,
 } from "@/components/Icons";
+import { ShieldCheck } from "lucide-react";
+import { authApi, type AdminAccessRequestResponse } from "@/lib/api";
+import toast from "react-hot-toast";
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 function StatCard({
@@ -111,6 +114,48 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<
     "overview" | "achievements" | "activity"
   >("overview");
+  const [adminAccessStatus, setAdminAccessStatus] =
+    useState<AdminAccessRequestResponse["status"]>(
+      user?.role === "admin" ? "approved" : "not_requested",
+    );
+  const [adminRequestLoading, setAdminRequestLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated || !token || user?.role === "demo") return;
+
+    let cancelled = false;
+    authApi.getAdminAccessRequestStatus(token).then((response) => {
+      if (cancelled) return;
+      if (!response.success || !response.data) {
+        toast.error(response.error || "Failed to check admin access request");
+        return;
+      }
+      setAdminAccessStatus(response.data.status);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, token, user?.role]);
+
+  const handleAdminAccessRequest = async () => {
+    if (!token) return;
+    setAdminRequestLoading(true);
+    try {
+      const response = await authApi.requestAdminAccess(token);
+      if (!response.success || !response.data) {
+        throw new Error(response.error || "Failed to request admin access");
+      }
+      setAdminAccessStatus(response.data.status);
+      toast.success(response.data.message);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to request admin access",
+      );
+    } finally {
+      setAdminRequestLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (isAuthenticated && token) {
@@ -169,6 +214,39 @@ export default function ProfilePage() {
             <div className="lg:col-span-1 space-y-5">
               {/* Profile card */}
               <ProfileHeader />
+
+              {user?.role !== "demo" && (
+                <section className="bg-quantum-glass-dark border border-white/10 rounded-xl p-5">
+                  <div className="flex items-start gap-3">
+                    <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-quantum-blue-light" />
+                    <div className="min-w-0 flex-1">
+                      <h2 className="text-sm font-semibold text-white">
+                        Admin access
+                      </h2>
+                      <p className="mt-1 text-xs text-gray-400">
+                        {adminAccessStatus === "approved"
+                          ? "Your admin access is approved."
+                          : adminAccessStatus === "pending"
+                            ? "Your request is awaiting master administrator approval."
+                            : "Request admin access for your existing account. Approval is reviewed by the master administrator."}
+                      </p>
+                      {adminAccessStatus === "not_requested" &&
+                        user?.role !== "admin" && (
+                          <button
+                            type="button"
+                            onClick={handleAdminAccessRequest}
+                            disabled={adminRequestLoading}
+                            className="mt-3 rounded-lg bg-quantum-blue/20 px-3 py-2 text-xs font-medium text-quantum-blue-light transition-colors hover:bg-quantum-blue/30 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {adminRequestLoading
+                              ? "Submitting request..."
+                              : "Request admin access"}
+                          </button>
+                        )}
+                    </div>
+                  </div>
+                </section>
+              )}
 
               {/* Stats grid */}
               <div className="grid grid-cols-3 gap-3">

@@ -145,6 +145,11 @@ class AdminApprovalRequest(BaseModel):
     token: str
 
 
+class AdminAccessRequestResponse(BaseModel):
+    status: Literal["not_requested", "pending", "approved"]
+    message: str
+
+
 class OtpVerifyRequest(BaseModel):
     email: str
     otp: str

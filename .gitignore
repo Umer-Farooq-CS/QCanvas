@@ -343,3 +343,8 @@ backend/app/cache/
 backend/app/temp/
 frontend/.next/
 Test-Pypi-Imports/
+migration_backup/
+migraion_backup/
+global-bundle.pem
+ip-check.py
+qcanvas_prod_backup.sql

@@ -26,9 +26,17 @@ export default function LoginPage() {
   // Check if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      router.push("/app");
+      const loadExample =
+        new URLSearchParams(window.location.search).get("loadExample") === "1";
+      router.push(loadExample ? "/app?loadExample=1" : "/app");
     }
   }, [isAuthenticated, router]);
+
+  const getAppUrl = () => {
+    const loadExample =
+      new URLSearchParams(window.location.search).get("loadExample") === "1";
+    return loadExample ? "/app?loadExample=1" : "/app";
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,7 +79,7 @@ export default function LoginPage() {
       toast.success(`Welcome back, ${user.full_name}!`);
 
       // Navigate to app
-      router.push("/app");
+      router.push(getAppUrl());
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Login failed");
     } finally {
@@ -103,7 +111,7 @@ export default function LoginPage() {
       toast.success("Logged in as Demo User!");
       toast("Demo data will be cleared on logout", { icon: "ℹ️" });
 
-      router.push("/app");
+      router.push(getAppUrl());
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Demo login failed");
     } finally {

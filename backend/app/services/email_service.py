@@ -51,11 +51,11 @@ class EmailService:
 
         subject = "QCanvas admin approval request"
         html = (
-            "<p>A new admin signup request was submitted on QCanvas.</p>"
+            "<p>An admin access request was submitted on QCanvas.</p>"
             "<p><strong>Applicant details:</strong></p>"
             f"<ul><li>Full Name: {full_name}</li><li>Username: {username}</li><li>Email: {email}</li></ul>"
             "<p>Review and approve the request using the secure link below:</p>"
-            f"<p><a href='{approval_link}' style='display:inline-block;padding:12px 18px;background:#4f46e5;color:#ffffff;text-decoration:none;border-radius:8px'>Approve Admin Signup</a></p>"
+            f"<p><a href='{approval_link}' style='display:inline-block;padding:12px 18px;background:#4f46e5;color:#ffffff;text-decoration:none;border-radius:8px'>Review Admin Access Request</a></p>"
             f"<p>Or open this link manually:</p><p><a href='{approval_link}'>{approval_link}</a></p>"
             "<p>If you did not expect this request, you can ignore this email.</p>"
         )
