@@ -2,6 +2,7 @@
 Authentication endpoints for QCanvas.
 Handles user registration, login, and authentication.
 """
+import time
 import uuid
 from datetime import datetime, timedelta
 from typing import Optional
@@ -652,16 +653,34 @@ def get_current_user_info(current_user: User = Depends(get_current_user)):
     response_model=TokenResponse,
     responses={401: {"model": ErrorResponse, "description": "Invalid or expired token"}},
 )
-def refresh_access_token(current_user: User = Depends(get_current_user)):
+def refresh_access_token(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    current_user: User = Depends(get_current_user),
+):
     """
     Exchange a still-valid access token for a fresh one (sliding session).
 
     The frontend calls this on IDE load and periodically while the tab is open,
-    so active users are never logged out mid-session. Tokens are still revocable:
-    bumping `token_version` (password reset) invalidates every issued token.
+    so active users are never logged out mid-session. Limits:
+    - absolute cap: no refresh after SESSION_MAX_AGE_DAYS since the original login;
+    - revocable: logout / password reset bump `token_version`, killing all tokens.
     """
+    payload = verify_token(credentials.credentials) or {}
+    now_ts = int(time.time())
+    auth_time = payload.get("auth_time") or payload.get("iat") or now_ts
+    if now_ts - int(auth_time) > settings.SESSION_MAX_AGE_DAYS * 86400:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session has expired, please login again",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     access_token = create_access_token(
-        data={"sub": str(current_user.id), "tv": current_user.token_version or 0}
+        data={
+            "sub": str(current_user.id),
+            "tv": current_user.token_version or 0,
+            "auth_time": int(auth_time),
+        }
     )
     return TokenResponse(
         access_token=access_token,
@@ -671,15 +690,20 @@ def refresh_access_token(current_user: User = Depends(get_current_user)):
 
 
 @router.post("/logout", status_code=status.HTTP_200_OK)
-def logout():
+def logout(
+    current_user: Optional[User] = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
     """
-    Logout endpoint (stateless JWT, so just a placeholder).
-    
-    In a stateless JWT system, logout is handled on the client side
-    by deleting the token. This endpoint exists for API completeness.
-    
-    For production, consider implementing token blacklisting with Redis.
+    Log out and revoke the user's tokens.
+
+    Bumping `token_version` invalidates every token issued to this user (all
+    devices). The shared demo account is exempt, otherwise one workshop
+    attendee logging out would sign out everyone using it.
     """
+    if current_user and current_user.role != UserRole.DEMO:
+        current_user.token_version = (current_user.token_version or 0) + 1
+        db.commit()
     return {"message": "Successfully logged out"}
 
 

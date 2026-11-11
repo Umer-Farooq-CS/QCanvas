@@ -749,9 +749,11 @@ export const authApi = {
     })
   },
 
-  async logout(): Promise<ApiResponse<{ message: string }>> {
+  async logout(token?: string): Promise<ApiResponse<{ message: string }>> {
     return apiRequest<{ message: string }>('/api/auth/logout', {
       method: 'POST',
+      keepalive: true, // survive the page navigation that follows logout
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
     })
   },
 

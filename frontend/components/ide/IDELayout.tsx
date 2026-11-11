@@ -201,7 +201,7 @@ export default function IDELayout({
                         Cirq-RAG Assistant
                       </div>
                       <div className="mt-1 text-[11px] text-editor-text/70">
-                        Quantum AI Agent Active | Model: Claude Opus 4.6
+                        Generates, validates and explains Cirq circuits
                       </div>
                     </div>
                     {onRightPanelClose && (

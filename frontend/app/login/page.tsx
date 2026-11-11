@@ -28,7 +28,18 @@ export default function LoginPage() {
   const getNextPath = () => {
     if (typeof window === "undefined") return "/app";
     const next = new URLSearchParams(window.location.search).get("next");
-    return next && next.startsWith("/") && !next.startsWith("//") ? next : "/app";
+    // Reject backslashes/control chars (browsers normalise "/\evil.com" to
+    // "//evil.com") and anything that resolves to another origin.
+    if (!next || !next.startsWith("/") || /[\\\u0000-\u001f]/.test(next)) {
+      return "/app";
+    }
+    try {
+      const url = new URL(next, window.location.origin);
+      if (url.origin !== window.location.origin) return "/app";
+      return url.pathname + url.search + url.hash;
+    } catch {
+      return "/app";
+    }
   };
 
   // Check if already authenticated (expiry-aware, so a stale token can't

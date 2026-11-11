@@ -344,3 +344,5 @@ backend/app/temp/
 frontend/.next/
 # Local workshop venv
 .venv*/
+.claude/worktrees/
+.playwright-mcp/

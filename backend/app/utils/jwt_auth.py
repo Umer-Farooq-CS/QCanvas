@@ -2,6 +2,7 @@
 JWT token utilities for authentication.
 Handles token creation, verification, and user extraction.
 """
+import time
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
@@ -28,13 +29,18 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         Encoded JWT token as string
     """
     to_encode = data.copy()
-    
+    now = datetime.utcnow()
+
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = now + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    
-    to_encode.update({"exp": expire})
+        expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
+    # auth_time = original login time; carried through refreshes so a session
+    # has an absolute maximum age (see SESSION_MAX_AGE_DAYS).
+    now_ts = int(time.time())
+    to_encode.setdefault("auth_time", now_ts)
+    to_encode.update({"exp": expire, "iat": now_ts})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 

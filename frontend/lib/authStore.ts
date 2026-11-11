@@ -24,7 +24,8 @@ interface AuthState {
 
     // Actions
     setAuth: (user: User, token: string) => void
-    clearAuth: () => void
+    /** Clear local auth. `revoke` (default true) also invalidates the token server-side. */
+    clearAuth: (revoke?: boolean) => void
     setLoading: (loading: boolean) => void
     updateUser: (user: Partial<User>) => void
 }
@@ -83,7 +84,7 @@ export function handleSessionExpired(message = 'Your session has expired. Please
     if (!state.token && !state.isAuthenticated) return
     sessionExpiryInProgress = true
 
-    state.clearAuth()
+    state.clearAuth(false)
 
     try {
         sessionStorage.setItem('qcanvas-auth-message', message)
@@ -115,8 +116,17 @@ export const useAuthStore = create<AuthState>()(
                 })
             },
 
-            clearAuth: () => {
+            clearAuth: (revoke = true) => {
                 const currentUser = get().user
+                const currentToken = get().token
+
+                // Revoke the session server-side (best effort, fire-and-forget).
+                // Skipped when the token is already dead (session expiry path).
+                if (revoke && currentToken && typeof window !== 'undefined') {
+                    import('./api')
+                        .then((m) => m.authApi.logout(currentToken))
+                        .catch(() => { })
+                }
 
                 // If demo user, clear all localStorage
                 if (currentUser?.role === 'demo') {
