@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Play, ChevronDown } from "lucide-react";
 import { File as FileIcon } from "@/components/Icons";
-import { useFileStore } from "@/lib/store";
+import { EDITOR_FLUSH_EVENT, useActiveFile, useFileStore } from "@/lib/store";
 import { debounce } from "@/lib/utils";
 import {
   getHoverForSymbol,
@@ -17,9 +17,28 @@ import {
   ParsedGate,
 } from "@/lib/circuitParser";
 import FindReplace from "./FindReplace";
-import CircuitVisualization from "./CircuitVisualization";
-import MarkdownPreview from "./MarkdownPreview";
 import { InputLanguage } from "@/types";
+
+// Lazy-load heavy, optional views so they are not part of the /app first load:
+// the 2D circuit diagram pulls in all of d3, and the markdown preview pulls in
+// react-markdown + remark/rehype + KaTeX. Both are only shown on demand.
+const CircuitVisualization = dynamic(() => import("./CircuitVisualization"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-full text-black dark:text-gray-500">
+      Loading circuit view...
+    </div>
+  ),
+});
+
+const MarkdownPreview = dynamic(() => import("./MarkdownPreview"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-full text-black dark:text-gray-500">
+      Loading preview...
+    </div>
+  ),
+});
 
 type SimulationBackend = "cirq" | "qiskit" | "pennylane" | "";
 
@@ -63,7 +82,7 @@ const Editor = dynamic(
   },
 );
 
-export default function EditorPane({
+function EditorPane({
   onRun,
   isRunning,
   inputLanguage,
@@ -73,8 +92,9 @@ export default function EditorPane({
   shots,
   setShots,
 }: Readonly<EditorPaneProps>) {
-  const { getActiveFile, updateFileContent, saveActiveFile, theme } =
-    useFileStore();
+  // Fine-grained subscriptions: re-render only for the active file / theme /
+  // execution mode, not for unrelated store updates.
+  const theme = useFileStore((s) => s.theme);
   const executionMode = useFileStore((s) => s.executionMode);
   const setExecutionMode = useFileStore((s) => s.setExecutionMode);
   const editorRef = useRef<any>(null);
@@ -95,7 +115,7 @@ export default function EditorPane({
   } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const runMenuRef = useRef<HTMLDivElement>(null);
-  const activeFile = getActiveFile();
+  const activeFile = useActiveFile();
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [findReplaceMode, setFindReplaceMode] = useState<"find" | "replace">(
     "find",
@@ -245,57 +265,53 @@ export default function EditorPane({
     setIsDraggingCircuit(true);
   };
 
-  // Debounced content update to avoid too frequent updates
-  const debouncedUpdate = useRef(
-    debounce((fileId: string, content: string) => {
-      updateFileContent(fileId, content);
-    }, 300),
-  ).current;
+  // Debounced content update to avoid too frequent store updates. The latest
+  // unsaved edit is kept in a ref so it can be flushed synchronously (before a
+  // save/run, or when switching files) instead of being lost or arriving late.
+  const pendingEditRef = useRef<{ fileId: string; content: string } | null>(
+    null,
+  );
+  const flushPendingEdit = useCallback(() => {
+    const pending = pendingEditRef.current;
+    if (!pending) return;
+    pendingEditRef.current = null;
+    useFileStore.getState().updateFileContent(pending.fileId, pending.content);
+  }, []);
+  const debouncedFlush = useRef(debounce(() => flushPendingEdit(), 300)).current;
 
-  const handleManualSave = async () => {
-    if (editorRef.current && activeFile) {
-      const content = editorRef.current.getValue();
-      // Force update store immediately to ensure we save latest content
-      updateFileContent(activeFile.id, content);
-      await saveActiveFile();
+  // Saving must not have side effects such as downloading the circuit SVG;
+  // the explicit "SVG" button in the circuit toolbar handles exports.
+  // saveActiveFile() flushes pending editor content itself (EDITOR_FLUSH_EVENT).
+  const handleManualSave = useCallback(() => {
+    void useFileStore.getState().saveActiveFile();
+  }, []);
 
-      // Also download to computer
-      try {
-        // Try to capture and save the circuit visualization if it is visible
-        if (showCircuitVisualization) {
-          const svgElement = document.querySelector(
-            "svg.min-w-full",
-          ) as SVGSVGElement | null;
-          if (svgElement) {
-            const serializer = new XMLSerializer();
-            let source = serializer.serializeToString(svgElement);
-            if (
-              !source.match(
-                /^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/,
-              )
-            ) {
-              source = source.replace(
-                /^<svg/,
-                '<svg xmlns="http://www.w3.org/2000/svg"',
-              );
-            }
-            source = '<?xml version="1.0" standalone="no"?>\r\n' + source;
-            const svgUrl =
-              "data:image/svg+xml;charset=utf-8," + encodeURIComponent(source);
-            const svgLink = document.createElement("a");
-            svgLink.href = svgUrl;
-            svgLink.download =
-              activeFile.name.replace(/\.[^/.]+$/, "") + "_circuit.svg";
-            document.body.appendChild(svgLink);
-            svgLink.click();
-            document.body.removeChild(svgLink);
-          }
-        }
-      } catch (e) {
-        console.error("Failed to download file or SVG", e);
-      }
-    }
-  };
+  // Let save/run (and anything else) ask for the latest editor content.
+  useEffect(() => {
+    globalThis.window?.addEventListener(EDITOR_FLUSH_EVENT, flushPendingEdit);
+    return () => {
+      globalThis.window?.removeEventListener(
+        EDITOR_FLUSH_EVENT,
+        flushPendingEdit,
+      );
+      // Don't drop the last keystrokes when the editor unmounts.
+      flushPendingEdit();
+    };
+  }, [flushPendingEdit]);
+
+  // Menu "Selection > Select All" targets the Monaco editor.
+  useEffect(() => {
+    const onSelectAll = () => {
+      const editor = editorRef.current;
+      const model = editor?.getModel?.();
+      if (!editor || !model) return;
+      editor.focus?.();
+      editor.setSelection?.(model.getFullModelRange());
+    };
+    globalThis.window?.addEventListener("editor-select-all", onSelectAll);
+    return () =>
+      globalThis.window?.removeEventListener("editor-select-all", onSelectAll);
+  }, []);
 
   const handleEditorDidMount = (editor: any, monacoInstance: any) => {
     // Guard against SSR - ensure we're in browser environment
@@ -1167,7 +1183,15 @@ export default function EditorPane({
 
   const handleEditorChange = (value: string | undefined) => {
     if (activeFile && value !== undefined) {
-      debouncedUpdate(activeFile.id, value);
+      // An edit for a different file must not overwrite the pending one.
+      if (
+        pendingEditRef.current &&
+        pendingEditRef.current.fileId !== activeFile.id
+      ) {
+        flushPendingEdit();
+      }
+      pendingEditRef.current = { fileId: activeFile.id, content: value };
+      debouncedFlush();
     }
   };
 
@@ -1201,7 +1225,7 @@ export default function EditorPane({
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [handleManualSave]);
+  }, [handleManualSave]); // handleManualSave is stable, so this subscribes once
 
   // Handle find events from TopBar (only on client)
   useEffect(() => {
@@ -1585,3 +1609,7 @@ export default function EditorPane({
     </div>
   );
 }
+
+// Memoised: the IDE page re-renders for layout state (drag/resize, auth, etc.);
+// EditorPane's props are stable, so it only re-renders for its own store slices.
+export default memo(EditorPane);

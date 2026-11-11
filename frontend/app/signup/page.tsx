@@ -57,8 +57,9 @@ export default function SignupPage() {
         throw new Error("Please enter a valid email");
       }
 
-      if (formData.password.length < 6) {
-        throw new Error("Password must be at least 6 characters");
+      // Must match the backend's register minimum (auth.py).
+      if (formData.password.length < 8) {
+        throw new Error("Password must be at least 8 characters");
       }
 
       if (formData.password !== formData.confirmPassword) {

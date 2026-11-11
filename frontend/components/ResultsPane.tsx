@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { memo, useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import {
   Terminal,
@@ -30,25 +30,17 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useFileStore } from "@/lib/store";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-} from "chart.js";
-import { Bar } from "react-chartjs-2";
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-);
+// chart.js is only needed once there are results to plot, so load it lazily
+// instead of shipping it in the /app first-load bundle.
+const Bar = dynamic(() => import("./charts/BarChart"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-full">
+      <span className="text-sm text-editor-text/70">Loading chart…</span>
+    </div>
+  ),
+});
 
 // Dynamically import Monaco Editor (SSR-safe) for syntax highlighting in Results.
 const MonacoEditor = dynamic(
@@ -81,22 +73,17 @@ interface ErrorEntry {
   suggestion?: string;
 }
 
-export default function ResultsPane() {
-  const {
-    resultsCollapsed,
-    toggleResults,
-    compiledQasm,
-    getActiveFile,
-    conversionStats,
-    simulationResults,
-    hybridResult,
-    executionMode,
-    theme,
-    createFile,
-    activeProjectId,
-    files,
-  } = useFileStore();
-  const activeFile = getActiveFile();
+function ResultsPane() {
+  // Narrow subscriptions: this used to subscribe to the whole store (including
+  // `files`), so the results pane re-rendered on every editor update.
+  const resultsCollapsed = useFileStore((s) => s.resultsCollapsed);
+  const toggleResults = useFileStore((s) => s.toggleResults);
+  const compiledQasm = useFileStore((s) => s.compiledQasm);
+  const conversionStats = useFileStore((s) => s.conversionStats);
+  const simulationResults = useFileStore((s) => s.simulationResults);
+  const hybridResult = useFileStore((s) => s.hybridResult);
+  const executionMode = useFileStore((s) => s.executionMode);
+  const theme = useFileStore((s) => s.theme);
 
   // Use simulation results from store if available, otherwise check hybrid results
   const quantumResults = simulationResults
@@ -514,6 +501,9 @@ export default function ResultsPane() {
   };
 
   const saveQasmNextToActiveFile = async () => {
+    const { getActiveFile, files, createFile, activeProjectId } =
+      useFileStore.getState();
+    const activeFile = getActiveFile();
     if (!compiledQasm) {
       toast.error("No OpenQASM to save");
       return;
@@ -1950,3 +1940,5 @@ print(result.counts)`}
     </div>
   );
 }
+
+export default memo(ResultsPane);

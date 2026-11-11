@@ -1,10 +1,51 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
-import { File, Folder, ExplorerTree, EditorState, FILE_TEMPLATES, CompileOptions } from '@/types'
+import { useStoreWithEqualityFn } from 'zustand/traditional'
+import { File, Folder, EditorState, FILE_TEMPLATES, CompileOptions } from '@/types'
 import { generateId, getLanguageFromFilename } from './utils'
-import { projectsApi, foldersApi, Project, authApi } from './api'
+import { projectsApi, foldersApi, fileApi, Project } from './api'
 import { useAuthStore } from './authStore'
 import toast from 'react-hot-toast'
+
+/**
+ * Project as held in the store. The API returns numeric ids, but the store
+ * normalises every id (files, folders, projects) to strings so equality checks
+ * in the UI (`project.id === activeProjectId`) are reliable.
+ */
+export type StoreProject = Omit<Project, 'id' | 'files'> & { id: string; files?: File[] }
+
+/**
+ * True only for ids that came from the backend (integer primary keys).
+ * Local/in-memory files use ids like `file-1` (templates) or `local-<random>`
+ * (created while logged out); those must never be sent to `/api/files/{id}`.
+ */
+export const isServerFileId = (id: string | null | undefined): id is string =>
+  typeof id === 'string' && /^\d+$/.test(id)
+
+const toApiId = (id: string | null | undefined): number | undefined => {
+  if (id == null || id === '') return undefined
+  const n = Number.parseInt(String(id), 10)
+  return Number.isNaN(n) ? undefined : n
+}
+
+const apiErrorText = (error: unknown) =>
+  typeof error === 'object' && error !== null ? JSON.stringify(error) : String(error ?? 'Unknown error')
+
+/**
+ * Ask the mounted editor to push its latest (debounced) content into the store
+ * synchronously, so save/run never act on content that is up to 300ms stale.
+ */
+export const EDITOR_FLUSH_EVENT = 'qcanvas:flush-editor'
+const flushEditor = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(EDITOR_FLUSH_EVENT))
+  }
+}
+
+// Guards against out-of-order responses when the user switches projects quickly.
+let explorerTreeRequestSeq = 0
+// Local (never-saved) files currently being created on the backend.
+const savingLocalFileIds = new Set<string>()
 
 // Conversion stats interface based on backend ConversionResult
 interface ConversionStats {
@@ -71,8 +112,8 @@ interface FileStore extends EditorState {
   simulationResults: SimulationResult | null
 
   // Project state
-  projects: Project[]
-  activeProjectId: number | null
+  projects: StoreProject[]
+  activeProjectId: string | null
   loading: boolean
 
   // Explorer tree state (folders + files)
@@ -95,7 +136,6 @@ interface FileStore extends EditorState {
   addFile: (name: string, content?: string) => File
   addFileWithoutActivating: (name: string, content?: string) => File
   deleteFile: (fileId: string) => Promise<void>
-  fetchFiles: (projectId?: number) => Promise<void>
 
   setTheme: (theme: 'light' | 'dark') => void
   toggleTheme: () => void
@@ -115,14 +155,13 @@ interface FileStore extends EditorState {
 
   // Async Actions
   fetchProjects: (token: string) => Promise<void>
-  fetchProjectFiles: (projectId: number | null, token: string) => Promise<void>
-  fetchExplorerTree: (projectId: number | null, token: string) => Promise<void>
-  createFolder: (name: string, projectId?: number, parentFolderId?: string) => Promise<void>
+  fetchExplorerTree: (projectId: string | null, token: string) => Promise<void>
+  createFolder: (name: string, projectId?: string, parentFolderId?: string) => Promise<void>
   renameFolder: (folderId: string, newName: string) => Promise<void>
   deleteFolder: (folderId: string) => Promise<void>
   createProject: (name: string, isPublic: boolean, token: string) => Promise<void>
   saveActiveFile: () => Promise<void>
-  createFile: (name: string, content?: string, projectId?: number, isShared?: boolean, folderId?: string) => Promise<void>
+  createFile: (name: string, content?: string, projectId?: string, isShared?: boolean, folderId?: string) => Promise<void>
   renameFile: (fileId: string, newName: string) => Promise<void>
   moveFileToFolder: (fileId: string, folderId: string | null) => Promise<void>
 }
@@ -506,7 +545,8 @@ export const useFileStore = create<FileStore>()(
         const defaultContent = getDefaultNewFileContent(uniqueName, content)
 
         const newFile: File = {
-          id: generateId(),
+          // `local-` prefix: never mistaken for a backend id (see isServerFileId).
+          id: `local-${generateId()}`,
           name: uniqueName,
           content: defaultContent,
           language,
@@ -518,6 +558,9 @@ export const useFileStore = create<FileStore>()(
         set(
           (state) => ({
             files: [...state.files, newFile],
+            openFileIds: state.openFileIds.includes(newFile.id)
+              ? state.openFileIds
+              : [...state.openFileIds, newFile.id],
             activeFileId: newFile.id,
           }),
           false,
@@ -534,7 +577,7 @@ export const useFileStore = create<FileStore>()(
         const defaultContent = getDefaultNewFileContent(uniqueName, content)
 
         const newFile: File = {
-          id: generateId(),
+          id: `local-${generateId()}`,
           name: uniqueName,
           content: defaultContent,
           language,
@@ -557,31 +600,30 @@ export const useFileStore = create<FileStore>()(
       deleteFile: async (fileId) => {
         const token = useAuthStore.getState().token
 
-        // API call if token exists and not a temp file
-        if (token && !fileId.startsWith('file-')) {
-          try {
-            // Import dynamically to avoid circular dependency if any (though api.ts is already imported)
-            const api = await import('./api').then(m => m.fileApi)
-            await api.deleteFile(Number.parseInt(fileId, 10), token)
-          } catch (error) {
-            console.error("Failed to delete remote file", error)
-            // Propagate error to caller (Sidebar) so it can show error toast
-            throw error
+        // API call if token exists and the file exists on the backend.
+        // apiRequest never throws; it reports failures via `success: false`.
+        if (token && isServerFileId(fileId)) {
+          const res = await fileApi.deleteFile(Number.parseInt(fileId, 10), token)
+          if (!res.success) {
+            console.error('Failed to delete remote file', res.error)
+            const name = get().files.find((f) => f.id === fileId)?.name ?? 'file'
+            toast.error(`Failed to delete ${name}: ${apiErrorText(res.error)}`)
+            return
           }
         }
 
         set(
           (state) => {
             const newFiles = state.files.filter((file) => file.id !== fileId)
+            const openFileIds = state.openFileIds.filter((id) => id !== fileId)
             const newActiveFileId =
               state.activeFileId === fileId
-                ? newFiles.length > 0
-                  ? newFiles[0].id
-                  : null
+                ? openFileIds.at(-1) ?? null
                 : state.activeFileId
 
             return {
               files: newFiles,
+              openFileIds,
               activeFileId: newActiveFileId,
             }
           },
@@ -597,6 +639,8 @@ export const useFileStore = create<FileStore>()(
           .filter((f) => f.id !== fileId)
           .map((f) => f.name)
         const uniqueName = makeUniqueFilename(newName, existingOtherNames)
+        const previous = state.files.find((f) => f.id === fileId)
+        if (!previous) return
 
         // Optimistic update
         set(
@@ -616,25 +660,25 @@ export const useFileStore = create<FileStore>()(
           'renameFile'
         )
 
-        // API call if token exists and not a temp file
-        if (token && !fileId.startsWith('file-')) {
-          try {
-            // We need to know if it's a project file or root file?
-            // Actually fileApi.updateFile handles root files (via /api/files/{id})
-            // But if it's a project file, we might need projectsApi.updateFile??
-            // Our refactor made /api/files/{id} universial for updates generally?
-            // Let's check api.ts again. fileApi.updateFile uses /api/files/{id} PUT.
-            // projectsApi.updateFile uses /api/projects/{pid}/files/{fid} PUT.
-            // If the file has a projectId, we should safe check.
-            // But our backend /api/files/{id} update should work if user owns it.
-            // Let's use fileApi.updateFile as it's cleaner.
-
-            const api = await import('./api').then(m => m.fileApi)
-            await api.updateFile(Number.parseInt(fileId, 10), { filename: uniqueName }, token)
-          } catch (error) {
-            console.error("Failed to rename file remotely", error)
-            toast.error("Failed to save rename")
-            // Revert? For now, keep optimistic
+        // API call if token exists and the file exists on the backend.
+        // /api/files/{id} PUT works for both root and project files the user owns.
+        if (token && isServerFileId(fileId)) {
+          const res = await fileApi.updateFile(Number.parseInt(fileId, 10), { filename: uniqueName }, token)
+          if (!res.success) {
+            console.error('Failed to rename file remotely', res.error)
+            // Revert the optimistic rename (only if nothing renamed it again meanwhile).
+            set(
+              (s) => ({
+                files: s.files.map((file) =>
+                  file.id === fileId && file.name === uniqueName
+                    ? { ...file, name: previous.name, language: previous.language }
+                    : file
+                ),
+              }),
+              false,
+              'renameFile.revert'
+            )
+            toast.error(`Failed to rename file: ${apiErrorText(res.error)}`)
           }
         }
       },
@@ -801,11 +845,10 @@ export const useFileStore = create<FileStore>()(
       fetchProjects: async (token: string) => {
         set({ loading: true })
         try {
-          const api = await import('./api').then(m => m.projectsApi)
-          const res = await api.getProjects(token)
+          const res = await projectsApi.getProjects(token)
           if (res.success && res.data) {
             // Map files within projects to frontend format
-            const mappedProjects = res.data.map((project: any) => ({
+            const mappedProjects: StoreProject[] = res.data.map((project: any) => ({
               ...project,
               id: project.id.toString(),
               files: (project.files || []).map((f: any) => ({
@@ -830,53 +873,16 @@ export const useFileStore = create<FileStore>()(
         }
       },
 
-      fetchFiles: async (projectId?: number) => {
-        const token = useAuthStore.getState().token
-        if (!token) return
-
-        set({ loading: true })
-        try {
-          const api = await import('./api').then(m => m.fileApi)
-          const res = await api.getFiles(projectId)
-          if (res.success && res.data) {
-            const mappedFiles = (res.data as any[]).map((f: any) => ({
-              id: f.id.toString(),
-              name: f.filename,
-              content: f.content,
-              language: getLanguageFromFilename(f.filename),
-              createdAt: f.created_at || new Date().toISOString(),
-              updatedAt: f.updated_at || new Date().toISOString(),
-              size: f.content?.length || 0,
-              projectId: f.project_id ? f.project_id.toString() : undefined,
-              isShared: f.is_shared,
-              userId: f.user_id,
-            }))
-            
-            set(state => {
-              // If we are showing root files (projectId is undefined), 
-              // we might want to keep template files if SHOW_TEMPLATE_FILES is true
-              const templates = SHOW_TEMPLATE_FILES ? initialFiles : []
-              const filesToShow = projectId ? mappedFiles : [...templates, ...mappedFiles]
-              
-              return { 
-                files: filesToShow,
-                loading: false
-              }
-            }, false, 'fetchFiles')
-          }
-        } catch (error) {
-          console.error('Failed to fetch files:', error)
-        } finally {
-          set({ loading: false })
-        }
-      },
-
       createProject: async (name: string, isPublic: boolean, token: string) => {
         set({ loading: true })
         try {
           const res = await projectsApi.createProject({ name, is_public: isPublic }, token)
           if (res.success && res.data) {
-            const newProject = res.data
+            const newProject: StoreProject = {
+              ...res.data,
+              id: String(res.data.id),
+              files: [],
+            }
             set(state => ({
               projects: [...state.projects, newProject],
               activeProjectId: newProject.id,
@@ -884,6 +890,8 @@ export const useFileStore = create<FileStore>()(
             }), false, 'createProject')
             // Refresh explorer scope for the created project so folders/files stay in sync.
             get().fetchExplorerTree(newProject.id, token)
+          } else {
+            toast.error(`Failed to create project: ${apiErrorText(res.error)}`)
           }
         } catch (error) {
           console.error("Failed to create project", error)
@@ -893,77 +901,14 @@ export const useFileStore = create<FileStore>()(
         }
       },
 
-      fetchProjectFiles: async (projectId: number | null, token: string) => {
-        // If projectId is null, we fetch root files.
-        // If projectId is set, we fetch project files.
-        // BUT we likely want to see root files ALWAYS?
-        // For now, let's implement fetching specific scope.
-        // The Sidebar might call this twice or we merge results?
-        // Let's assume this action REPLACES files list with the scope's files
-        // OR we can rely on `files` containing everything and Sidebar filtering.
-        // Let's try to fetch BOTH if a project is active?
-        // Simplest: Fetch based on argument.
-
+      fetchExplorerTree: async (projectIdArg: string | number | null, token: string) => {
+        const projectId = projectIdArg == null || projectIdArg === '' ? null : String(projectIdArg)
+        const requestSeq = ++explorerTreeRequestSeq
         set({ loading: true })
         try {
-          // Using fileApi now
-          const res = await import('./api').then(m => m.fileApi.getFiles(projectId || undefined, token))
-
-          if (res.success && res.data) {
-            const fetchedFiles = (res.data as any[]).map((f: any) => ({
-              id: f.id.toString(),
-              name: f.filename,
-              content: f.content,
-              language: getLanguageFromFilename(f.filename),
-              createdAt: f.created_at || new Date().toISOString(),
-              updatedAt: f.updated_at || new Date().toISOString(),
-              size: f.content?.length || 0,
-              projectId: f.project_id ? f.project_id.toString() : undefined,
-              isShared: f.is_shared,
-              userId: f.user_id,
-            }))
-
-            set(state => {
-              // If fetching a project, filter out old files of THAT project?
-              // Or just replace all files?
-              // If we want to show Root files + Project files, we need to manage them.
-              // Let's assume we replace `files` entirely for the view scope?
-              // User said "In memory files are always visible".
-              // Let's merge with initialFiles.
-
-              // If we are switching projects, we probably want to clear other project files.
-              // But keep root files if we fetched them?
-
-              // Strategy: Just set files to (Initial + Fetched).
-              // If we want root + project, caller needs to handle it or we fetch both here.
-              // Let's fetch root files if projectId is provided too?
-
-              const templates = SHOW_TEMPLATE_FILES ? initialFiles : []
-              const filesToShow = projectId
-                ? fetchedFiles
-                : [...templates, ...fetchedFiles]
-
-              return {
-                files: filesToShow,
-                activeProjectId: projectId
-              }
-            }, false, 'fetchProjectFiles')
-
-            if (fetchedFiles.length > 0) {
-              // Optional: set active, or handle in UI
-            }
-          }
-        } catch (error) {
-          console.error("Failed to fetch files", error)
-        } finally {
-          set({ loading: false })
-        }
-      },
-
-      fetchExplorerTree: async (projectId: number | null, token: string) => {
-        set({ loading: true })
-        try {
-          const res = await foldersApi.getExplorerTree(projectId || undefined, token)
+          const res = await foldersApi.getExplorerTree(toApiId(projectId), token)
+          // A newer request (e.g. the user switched project again) supersedes this one.
+          if (requestSeq !== explorerTreeRequestSeq) return
           if (res.success && res.data) {
             const tree = res.data
 
@@ -1003,11 +948,11 @@ export const useFileStore = create<FileStore>()(
         } catch (error) {
           console.error('Failed to fetch explorer tree', error)
         } finally {
-          set({ loading: false })
+          if (requestSeq === explorerTreeRequestSeq) set({ loading: false })
         }
       },
 
-      createFolder: async (name: string, projectId?: number, parentFolderId?: string) => {
+      createFolder: async (name: string, projectId?: string, parentFolderId?: string) => {
         const token = useAuthStore.getState().token
         if (!token) {
           toast.error('Please log in to create a folder')
@@ -1021,7 +966,7 @@ export const useFileStore = create<FileStore>()(
         const siblingFolderNames = state.folders
           .filter((f) => {
             const sameProject =
-              (f.projectId ?? undefined) === (projectId?.toString() ?? undefined)
+              (f.projectId ?? undefined) === (projectId ?? undefined)
             const sameParent =
               (f.parentId ?? undefined) === (parentFolderId ?? undefined)
             return sameProject && sameParent
@@ -1033,8 +978,8 @@ export const useFileStore = create<FileStore>()(
         try {
           const res = await foldersApi.createFolder({
             name: uniqueFolderName,
-            project_id: projectId,
-            parent_id: parentFolderId ? Number.parseInt(parentFolderId, 10) : undefined,
+            project_id: toApiId(projectId),
+            parent_id: toApiId(parentFolderId),
           }, token)
 
           if (res.success && res.data) {
@@ -1125,13 +1070,10 @@ export const useFileStore = create<FileStore>()(
           const filesInTree = state.files.filter((f) => f.folderId && folderIdsToRemove.has(f.folderId))
 
           // 1) Delete files first (backend rejects non-empty folder deletes).
-          const api = await import('./api').then((m) => m.fileApi)
           for (const f of filesInTree) {
-            if (f.id.startsWith('file-')) continue
-            const fileIdNum = Number.parseInt(f.id, 10)
-            // If parse fails, skip remote delete (keeps UI consistent with local-only files)
-            if (Number.isNaN(fileIdNum)) continue
-            const delRes = await api.deleteFile(fileIdNum, token)
+            // Local-only files have nothing to delete remotely.
+            if (!isServerFileId(f.id)) continue
+            const delRes = await fileApi.deleteFile(Number.parseInt(f.id, 10), token)
             if (!delRes.success) {
               const errorText =
                 typeof delRes.error === 'object' ? JSON.stringify(delRes.error) : delRes.error
@@ -1204,34 +1146,37 @@ export const useFileStore = create<FileStore>()(
         )
 
         // Local-only file or unauthenticated: done.
-        if (!token || fileId.startsWith('file-')) return
+        if (!token || !isServerFileId(fileId)) return
 
-        try {
-          const api = await import('./api').then((m) => m.fileApi)
-          await api.updateFile(
-            Number.parseInt(fileId, 10),
-            {
-              folder_id: folderId ? Number.parseInt(folderId, 10) : undefined,
-            },
-            token,
-          )
-        } catch (e) {
-          console.error('moveFileToFolder failed', e)
+        // NOTE: the backend ignores `folder_id: null`, so moving a file back to the
+        // root is currently only reflected locally until the backend supports it.
+        const res = await fileApi.updateFile(
+          Number.parseInt(fileId, 10),
+          {
+            folder_id: toApiId(folderId),
+          },
+          token,
+        )
+        if (!res.success) {
+          console.error('moveFileToFolder failed', res.error)
           // Revert on failure
           set(
             (state) => ({
               files: state.files.map((f) =>
-                f.id === fileId ? { ...f, folderId: prev.folderId, updatedAt: new Date().toISOString() } : f,
+                f.id === fileId ? { ...f, folderId: prev.folderId } : f,
               ),
             }),
             false,
             'moveFileToFolder.revert',
           )
-          toast.error('Failed to move file')
+          toast.error(`Failed to move file: ${apiErrorText(res.error)}`)
         }
       },
 
       saveActiveFile: async () => {
+        // Make sure the store has the editor's latest keystrokes before saving.
+        flushEditor()
+
         const state = get()
         const activeFile = state.getActiveFile()
         const token = useAuthStore.getState().token
@@ -1241,53 +1186,59 @@ export const useFileStore = create<FileStore>()(
           return
         }
 
-        // If it's an initial in-memory file without DB ID (starts with 'file-'), we create it?
-        // Or if it has a real ID (numeric usually from DB, but we verify)
-        // Actually our DB IDs are Ints, converted to string. 
-        // Initial files have 'file-X' which is not int-like.
-        // If we save a 'file-X', we should create it.
-
-        const isNew = activeFile.id.startsWith('file-')
-        const endpoint = import('./api').then(m => isNew ? m.fileApi.createFile : m.fileApi.updateFile)
+        // Backend ids are integers (stored as strings). Anything else (`file-1`
+        // templates, `local-...` files created while logged out) has never been
+        // persisted, so it must be created rather than updated.
+        const isNew = !isServerFileId(activeFile.id)
+        if (isNew) {
+          // Prevent duplicate creates when Save is pressed repeatedly.
+          if (savingLocalFileIds.has(activeFile.id)) return
+          savingLocalFileIds.add(activeFile.id)
+        }
 
         const toastId = toast.loading('Saving...')
         try {
-          const api = await import('./api').then(m => m.fileApi)
           let res;
           if (isNew) {
             // Create
-            res = await api.createFile({
+            res = await fileApi.createFile({
               filename: activeFile.name,
               content: activeFile.content,
-              is_main: false, // Default?
-              project_id: state.activeProjectId || undefined,
+              is_main: false,
+              project_id: toApiId(state.activeProjectId),
+              folder_id: toApiId(activeFile.folderId),
               is_shared: activeFile.isShared
             }, token)
           } else {
             // Update
-            res = await api.updateFile(Number.parseInt(activeFile.id, 10), {
+            res = await fileApi.updateFile(Number.parseInt(activeFile.id, 10), {
               content: activeFile.content
             }, token)
           }
 
           if (res.success && res.data) {
             toast.success('Saved', { id: toastId })
-            // Update local file with new data (ID might change if new)
+            // Update local file metadata (the id changes if it was new). Keep the
+            // local content: the user may have kept typing while the request was
+            // in flight, and overwriting it with the saved copy would lose edits.
             const backendFile = res.data as any
-            const updatedFile: File = {
-              ...activeFile,
-              id: backendFile.id.toString(),
-              name: backendFile.filename,
-              content: backendFile.content,
-              updatedAt: backendFile.updated_at || new Date().toISOString(),
-              projectId: backendFile.project_id?.toString(),
-              isShared: backendFile.is_shared
-            }
+            const newId = backendFile.id.toString()
 
-            set(state => ({
-              files: state.files.map(f => f.id === activeFile.id ? updatedFile : f),
-              activeFileId: updatedFile.id
-            }))
+            set(s => ({
+              files: s.files.map(f => f.id === activeFile.id
+                ? {
+                  ...f,
+                  id: newId,
+                  name: backendFile.filename ?? f.name,
+                  updatedAt: backendFile.updated_at || new Date().toISOString(),
+                  projectId: backendFile.project_id?.toString(),
+                  folderId: backendFile.folder_id == null ? f.folderId : backendFile.folder_id.toString(),
+                  isShared: backendFile.is_shared
+                }
+                : f),
+              openFileIds: s.openFileIds.map(id => id === activeFile.id ? newId : id),
+              activeFileId: s.activeFileId === activeFile.id ? newId : s.activeFileId
+            }), false, 'saveActiveFile')
           } else {
             const errorText = typeof res.error === 'object' ? JSON.stringify(res.error) : res.error
             toast.error(`Failed to save: ${errorText}`, { id: toastId })
@@ -1295,10 +1246,12 @@ export const useFileStore = create<FileStore>()(
         } catch (error) {
           console.error('Save failed', error)
           toast.error('Save failed', { id: toastId })
+        } finally {
+          if (isNew) savingLocalFileIds.delete(activeFile.id)
         }
       },
 
-      createFile: async (name: string, content?: string, projectId?: number, isShared: boolean = false, folderId?: string) => {
+      createFile: async (name: string, content?: string, projectId?: string, isShared: boolean = false, folderId?: string) => {
         const state = get()
         const token = useAuthStore.getState().token
 
@@ -1315,13 +1268,12 @@ export const useFileStore = create<FileStore>()(
         const toastId = toast.loading('Creating file...')
 
         try {
-          const api = await import('./api').then(m => m.fileApi)
-          const res = await api.createFile({
+          const res = await fileApi.createFile({
             filename: uniqueName,
             content: defaultContent,
             is_main: false,
-            project_id: projectId,
-            folder_id: folderId ? Number.parseInt(folderId, 10) : undefined,
+            project_id: toApiId(projectId),
+            folder_id: toApiId(folderId),
             is_shared: isShared
           }, token)
 
@@ -1343,6 +1295,10 @@ export const useFileStore = create<FileStore>()(
             set(
               (state) => ({
                 files: [...state.files, newFile],
+                // Open the new file as a tab too, otherwise it is active but tab-less.
+                openFileIds: state.openFileIds.includes(newFile.id)
+                  ? state.openFileIds
+                  : [...state.openFileIds, newFile.id],
                 activeFileId: newFile.id,
               }),
               false,
@@ -1364,3 +1320,41 @@ export const useFileStore = create<FileStore>()(
     }
   )
 )
+
+// =============================================================================
+// Fine-grained subscription helpers
+// =============================================================================
+// Typing in the editor updates `files` (debounced), which creates a new `files`
+// array on every update. Components that subscribe to the whole store or to
+// `files` therefore re-render on every edit. Use these helpers instead.
+
+const sameFileListMeta = (a: File[], b: File[]) =>
+  a === b ||
+  (a.length === b.length &&
+    a.every((f, i) => {
+      const g = b[i]
+      return (
+        f.id === g.id &&
+        f.name === g.name &&
+        f.language === g.language &&
+        f.folderId === g.folderId &&
+        f.projectId === g.projectId &&
+        f.isShared === g.isShared
+      )
+    }))
+
+/**
+ * The file list, re-rendering only when ids/names/folders change, not on content
+ * edits. Do NOT read `content`/`size`/`updatedAt` from the returned objects (they
+ * may be stale); use `useFileStore.getState()` for that at call time.
+ */
+export const useFileListMeta = (): File[] =>
+  useStoreWithEqualityFn(useFileStore, (s) => s.files, sameFileListMeta)
+
+/** The active file (re-renders when the active file's content changes). */
+export const useActiveFile = (): File | undefined =>
+  useFileStore((s) => s.files.find((f) => f.id === s.activeFileId))
+
+/** Whether a file is active (does not re-render on content edits). */
+export const useHasActiveFile = (): boolean =>
+  useFileStore((s) => s.activeFileId != null && s.files.some((f) => f.id === s.activeFileId))

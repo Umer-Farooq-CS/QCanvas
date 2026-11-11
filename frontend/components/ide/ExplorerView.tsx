@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ChevronRight,
@@ -14,7 +14,7 @@ import {
   X,
   Edit2,
 } from "lucide-react";
-import { useFileStore } from "@/lib/store";
+import { useFileListMeta, useFileStore } from "@/lib/store";
 import { useAuthStore } from "@/lib/authStore";
 import { Code, FileText } from "@/components/Icons";
 import { Folder, File } from "@/types";
@@ -113,9 +113,11 @@ function buildTree(folders: Folder[], files: File[]): TreeNode[] {
   return walk(null, 0);
 }
 
-export default function ExplorerView() {
+function ExplorerView() {
   const folders = useFileStore((s) => s.folders);
-  const files = useFileStore((s) => s.files);
+  // Ids/names/folders only: re-rendering (and rebuilding the tree) on every
+  // editor content update is unnecessary.
+  const files = useFileListMeta();
   const projects = useFileStore((s) => s.projects);
   const activeFileId = useFileStore((s) => s.activeFileId);
   const openFile = useFileStore((s) => s.openFile);
@@ -1089,3 +1091,5 @@ export default function ExplorerView() {
     </div>
   );
 }
+
+export default memo(ExplorerView);

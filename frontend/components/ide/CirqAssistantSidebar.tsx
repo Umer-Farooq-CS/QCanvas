@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { generateCirqCode, getCirqRun, listCirqRuns } from "@/lib/cirqAgentApi";
 import { useAuthStore } from "@/lib/authStore";
-import { useFileStore } from "@/lib/store";
+import { EDITOR_FLUSH_EVENT, useFileStore } from "@/lib/store";
 import type { InputLanguage } from "@/types";
 import type { Dispatch, SetStateAction } from "react";
 import type {
@@ -28,8 +28,16 @@ import type {
   EducationalDepth,
   GenerateCirqResponse,
 } from "@/types/cirqAgent";
-import CirqExplanationMarkdown from "./CirqExplanationMarkdown";
+import dynamic from "next/dynamic";
+
 import CirqCodePreview from "./CirqCodePreview";
+
+// react-markdown + remark/rehype + KaTeX are only needed once an explanation
+// is shown, so keep them out of the /app first-load bundle.
+const CirqExplanationMarkdown = dynamic(
+  () => import("./CirqExplanationMarkdown"),
+  { ssr: false },
+);
 
 const STARTER_PROMPTS = [
   "Create a Bell state in Cirq",
@@ -170,7 +178,7 @@ export default function CirqAssistantSidebar({
     } finally {
       setLoadingRuns(false);
     }
-  }, []);
+  }, [canUseAssistant]);
 
   useEffect(() => {
     if (historyOpen) void loadRuns();
@@ -232,7 +240,7 @@ export default function CirqAssistantSidebar({
         setIsGenerating(false);
       }
     },
-    [algorithmHint, config, loadRuns],
+    [algorithmHint, canUseAssistant, config, loadRuns],
   );
 
   useEffect(() => {
@@ -292,6 +300,9 @@ export default function CirqAssistantSidebar({
       toast.error("Open or create a file first");
       return;
     }
+    // Flush pending (debounced) keystrokes first so they can't land after,
+    // and overwrite, the generated code.
+    window.dispatchEvent(new Event(EDITOR_FLUSH_EVENT));
     useFileStore.getState().updateFileContent(f.id, code);
     onSetInputLanguage("cirq");
     toast.success("Loaded into editor (Cirq)");

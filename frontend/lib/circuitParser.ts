@@ -5,6 +5,9 @@
  * and converts them to a unified format for visualization.
  */
 
+import { getApiBase } from './api'
+import { useAuthStore } from './authStore'
+
 export interface ParsedGate {
   type: string           // 'h', 'x', 'cx', 'ry', etc.
   qubit: number          // Primary qubit index
@@ -807,6 +810,45 @@ interface ParseApiResponse {
 }
 
 /**
+ * POST to the backend AST parser. Must use the backend API base: a relative
+ * `/api/converter/parse` hits the Next.js server (404), which silently forced
+ * the regex fallback for every diagram.
+ */
+/**
+ * The backend (Pydantic) serialises absent optional fields as `null`, but the
+ * visualisers test `!== undefined` (e.g. `gate.angle.toFixed`), so drop nulls.
+ */
+function normalizeBackendGates(gates: ParsedGate[]): ParsedGate[] {
+  return gates.map((gate) => {
+    const clean: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(gate)) {
+      if (value !== null && value !== undefined) clean[key] = value
+    }
+    return clean as unknown as ParsedGate
+  })
+}
+
+async function requestBackendParse(code: string, framework: string): Promise<Response> {
+  const apiBase = await getApiBase()
+  // Send the session token when we have one: the backend rate-limits per user
+  // when authenticated, otherwise per IP (shared by everyone behind one NAT).
+  const token = useAuthStore.getState().token
+  return fetch(`${apiBase}/api/converter/parse`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({
+      code,
+      framework,
+      qasm_version: '3.0',
+      style: 'classic'
+    })
+  })
+}
+
+/**
  * Async circuit parser that uses backend AST parsing with regex fallback.
  * 
  * Calls the backend /api/converter/parse endpoint which uses Python's AST
@@ -829,18 +871,7 @@ export async function parseCircuitAsync(code: string): Promise<ParsedGate[]> {
   }
   
   try {
-    const response = await fetch('/api/converter/parse', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        code,
-        framework,
-        qasm_version: '3.0',
-        style: 'classic'
-      })
-    })
+    const response = await requestBackendParse(code, framework)
     
     if (!response.ok) {
       // Backend unavailable or error, fall back to regex
@@ -852,7 +883,7 @@ export async function parseCircuitAsync(code: string): Promise<ParsedGate[]> {
     
     if (data.success && data.gates && data.gates.length > 0) {
       // Backend parsing succeeded
-      return data.gates
+      return normalizeBackendGates(data.gates)
     }
     
     // Backend returned no gates or error, fall back to regex
@@ -897,18 +928,7 @@ export async function parseCircuitWithCountAsync(code: string): Promise<ParseRes
   }
   
   try {
-    const response = await fetch('/api/converter/parse', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        code,
-        framework,
-        qasm_version: '3.0',
-        style: 'classic'
-      })
-    })
+    const response = await requestBackendParse(code, framework)
     
     if (!response.ok) {
       const gates = parseCircuit(code)
@@ -919,8 +939,9 @@ export async function parseCircuitWithCountAsync(code: string): Promise<ParseRes
     
     if (data.success && data.gates && data.gates.length > 0) {
       // Backend parsing succeeded - use backend's qubit count if available
-      const qubits = data.qubits ?? calculateQubitCount(data.gates)
-      return { gates: data.gates, qubits }
+      const gates = normalizeBackendGates(data.gates)
+      const qubits = data.qubits ?? calculateQubitCount(gates)
+      return { gates, qubits }
     }
     
     // Fall back to regex

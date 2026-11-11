@@ -76,9 +76,8 @@ export default function LoginPage() {
         throw new Error("Please enter a valid email");
       }
 
-      if (formData.password.length < 6) {
-        throw new Error("Password must be at least 6 characters");
-      }
+      // No length check on login: the backend has no login minimum and older
+      // accounts may have shorter passwords.
 
       // Call backend login API
       const response = await authApi.login(formData.email, formData.password);

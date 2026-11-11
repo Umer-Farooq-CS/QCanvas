@@ -1,6 +1,6 @@
 "use client";
 
-import { useFileStore } from "@/lib/store";
+import { useFileStore, useHasActiveFile } from "@/lib/store";
 import SimulationControls from "@/components/SimulationControls";
 import { InputLanguage } from "@/types";
 
@@ -23,12 +23,13 @@ export default function RunView({
   onRun: () => void | Promise<void>;
   isRunning: boolean;
 }>) {
-  const { executionMode, setExecutionMode } = useFileStore();
-  const activeFile = useFileStore((s) => s.getActiveFile());
+  const executionMode = useFileStore((s) => s.executionMode);
+  const setExecutionMode = useFileStore((s) => s.setExecutionMode);
+  const hasActiveFile = useHasActiveFile();
 
   return (
     <div className="h-full flex flex-col overflow-hidden ">
-      <div className="h-10 px-3 flex items-center bg-red-400">
+      <div className="h-10 px-3 flex items-center">
         <div className="text-xs font-semibold tracking-wider text-black dark:text-gray-400 uppercase">
           Run
         </div>
@@ -57,7 +58,7 @@ export default function RunView({
 
         <button
           type="button"
-          disabled={!activeFile || isRunning}
+          disabled={!hasActiveFile || isRunning}
           className="w-full px-3 py-2 rounded text-sm font-semibold disabled:opacity-50 btn-quantum"
           onClick={() => onRun()}
         >

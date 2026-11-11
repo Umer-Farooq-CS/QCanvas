@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/lib/authStore'
-import { useFileStore } from '@/lib/store'
+import { EDITOR_FLUSH_EVENT, useFileStore } from '@/lib/store'
 import { quantumApi } from '@/lib/api'
 import { detectFramework } from '@/lib/utils'
 import { useGamificationStore } from '@/lib/gamificationStore'
@@ -55,33 +55,28 @@ function formatHybridError(errorType: string | null | undefined, error: string |
   }
 }
 
+// Match an algorithm name as a whole identifier part, so "grover_oracle",
+// "grovers_search" and "Grover's" match but "shortest"/"shore" do not match
+// "shor". (No lookbehind: older Safari versions reject it at parse time.)
+const wordish = (name: string) => new RegExp(`(?:^|[^a-z])${name}(?:'?s)?(?![a-z])`)
+const GROVER_RE = wordish('grover')
+const SHOR_RE = wordish('shor')
+const QAOA_RE = wordish('qaoa')
+const VQE_RE = wordish('vqe')
+const DEUTSCH_RE = /(?:^|[^a-z])deutsch(?:[_-]?jozsa)?(?![a-z])|deutschjozsa/
+
 function detectAlgorithmHint(code: string): string | null {
   const lower = code.toLowerCase()
 
+  // An explicit tag always wins: "# algorithm: grover" / "# @algorithm grover".
   const tagMatch = lower.match(/#\s*@?algorithm[:\s]+([a-z_-]+)/)
   if (tagMatch) return tagMatch[1].trim()
 
-  if (lower.includes('from qiskit.algorithms import grover') || lower.includes('cirq.groversalgorithm') || lower.includes('grover')) {
-    if (lower.includes('grover')) return 'grover'
-  }
-  if (lower.includes('from qiskit.algorithms import shor') || lower.includes('algorithms.shor') || lower.includes('shor')) {
-    if (lower.includes('shor')) return 'shor'
-  }
-  if (lower.includes('from qiskit.algorithms import vqe') || lower.includes('pennylane') && lower.includes('vqecost') || lower.includes('variational_quantum_eigensolver')) {
-    return 'vqe'
-  }
-  if (lower.includes('from qiskit.algorithms import qaoa') || lower.includes('qml.qaoa') || lower.includes('qaoa')) {
-    return 'qaoa'
-  }
-  if (lower.includes('deutschjozsa') || lower.includes('deutsch_jozsa') || lower.includes('deutsch-jozsa') || lower.includes('from qiskit.algorithms import deutschjozsa')) {
-    return 'deutsch'
-  }
-
-  if (/def.*grover|grover.*circuit|grover_oracle/i.test(code)) return 'grover'
-  if (/def.*shor|shor.*factor/i.test(code)) return 'shor'
-  if (/def.*vqe|vqe.*circuit|ansatz/i.test(code)) return 'vqe'
-  if (/def.*qaoa|qaoa.*circuit|mixer.*hamiltonian|cost.*hamiltonian/i.test(code)) return 'qaoa'
-  if (/def.*deutsch|deutsch.*oracle/i.test(code)) return 'deutsch'
+  if (GROVER_RE.test(lower)) return 'grover'
+  if (SHOR_RE.test(lower)) return 'shor'
+  if (VQE_RE.test(lower) || lower.includes('variational_quantum_eigensolver') || lower.includes('vqecost')) return 'vqe'
+  if (QAOA_RE.test(lower)) return 'qaoa'
+  if (DEUTSCH_RE.test(lower)) return 'deutsch'
 
   return null
 }
@@ -95,18 +90,25 @@ export function useExecutionActions({
   simBackend: SimulationBackend
   shots: number
 }>) {
-  const activeFile = useFileStore((s) => s.getActiveFile())
-  const executionMode = useFileStore((s) => s.executionMode)
-  const setCompiledQasm = useFileStore((s) => s.setCompiledQasm)
-  const setConversionStats = useFileStore((s) => s.setConversionStats)
-  const setHybridResult = useFileStore((s) => s.setHybridResult)
-  const setSimulationResults = useFileStore((s) => s.setSimulationResults)
-  const { isAuthenticated, user, token } = useAuthStore()
-  const { fetchStats, fetchRecentActivities } = useGamificationStore()
+  // Read everything else from the stores at call time instead of subscribing:
+  // subscribing to the active file here re-rendered the whole IDE page (and
+  // recreated `run`, defeating memoised children) on every keystroke.
+  const paramsRef = useRef({ inputLanguage, simBackend, shots })
+  useEffect(() => {
+    paramsRef.current = { inputLanguage, simBackend, shots }
+  }, [inputLanguage, simBackend, shots])
 
   const [isRunning, setIsRunning] = useState(false)
+  const isRunningRef = useRef(false)
 
-  const runHybrid = async () => {
+  const runHybrid = useCallback(async () => {
+    // Push any debounced editor content into the store first.
+    window.dispatchEvent(new Event(EDITOR_FLUSH_EVENT))
+    const { setSimulationResults, setHybridResult, setCompiledQasm } = useFileStore.getState()
+    const activeFile = useFileStore.getState().getActiveFile()
+    const { inputLanguage } = paramsRef.current
+    const { token } = useAuthStore.getState()
+
     if (!activeFile) {
       toast.error('No file selected')
       return
@@ -124,11 +126,13 @@ export function useExecutionActions({
       return
     }
 
+    if (isRunningRef.current) return
+    isRunningRef.current = true
     setIsRunning(true)
     try {
       toast.loading('Running hybrid Python code...', { id: 'hybrid-execution' })
       const detected = detectFramework(activeFile.content, activeFile.name)
-      const result = await quantumApi.executeHybrid(activeFile.content, detected || inputLanguage || undefined, 180)
+      const result = await quantumApi.executeHybrid(activeFile.content, detected || inputLanguage || undefined, 180, token || undefined)
 
       if (!result.success) {
         let errorMsg = result.error || 'Hybrid execution failed'
@@ -191,14 +195,25 @@ export function useExecutionActions({
 
       window.dispatchEvent(new CustomEvent('hybrid-execute', { detail: { success: false, error: displayError } }))
     } finally {
+      isRunningRef.current = false
       setIsRunning(false)
     }
-  }
+  }, [])
 
-  const run = async () => {
-    if (executionMode === 'expert') {
+  const run = useCallback(async () => {
+    if (useFileStore.getState().executionMode === 'expert') {
       return runHybrid()
     }
+
+    // Push any debounced editor content into the store first.
+    window.dispatchEvent(new Event(EDITOR_FLUSH_EVENT))
+    const { setSimulationResults, setHybridResult, setCompiledQasm, setConversionStats } = useFileStore.getState()
+    const activeFile = useFileStore.getState().getActiveFile()
+    const { inputLanguage, simBackend, shots } = paramsRef.current
+    const { isAuthenticated, user, token } = useAuthStore.getState()
+    const { fetchStats, fetchRecentActivities } = useGamificationStore.getState()
+
+    if (isRunningRef.current) return
 
     if (!activeFile) {
       toast.error('No file selected')
@@ -227,7 +242,12 @@ export function useExecutionActions({
       return
     }
 
+    isRunningRef.current = true
     setIsRunning(true)
+    // Only claim "Compilation successful" when we actually compiled source code
+    // (not for QASM files, and not when the failure happened before conversion).
+    let compiledFromSource = false
+    const simFailurePrefix = () => (compiledFromSource ? 'Compilation successful, but simulation failed: ' : 'Simulation failed: ')
     try {
       toast.loading('Running quantum circuit...', { id: 'execution' })
 
@@ -255,6 +275,7 @@ export function useExecutionActions({
         }
 
         qasmCode = conversionResult.data.qasm_code
+        compiledFromSource = true
         setCompiledQasm(qasmCode)
         setConversionStats({
           qubits: conversionResult.data.qubits,
@@ -286,7 +307,7 @@ export function useExecutionActions({
         setSimulationResults(null)
         const rawError = executionResult.error || executionResult.data?.error || 'Run failed'
         const errorMsg = formatErrorMessage(rawError)
-        toast.error(`Compilation successful. ${errorMsg}`, { id: 'execution' })
+        toast.error(`${simFailurePrefix()}${errorMsg}`, { id: 'execution' })
         window.dispatchEvent(new CustomEvent('circuit-execute', { detail: { success: false, error: errorMsg } }))
         return
       }
@@ -300,24 +321,29 @@ export function useExecutionActions({
         const simResult = executionResult.data.results
         useFileStore.getState().setSimulationResults(simResult)
         window.dispatchEvent(new CustomEvent('circuit-execute', { detail: { success: true } }))
-        toast.success(`Compilation successful. Simulation completed on ${simBackend} backend!`, { id: 'execution' })
+        toast.success(
+          `${compiledFromSource ? 'Compilation successful. ' : ''}Simulation completed on ${simBackend} backend!`,
+          { id: 'execution' },
+        )
       } else {
         setSimulationResults(null)
         const rawError = executionResult.data?.error || executionResult.data?.detail || executionResult.error || 'Run failed'
         const errorMsg = formatErrorMessage(rawError)
-        toast.error(`Compilation successful. ${errorMsg}`, { id: 'execution' })
+        toast.error(`${simFailurePrefix()}${errorMsg}`, { id: 'execution' })
         window.dispatchEvent(new CustomEvent('circuit-execute', { detail: { success: false, error: errorMsg } }))
       }
     } catch (error) {
       setSimulationResults(null)
       const errorMsg = formatErrorMessage(error instanceof Error ? error.message : String(error))
-      toast.error(`Compilation successful. ${errorMsg}`, { id: 'execution' })
+      // Unknown failure point: only mention compilation if it really succeeded.
+      toast.error(compiledFromSource ? `${simFailurePrefix()}${errorMsg}` : errorMsg, { id: 'execution' })
       console.error('Execution error:', error)
       window.dispatchEvent(new CustomEvent('circuit-execute', { detail: { success: false, error: errorMsg } }))
     } finally {
+      isRunningRef.current = false
       setIsRunning(false)
     }
-  }
+  }, [runHybrid])
 
   return { run, runHybrid, isRunning }
 }

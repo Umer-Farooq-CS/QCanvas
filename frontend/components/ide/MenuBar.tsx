@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useFileStore } from "@/lib/store";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  EDITOR_FLUSH_EVENT,
+  useFileStore,
+  useHasActiveFile,
+} from "@/lib/store";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -29,28 +33,111 @@ interface MenuItem {
   onSelect: () => void;
 }
 
-export default function MenuBar({
+/**
+ * "New File" flow shared by the menu item and the keyboard shortcut.
+ */
+function promptAndCreateFile() {
+  const entered = globalThis.window?.prompt("Enter new file name", "new.py");
+  const fileName = entered?.trim();
+  if (!fileName) return;
+
+  const { token } = useAuthStore.getState();
+  const store = useFileStore.getState();
+  if (token) {
+    void store.createFile(
+      fileName,
+      undefined,
+      store.activeProjectId ?? undefined,
+      false,
+    );
+  } else {
+    store.addFile(fileName, undefined);
+  }
+}
+
+/**
+ * Global IDE shortcuts advertised in the menus.
+ *
+ * Registered on `window` in the bubbling phase, so when Monaco has focus and
+ * handles a key itself (e.g. Ctrl+Shift+K = delete line) it stops propagation
+ * and the editor keeps that binding. Keys Monaco does not bind (Ctrl+B, Ctrl+J,
+ * Ctrl+Shift+R, Alt+N) bubble up and work from inside the editor too.
+ */
+function useIdeShortcuts(onRun: () => void | Promise<void>) {
+  const onRunRef = useRef(onRun);
+  useEffect(() => {
+    onRunRef.current = onRun;
+  }, [onRun]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.isComposing) return;
+      const mod = e.ctrlKey || e.metaKey;
+      const key = (e.key ?? "").toLowerCase();
+
+      // New file: Ctrl/Cmd+N is reserved by most browsers (opens a window and
+      // never reaches the page), so Alt+N is the reliable binding.
+      if (
+        (e.altKey && !mod && !e.shiftKey && (key === "n" || e.code === "KeyN")) ||
+        (mod && !e.shiftKey && !e.altKey && key === "n")
+      ) {
+        e.preventDefault();
+        promptAndCreateFile();
+        return;
+      }
+
+      if (!mod || e.altKey) return;
+
+      if (!e.shiftKey && key === "b") {
+        e.preventDefault();
+        useFileStore.getState().toggleSidebar();
+      } else if (!e.shiftKey && key === "j") {
+        e.preventDefault();
+        useFileStore.getState().toggleResults();
+      } else if (e.shiftKey && key === "k") {
+        e.preventDefault();
+        useFileStore.getState().toggleTheme();
+      } else if (e.shiftKey && key === "r") {
+        e.preventDefault();
+        void onRunRef.current();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+}
+
+function MenuBar({
   onRun,
   onAskAiAboutCircuit,
 }: Readonly<{
   onRun: () => void | Promise<void>;
   onAskAiAboutCircuit?: () => void;
 }>) {
-  const {
-    toggleSidebar,
-    toggleResults,
-    theme,
-    toggleTheme,
-    setExecutionMode,
-    executionMode,
-    activeProjectId,
-  } = useFileStore();
-  const activeFile = useFileStore((s) => s.getActiveFile());
-  const { isAuthenticated, clearAuth, token } = useAuthStore();
+  // Narrow subscriptions: MenuBar used to subscribe to the whole store (and to
+  // the active file object), so it re-rendered on every editor update.
+  const toggleSidebar = useFileStore((s) => s.toggleSidebar);
+  const toggleResults = useFileStore((s) => s.toggleResults);
+  const theme = useFileStore((s) => s.theme);
+  const toggleTheme = useFileStore((s) => s.toggleTheme);
+  const setExecutionMode = useFileStore((s) => s.setExecutionMode);
+  const executionMode = useFileStore((s) => s.executionMode);
+  const activeProjectId = useFileStore((s) => s.activeProjectId);
+  const hasActiveFile = useHasActiveFile();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const clearAuth = useAuthStore((s) => s.clearAuth);
+  const token = useAuthStore((s) => s.token);
   const router = useRouter();
+
+  useIdeShortcuts(onRun);
 
   const [openMenu, setOpenMenu] = useState<MenuId | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  // Only track the active file's content while the share dialog is open.
+  const shareFile = useFileStore((s) =>
+    showShareModal ? s.getActiveFile() : undefined,
+  );
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showTemplatesPicker, setShowTemplatesPicker] = useState(false);
   const [showAddLanguage, setShowAddLanguage] = useState(false);
@@ -67,7 +154,10 @@ export default function MenuBar({
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
-  const handleExport = () => {
+  const handleExport = useCallback(() => {
+    // Flush debounced editor content so the export has the latest text.
+    globalThis.window?.dispatchEvent(new Event(EDITOR_FLUSH_EVENT));
+    const activeFile = useFileStore.getState().getActiveFile();
     if (!activeFile) return;
     const blob = new Blob([activeFile.content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
@@ -78,7 +168,7 @@ export default function MenuBar({
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-  };
+  }, []);
 
   const handleLogout = () => {
     clearAuth();
@@ -90,28 +180,8 @@ export default function MenuBar({
       file: [
         {
           label: "New File",
-          shortcut: "Ctrl/Cmd+N",
-          onSelect: () => {
-            const entered = globalThis.window?.prompt(
-              "Enter new file name",
-              "new.py",
-            );
-            const fileName = entered?.trim();
-            if (!fileName) return;
-
-            if (token) {
-              useFileStore
-                .getState()
-                .createFile(
-                  fileName,
-                  undefined,
-                  activeProjectId ?? undefined,
-                  false,
-                );
-            } else {
-              useFileStore.getState().addFile(fileName, undefined);
-            }
-          },
+          shortcut: "Alt+N",
+          onSelect: promptAndCreateFile,
         },
         {
           label: "New Project…",
@@ -127,26 +197,29 @@ export default function MenuBar({
         {
           label: "Save",
           shortcut: "Ctrl/Cmd+S",
-          disabled: !activeFile,
+          disabled: !hasActiveFile,
           onSelect: () =>
             globalThis.window?.dispatchEvent(new CustomEvent("save-file")),
         },
         {
           label: "Export",
-          disabled: !activeFile,
+          disabled: !hasActiveFile,
           onSelect: handleExport,
         },
         {
           label: "Share",
-          disabled: !activeFile,
-          onSelect: () => setShowShareModal(true),
+          disabled: !hasActiveFile,
+          onSelect: () => {
+            globalThis.window?.dispatchEvent(new Event(EDITOR_FLUSH_EVENT));
+            setShowShareModal(true);
+          },
         },
       ],
       edit: [
         {
           label: "Find",
           shortcut: "Ctrl/Cmd+F",
-          disabled: !activeFile,
+          disabled: !hasActiveFile,
           onSelect: () =>
             globalThis.window?.dispatchEvent(
               new CustomEvent("open-find", { detail: { mode: "find" } }),
@@ -155,7 +228,7 @@ export default function MenuBar({
         {
           label: "Replace",
           shortcut: "Ctrl/Cmd+H",
-          disabled: !activeFile,
+          disabled: !hasActiveFile,
           onSelect: () =>
             globalThis.window?.dispatchEvent(
               new CustomEvent("open-find", { detail: { mode: "replace" } }),
@@ -170,8 +243,9 @@ export default function MenuBar({
         {
           label: "Select All",
           shortcut: "Ctrl/Cmd+A",
-          disabled: !activeFile,
-          onSelect: () => {},
+          disabled: !hasActiveFile,
+          onSelect: () =>
+            globalThis.window?.dispatchEvent(new Event("editor-select-all")),
         },
       ],
       view: [
@@ -200,7 +274,7 @@ export default function MenuBar({
         {
           label: "Run",
           shortcut: "Ctrl/Cmd+Shift+R",
-          disabled: !activeFile,
+          disabled: !hasActiveFile,
           onSelect: () => onRun(),
         },
       ],
@@ -222,7 +296,7 @@ export default function MenuBar({
         },
         {
           label: "Ask AI about this circuit",
-          disabled: !activeFile || !onAskAiAboutCircuit,
+          disabled: !hasActiveFile || !onAskAiAboutCircuit,
           onSelect: () => onAskAiAboutCircuit?.(),
         },
         {
@@ -232,14 +306,13 @@ export default function MenuBar({
       ],
     }),
     [
-      activeFile,
+      hasActiveFile,
       executionMode,
       handleExport,
       onAskAiAboutCircuit,
       onRun,
       setExecutionMode,
       theme,
-      token,
       toggleResults,
       toggleSidebar,
       toggleTheme,
@@ -391,8 +464,9 @@ export default function MenuBar({
       <ShareModal
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
-        fileContent={activeFile?.content || ""}
-        fileName={activeFile?.name || ""}
+        fileId={shareFile?.id}
+        fileContent={shareFile?.content || ""}
+        fileName={shareFile?.name || ""}
       />
 
       {showNewProjectModal && (
@@ -632,6 +706,24 @@ export default function MenuBar({
                   </kbd>
                 </div>
                 <div className="flex justify-between">
+                  <span>New File</span>
+                  <kbd className="px-2 py-1 bg-editor-bg border border-editor-border rounded text-xs">
+                    Alt+N
+                  </kbd>
+                </div>
+                <div className="flex justify-between">
+                  <span>Toggle Sidebar</span>
+                  <kbd className="px-2 py-1 bg-editor-bg border border-editor-border rounded text-xs">
+                    Ctrl/Cmd+B
+                  </kbd>
+                </div>
+                <div className="flex justify-between">
+                  <span>Toggle Theme</span>
+                  <kbd className="px-2 py-1 bg-editor-bg border border-editor-border rounded text-xs">
+                    Ctrl/Cmd+Shift+K
+                  </kbd>
+                </div>
+                <div className="flex justify-between">
                   <span>Run</span>
                   <kbd className="px-2 py-1 bg-editor-bg border border-editor-border rounded text-xs">
                     Ctrl/Cmd+Shift+R
@@ -651,3 +743,5 @@ export default function MenuBar({
     </>
   );
 }
+
+export default memo(MenuBar);

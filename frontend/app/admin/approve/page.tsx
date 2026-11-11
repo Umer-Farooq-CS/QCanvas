@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -17,40 +17,45 @@ function AdminApproveContent() {
   const searchParams = useSearchParams();
   const token = useMemo(() => searchParams.get("token") || "", [searchParams]);
 
-  const [status, setStatus] = useState<"loading" | "success" | "error">(
-    "loading",
+  // Approval is a state-changing action, so it must not run on page load:
+  // link-preview bots (mail clients, Slack, etc.) and React StrictMode's double
+  // effect invocation would otherwise approve the account without a human.
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >(token ? "idle" : "error");
+  const [message, setMessage] = useState(
+    token
+      ? "Review this request, then approve the admin account."
+      : "Approval token is missing from the URL.",
   );
-  const [message, setMessage] = useState("Checking approval link...");
+  const inFlightRef = useRef(false);
 
-  useEffect(() => {
-    const approve = async () => {
-      if (!token) {
-        setStatus("error");
-        setMessage("Approval token is missing from the URL.");
-        return;
+  const approve = useCallback(async () => {
+    if (!token || inFlightRef.current) return;
+    inFlightRef.current = true;
+    setStatus("loading");
+    setMessage("Approving admin account...");
+
+    try {
+      const response = await authApi.approveAdmin(token);
+      if (!response.success || !response.data) {
+        throw new Error(response.error || "Approval failed");
       }
 
-      try {
-        const response = await authApi.approveAdmin(token);
-        if (!response.success || !response.data) {
-          throw new Error(response.error || "Approval failed");
-        }
-
-        setStatus("success");
-        setMessage(
-          response.data.message || "Admin account approved successfully.",
-        );
-        toast.success("Admin account approved");
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Approval failed";
-        setStatus("error");
-        setMessage(errorMessage);
-        toast.error(errorMessage);
-      }
-    };
-
-    approve();
+      setStatus("success");
+      setMessage(
+        response.data.message || "Admin account approved successfully.",
+      );
+      toast.success("Admin account approved");
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Approval failed";
+      setStatus("error");
+      setMessage(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      inFlightRef.current = false;
+    }
   }, [token]);
 
   return (
@@ -81,6 +86,8 @@ function AdminApproveContent() {
           <div className="flex items-start gap-3">
             {status === "loading" ? (
               <LoaderCircle className="mt-0.5 h-5 w-5 animate-spin text-cyan-300" />
+            ) : status === "idle" ? (
+              <ShieldCheck className="mt-0.5 h-5 w-5 text-cyan-300" />
             ) : status === "success" ? (
               <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-300" />
             ) : (
@@ -93,11 +100,24 @@ function AdminApproveContent() {
                   ? "The admin can now log in with the approved account."
                   : status === "error"
                     ? "If this link expired, ask the admin applicant to submit a new request."
-                    : "Please wait while we verify the approval token."}
+                    : status === "idle"
+                      ? "Nothing has been approved yet."
+                      : "Please wait while we verify the approval token."}
               </p>
             </div>
           </div>
         </div>
+
+        {(status === "idle" || status === "loading") && (
+          <button
+            type="button"
+            onClick={() => void approve()}
+            disabled={status === "loading"}
+            className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-emerald-500 px-4 py-3 font-medium text-white transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {status === "loading" ? "Approving..." : "Approve admin account"}
+          </button>
+        )}
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
           <Link

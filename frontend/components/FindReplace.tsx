@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Search } from '@/components/Icons';
-import { Replace, X, ChevronDown, ChevronUp, Regex, WholeWord } from 'lucide-react';;import { useFileStore } from '@/lib/store'
+import { Replace, X, ChevronDown, ChevronUp, Regex, WholeWord } from 'lucide-react';
+import { useActiveFile, useFileStore } from '@/lib/store'
 import toast from 'react-hot-toast'
 
 interface FindReplaceProps {
@@ -13,7 +14,7 @@ interface FindReplaceProps {
 }
 
 export default function FindReplace({ isVisible, onClose, mode, editorRef }: FindReplaceProps) {
-  const { getActiveFile, updateFileContent } = useFileStore()
+  const updateFileContent = useFileStore((s) => s.updateFileContent)
   const [findText, setFindText] = useState('')
   const [replaceText, setReplaceText] = useState('')
   const [matchCase, setMatchCase] = useState(false)
@@ -26,7 +27,7 @@ export default function FindReplace({ isVisible, onClose, mode, editorRef }: Fin
   const findInputRef = useRef<HTMLInputElement>(null)
   const replaceInputRef = useRef<HTMLInputElement>(null)
 
-  const activeFile = getActiveFile()
+  const activeFile = useActiveFile()
 
   useEffect(() => {
     if (isVisible && findInputRef.current) {

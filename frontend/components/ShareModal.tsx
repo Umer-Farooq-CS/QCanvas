@@ -6,7 +6,7 @@ import { Share } from "@/components/Icons";
 import { X, Check, Tag } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuthStore } from "@/lib/authStore";
-import { useFileStore } from "@/lib/store";
+import { isServerFileId, useFileStore } from "@/lib/store";
 import { useGamificationStore } from "@/lib/gamificationStore";
 import { sharedApi, fileApi } from "@/lib/api";
 
@@ -199,7 +199,7 @@ export default function ShareModal({
 
         // Now update the original file's is_shared status (Best effort)
         const token = useAuthStore.getState().token;
-        if (fileId && token && !fileId.startsWith("file-")) {
+        if (token && isServerFileId(fileId)) {
           fileApi
             .updateFile(parseInt(fileId), { is_shared: true }, token)
             .then(() => console.log("Updated file share status in DB"))

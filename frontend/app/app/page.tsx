@@ -9,7 +9,13 @@ import EditorPane from "@/components/EditorPane";
 import ResultsPane from "@/components/ResultsPane";
 import IDELayout from "@/components/ide/IDELayout";
 import RunView from "@/components/ide/RunView";
-import CirqAssistantSidebar from "@/components/ide/CirqAssistantSidebar";
+import dynamic from "next/dynamic";
+
+// The assistant pulls in framer-motion + markdown; load it only when opened.
+const CirqAssistantSidebar = dynamic(
+  () => import("@/components/ide/CirqAssistantSidebar"),
+  { ssr: false },
+);
 import type { ActivityView } from "@/components/ide/ActivityBar";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -48,9 +54,13 @@ export default function AppPage() {
     shots,
   });
 
-  const { sidebarCollapsed, toggleSidebar, resultsCollapsed, executionMode } =
-    useFileStore();
-  const activeFile = useFileStore((s) => s.getActiveFile());
+  // Narrow selectors: subscribing to the whole store re-rendered the entire
+  // IDE on every keystroke.
+  const sidebarCollapsed = useFileStore((s) => s.sidebarCollapsed);
+  const toggleSidebar = useFileStore((s) => s.toggleSidebar);
+  const resultsCollapsed = useFileStore((s) => s.resultsCollapsed);
+  const executionMode = useFileStore((s) => s.executionMode);
+  const activeFileId = useFileStore((s) => s.activeFileId);
 
   const [sidebarActivity, setSidebarActivity] =
     useState<ActivityView>("explorer");
@@ -67,6 +77,8 @@ export default function AppPage() {
     }
     setSidebarActivity(v);
   }, []);
+
+  const handlePrefillConsumed = useCallback(() => setCirqPrefill(null), []);
 
   const handleAskAiAboutCircuit = useCallback(() => {
     const f = useFileStore.getState().getActiveFile();
@@ -167,6 +179,7 @@ export default function AppPage() {
   // In Basic mode, auto-fill framework/backend from the active code.
   useEffect(() => {
     if (executionMode !== "basic") return;
+    const activeFile = useFileStore.getState().getActiveFile();
     if (!activeFile) return;
 
     const detected = detectFramework(activeFile.content, activeFile.name);
@@ -186,7 +199,7 @@ export default function AppPage() {
     if (nextBackend && simBackend !== nextBackend) {
       setSimBackend(nextBackend);
     }
-  }, [activeFile?.id, executionMode]);
+  }, [activeFileId, executionMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Listen for inter-tab messages to add files from examples page
   useEffect(() => {
@@ -433,7 +446,7 @@ export default function AppPage() {
       cirqAssistantView={
         <CirqAssistantSidebar
           prefillPayload={cirqPrefill}
-          onPrefillConsumed={() => setCirqPrefill(null)}
+          onPrefillConsumed={handlePrefillConsumed}
           onSetInputLanguage={setInputLanguage}
         />
       }

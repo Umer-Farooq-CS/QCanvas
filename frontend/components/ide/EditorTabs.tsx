@@ -1,12 +1,12 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useMemo } from "react";
-import { useFileStore } from "@/lib/store";
+import { memo, useMemo } from "react";
+import { useFileListMeta, useFileStore } from "@/lib/store";
 
-export default function EditorTabs() {
+function EditorTabs() {
   const openFileIds = useFileStore((s) => s.openFileIds);
-  const files = useFileStore((s) => s.files);
+  const files = useFileListMeta();
   const activeFileId = useFileStore((s) => s.activeFileId);
   const openFile = useFileStore((s) => s.openFile);
   const closeFile = useFileStore((s) => s.closeFile);
@@ -50,3 +50,5 @@ export default function EditorTabs() {
     </div>
   );
 }
+
+export default memo(EditorTabs);

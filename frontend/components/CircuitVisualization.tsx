@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import * as d3 from 'd3'
 
 interface Gate {
@@ -38,8 +38,10 @@ export default function CircuitVisualization({ gates, qubits, className = '' }: 
     return () => observer.disconnect()
   }, [])
 
-  // Theme colors
-  const colors = {
+  // Theme colors. Memoised: a fresh object every render made the d3 effect
+  // below (which lists `colors` as a dependency) redraw the whole SVG on every
+  // parent re-render, i.e. on every debounced keystroke in the editor.
+  const colors = useMemo(() => ({
     background: isDarkMode ? '#1e1e1e' : '#ffffff',
     qubitLine: isDarkMode ? '#4B5563' : '#9CA3AF',
     qubitLabel: isDarkMode ? '#9CA3AF' : '#6B7280',
@@ -47,7 +49,7 @@ export default function CircuitVisualization({ gates, qubits, className = '' }: 
     text: isDarkMode ? '#ffffff' : '#1F2937',
     hover: isDarkMode ? '#3B82F6' : '#2563EB',
     selected: isDarkMode ? '#10B981' : '#059669',
-  }
+  }), [isDarkMode])
 
   useEffect(() => {
     if (!svgRef.current || gates.length === 0) return
