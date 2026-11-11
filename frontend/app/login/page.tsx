@@ -36,7 +36,13 @@ export default function LoginPage() {
     try {
       const url = new URL(next, window.location.origin);
       if (url.origin !== window.location.origin) return "/app";
-      return url.pathname + url.search + url.hash;
+      // Validate the FINAL string: dot-segment normalisation can turn
+      // "/.//evil.com" into "//evil.com", which is protocol-relative.
+      const path = url.pathname + url.search + url.hash;
+      if (!path.startsWith("/") || path.startsWith("//") || path.startsWith("/\\")) {
+        return "/app";
+      }
+      return path;
     } catch {
       return "/app";
     }

@@ -1,0 +1,20 @@
+# Keep secrets and local junk out of the Docker build context / image.
+# (User code runs in the image; a baked-in .env would be readable by it.)
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+.git
+.venv*
+venv
+**/__pycache__
+**/*.pyc
+**/node_modules
+frontend/.next
+.claude
+.playwright-mcp
+design-audit
+docs/FYP Docs
+benchmarks

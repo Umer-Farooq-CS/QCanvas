@@ -850,6 +850,13 @@ def _run_in_child(func: Callable[..., Any], args: Sequence[Any], kwargs: Mapping
                   timeout: float, env: Optional[Mapping[str, str]], label: str,
                   memory_mb: int) -> IsolatedOutcome:
     started = time.monotonic()
+    if SAME_UID_REFUSED:
+        return IsolatedOutcome(
+            ok=False, error_type="ConfigurationError",
+            error="Code execution is disabled: the server is not configured to run "
+                  "user code under a separate account. (Admins: run the API as root "
+                  "so it can drop to USER_CODE_RUN_AS_UID, or set "
+                  "USER_CODE_ALLOW_SAME_UID=true for development.)")
     try:
         ctx = _get_context()
         parent_conn, child_conn = ctx.Pipe(duplex=False)
@@ -975,6 +982,41 @@ async def run_isolated_async(func: Callable[..., Any], args: Sequence[Any] = (),
         return await asyncio.get_running_loop().run_in_executor(_get_executor(), call)
     finally:
         sem.release()
+
+
+# ---------------------------------------------------------------------------
+# Same-uid policy and parent hardening
+# ---------------------------------------------------------------------------
+# If user code would run as the API's own uid (POSIX, API not root, no
+# USER_CODE_RUN_AS_UID), a sandbox escape could read the API's memory and
+# /proc/<pid>/environ. Refuse unless explicitly allowed (dev) or the deploy
+# says it's development. Windows/macOS spawn is development-only by design.
+def _same_uid_refused() -> bool:
+    if not _IS_POSIX or RUN_AS is not None:
+        return False
+    if (os.getenv("USER_CODE_ALLOW_SAME_UID") or "").strip().lower() in ("1", "true", "yes", "on"):
+        return False
+    env_name = (os.getenv("ENVIRONMENT") or os.getenv("APP_ENV") or "").strip().lower()
+    if env_name in ("development", "dev", "local", "test"):
+        return False
+    return True
+
+
+SAME_UID_REFUSED = _same_uid_refused()
+if SAME_UID_REFUSED:
+    logger.error(
+        "User-code execution DISABLED: it would run as the API's own uid. Run the "
+        "API as root (it drops to USER_CODE_RUN_AS_UID / nobody) or set "
+        "USER_CODE_ALLOW_SAME_UID=true for development."
+    )
+
+# Make the API process itself non-dumpable so same-uid processes (e.g. an
+# escaped child) can't ptrace it or read /proc/<pid>/environ or mem.
+if _IS_POSIX:
+    try:
+        _prctl(_PR_SET_DUMPABLE, 0)
+    except Exception:  # pragma: no cover - best effort
+        logger.warning("Could not mark API process non-dumpable", exc_info=True)
 
 
 __all__ = [

@@ -160,7 +160,6 @@ environment.env
 *.pennylane
 
 # Docker
-.dockerignore
 docker-compose.override.yml
 
 # Testing
