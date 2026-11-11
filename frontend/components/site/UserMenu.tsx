@@ -53,7 +53,7 @@ export default function UserMenu() {
         aria-expanded={open}
         className="qc-focus flex items-center gap-2 rounded-full border border-qc-line py-1 pl-1 pr-3 text-sm text-qc-fg transition-colors duration-150 hover:border-qc-line-strong"
       >
-        <span className="grid h-7 w-7 place-items-center rounded-full bg-qc-accent-solid text-[11px] font-semibold text-qc-on-accent">
+        <span className="grid h-7 w-7 place-items-center rounded-full bg-qc-accent-solid text-[0.6875rem] font-semibold text-qc-on-accent">
           {initials(user?.full_name || user?.username)}
         </span>
         <span className="max-w-[9rem] truncate">{user?.username ?? "Account"}</span>

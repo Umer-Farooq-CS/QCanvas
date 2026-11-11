@@ -113,6 +113,16 @@ function buildTree(folders: Folder[], files: File[]): TreeNode[] {
   return walk(null, 0);
 }
 
+// "New file" requests from the menu bar / Alt+N. The explorer may not be
+// mounted yet (sidebar closed or another view showing), so the request is
+// remembered until it mounts.
+let pendingNewFileRequest = false;
+export const NEW_FILE_EVENT = "qcanvas:new-file";
+export function requestNewFile() {
+  pendingNewFileRequest = true;
+  window.dispatchEvent(new Event(NEW_FILE_EVENT));
+}
+
 function ExplorerView() {
   const folders = useFileStore((s) => s.folders);
   // Ids/names/folders only: re-rendering (and rebuilding the tree) on every
@@ -219,6 +229,19 @@ function ExplorerView() {
       setExpanded((p) => ({ ...p, [folderId]: true }));
     }
   };
+
+  const startCreateFileRef = useRef(startCreateFile);
+  startCreateFileRef.current = startCreateFile;
+  useEffect(() => {
+    const consume = () => {
+      if (!pendingNewFileRequest) return;
+      pendingNewFileRequest = false;
+      startCreateFileRef.current();
+    };
+    consume();
+    window.addEventListener(NEW_FILE_EVENT, consume);
+    return () => window.removeEventListener(NEW_FILE_EVENT, consume);
+  }, []);
 
   const startCreateProject = () => {
     setShowNewProjectInput(true);

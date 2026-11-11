@@ -131,6 +131,29 @@
     min-height: 100dvh;
   }
 
+  /* Resolution scaling for the site pages (not the IDE): everything on the
+     site is sized in rem, so raising the root size on large screens scales
+     type, spacing and the content width together. A 1440p or 4K screen then
+     looks like a proportionally larger 1080p layout instead of a small column
+     in the middle. Scoped with :has(.qc-page) so /app keeps its own sizing. */
+  @media (min-width: 1800px) {
+    html:has(.qc-page) {
+      font-size: 112.5%; /* 18px */
+    }
+  }
+
+  @media (min-width: 2300px) {
+    html:has(.qc-page) {
+      font-size: 125%; /* 20px: 2560px-wide (1440p) screens */
+    }
+  }
+
+  @media (min-width: 3200px) {
+    html:has(.qc-page) {
+      font-size: 150%; /* 24px: 4K */
+    }
+  }
+
   /* Desktop-first: QCanvas is used on laptops and desktops, so pages use the
      available width instead of sitting in a narrow centred column. */
   .qc-container {
@@ -789,7 +812,7 @@ html {
 }
 
 .light .hover\:bg-quantum-blue-light\/20:hover {
-  background-color: rgba(59, 130, 246, 0.1) !important;
+  background-color: rgba(79, 70, 229, 0.1) !important;
 }
 
 
@@ -807,7 +830,63 @@ html {
 }
 
 .light .text-gray-300 {
-  color: #cbd5e1 !important;
+  color: #475569 !important; /* was #cbd5e1: nearly invisible on white */
+}
+
+/* Light-theme coverage for IDE surfaces that were dark-only (menus, project
+   picker, tabs, templates, profile menu). Without these, light mode showed
+   near-black rows with grey text. */
+.light .bg-editor-panelHigh,
+.light .bg-editor-panelHigh\/90,
+.light .bg-editor-panelHigh\/70 {
+  background-color: #e8ebf3 !important;
+}
+
+.light .hover\:bg-editor-panelHigh:hover,
+.light .hover\:bg-editor-panelHigh\/70:hover,
+.light .hover\:bg-editor-panelHigh\/10:hover,
+.light .hover\:bg-editor-panelHigh\/5:hover,
+.light .hover\:bg-editor-bg:hover,
+.light .hover\:bg-white\/5:hover,
+.light .hover\:bg-white\/10:hover,
+.light .hover\:bg-white\/\[0\.04\]:hover,
+.light .bg-white\/5 {
+  background-color: rgba(15, 23, 42, 0.05) !important;
+}
+
+.light .text-gray-100,
+.light .hover\:text-white:hover,
+.light .hover\:text-gray-100:hover,
+.light .group:hover .group-hover\:text-white {
+  color: #0f172a !important;
+}
+
+.light .border-white\/10,
+.light .border-white\/20,
+.light .hover\:border-white\/20:hover,
+.light .hover\:border-white\/25:hover {
+  border-color: rgba(15, 23, 42, 0.14) !important;
+}
+
+.light .text-indigo-300,
+.light .hover\:text-indigo-200:hover {
+  color: #4f46e5 !important;
+}
+
+.light .bg-indigo-500\/15,
+.light .hover\:bg-indigo-500\/15:hover,
+.light .hover\:bg-indigo-500\/10:hover,
+.light .focus-visible\:bg-indigo-500\/15:focus-visible {
+  background-color: rgba(79, 70, 229, 0.1) !important;
+}
+
+/* Filled accent controls keep white text in light mode. */
+.light .bg-editor-accent,
+.light .bg-editor-accent.text-white,
+.light .bg-editor-accent.text-gray-100,
+.light .bg-indigo-600,
+.light .bg-indigo-600.text-white {
+  color: #ffffff !important;
 }
 
 /* Light theme specific backgrounds */
@@ -860,7 +939,7 @@ html {
 }
 
 .light .bg-quantum-blue-light {
-  background-color: #3b82f6 !important;
+  background-color: #4f46e5 !important;
   color: #ffffff !important;
 }
 
@@ -908,7 +987,7 @@ html {
 }
 
 .light .file-tree-item.active {
-  background-color: #3b82f6 !important;
+  background-color: #4f46e5 !important;
   color: #ffffff !important;
 }
 
@@ -938,12 +1017,12 @@ html {
 
 /* Light theme for quantum gradient elements */
 .light .quantum-gradient {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
+  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%) !important;
 }
 
 /* Light theme for gradient text - make it visible */
 .light .quantum-gradient.bg-clip-text {
-  background: linear-gradient(135deg, #1d4ed8 0%, #7c3aed 100%) !important;
+  background: linear-gradient(135deg, #4338ca 0%, #7c3aed 100%) !important;
   -webkit-background-clip: text !important;
   background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
@@ -952,7 +1031,7 @@ html {
 
 /* Light theme for regular gradient text */
 .light .gradient-text {
-  background: linear-gradient(135deg, #1d4ed8 0%, #7c3aed 100%) !important;
+  background: linear-gradient(135deg, #4338ca 0%, #7c3aed 100%) !important;
   -webkit-background-clip: text !important;
   background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
@@ -960,7 +1039,7 @@ html {
 
 /* Light theme for editor accent colors */
 .light .bg-editor-accent {
-  background-color: #3b82f6 !important;
+  background-color: #4f46e5 !important;
 }
 
 /* Light theme for Monaco Editor */
@@ -1000,9 +1079,9 @@ html {
 .light .monaco-editor .monaco-hover {
   z-index: 10000 !important;
   background-color: #ffffff !important;
-  border: 1px solid #3b82f6 !important;
+  border: 1px solid #4f46e5 !important;
   border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(59, 130, 246, 0.12);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(79, 70, 229, 0.12);
 }
 
 .light .monaco-editor .overflowingContentWidgets {
@@ -1032,7 +1111,7 @@ html {
   border-radius: 4px;
   padding: 8px 10px !important;
   border: 1px solid #e2e8f0;
-  border-left: 3px solid #3b82f6 !important;
+  border-left: 3px solid #4f46e5 !important;
   margin: 6px 0 !important;
   font-size: 0.85rem !important;
   line-height: 1.5 !important;
@@ -1116,7 +1195,7 @@ html {
 /* Light theme for loading states */
 .light .spinner {
   border-color: #e2e8f0 !important;
-  border-top-color: #3b82f6 !important;
+  border-top-color: #4f46e5 !important;
 }
 
 /* Light theme for tab navigation */
@@ -1147,7 +1226,7 @@ html {
 }
 
 .light .hover\:border-blue-500\/50:hover {
-  border-color: rgba(59, 130, 246, 0.5) !important;
+  border-color: rgba(79, 70, 229, 0.5) !important;
 }
 
 .light .hover\:border-purple-500\/50:hover {
@@ -1170,7 +1249,7 @@ html {
 }
 
 .light .hover\:border-quantum-blue-light:hover {
-  border-color: rgba(59, 130, 246, 0.6) !important;
+  border-color: rgba(79, 70, 229, 0.6) !important;
 }
 
 /* Light theme for find/replace */
@@ -1222,11 +1301,11 @@ html {
 }
 
 .light .bg-blue-500\/10 {
-  background-color: rgba(59, 130, 246, 0.1) !important;
+  background-color: rgba(79, 70, 229, 0.1) !important;
 }
 
 .light .border-blue-500\/20 {
-  border-color: rgba(59, 130, 246, 0.2) !important;
+  border-color: rgba(79, 70, 229, 0.2) !important;
 }
 
 .light .bg-blue-900\/20 {
@@ -1254,7 +1333,7 @@ html {
 }
 
 .light .text-blue-200 {
-  color: #1d4ed8 !important;
+  color: #4338ca !important;
 }
 
 .light .text-blue-300 {
@@ -1295,7 +1374,7 @@ html {
 }
 
 .light .text-quantum-blue-light {
-  color: #3b82f6 !important;
+  color: #4f46e5 !important;
 }
 
 /* Additional color variables for new features */

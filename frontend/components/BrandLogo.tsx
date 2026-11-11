@@ -13,7 +13,7 @@ export default function BrandLogo({
   className?: string;
 }>) {
   const mark = { sm: "h-6 w-6", md: "h-7 w-7", lg: "h-9 w-9" }[size];
-  const text = { sm: "text-[16px]", md: "text-[17px]", lg: "text-xl" }[size];
+  const text = { sm: "text-[1rem]", md: "text-[1.0625rem]", lg: "text-xl" }[size];
 
   return (
     <span className={`inline-flex items-center gap-2 ${className}`}>

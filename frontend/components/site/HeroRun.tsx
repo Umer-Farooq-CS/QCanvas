@@ -82,7 +82,7 @@ function Lines({
   animateIn: boolean;
 }) {
   return (
-    <pre className="qc-code qc-code--plain overflow-x-auto whitespace-pre text-[11px] leading-[1.75] sm:text-[12.5px]">
+    <pre className="qc-code qc-code--plain overflow-x-auto whitespace-pre text-[0.6875rem] leading-[1.75] sm:text-[0.78125rem]">
       <code>
         {code.split("\n").map((line, i) => (
           <motion.span
@@ -205,7 +205,7 @@ export default function HeroRun() {
             ))}
           </div>
           <span
-            className="ml-auto hidden items-center gap-2 pr-2 font-mono text-[11px] text-qc-subtle sm:flex"
+            className="ml-auto hidden items-center gap-2 pr-2 font-mono text-[0.6875rem] text-qc-subtle sm:flex"
             aria-live="polite"
           >
             <span
@@ -235,7 +235,7 @@ export default function HeroRun() {
           <div className="px-5 py-4">
             <div className="mb-3 flex items-baseline justify-between">
               <p className="text-xs font-medium text-qc-subtle">Counts</p>
-              <p className="font-mono text-[11px] tabular-nums text-qc-subtle">1,024 shots</p>
+              <p className="font-mono text-[0.6875rem] tabular-nums text-qc-subtle">1,024 shots</p>
             </div>
             <ul className="space-y-3" aria-label="Measurement counts">
               {COUNTS.map(({ state, count }, i) => (

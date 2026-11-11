@@ -165,7 +165,7 @@ export default function RootLayout({
           {children}
         </div>
         <Toaster
-          position="top-right"
+          position="top-center"
           gutter={8}
           toastOptions={{
             duration: 3000,

@@ -86,7 +86,7 @@ export default function CodeSample({
 }) {
   return (
     <pre
-      className={`qc-code ${plain ? "qc-code--plain" : ""} overflow-x-auto text-[12.5px] leading-[1.7] ${className}`}
+      className={`qc-code ${plain ? "qc-code--plain" : ""} overflow-x-auto text-[0.78125rem] leading-[1.7] ${className}`}
       tabIndex={0}
     >
       <code>

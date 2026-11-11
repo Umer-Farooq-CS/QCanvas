@@ -101,6 +101,13 @@ export default function AppPage() {
 
   const handlePrefillConsumed = useCallback(() => setCirqPrefill(null), []);
 
+  // "New file" from the menu bar / Alt+N: make sure the explorer is showing.
+  useEffect(() => {
+    const showExplorer = () => setSidebarActivity("explorer");
+    window.addEventListener("qcanvas:new-file", showExplorer);
+    return () => window.removeEventListener("qcanvas:new-file", showExplorer);
+  }, []);
+
   const handleAskAiAboutCircuit = useCallback(() => {
     const f = useFileStore.getState().getActiveFile();
     if (!f?.content?.trim()) {

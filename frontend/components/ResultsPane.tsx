@@ -175,7 +175,7 @@ function ResultsPane() {
           fidelity:
             typeof (quantumResults.metadata as any).fidelity === "number"
               ? (quantumResults.metadata as any).fidelity
-              : 100.0,
+              : 0, // not measured by the simulator: don't invent a number
         }
       : {
           status: "pending",
@@ -374,9 +374,10 @@ function ResultsPane() {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       severity,
       message,
-      line: 0,
+      // Pull the line number out of messages like "... (line 6)".
+      line: Number((details || message).match(/line (\d+)/i)?.[1] ?? 0),
       column: 0,
-      file: "circuit",
+      file: useFileStore.getState().getActiveFile()?.name ?? "current file",
       code: details || message,
       suggestion:
         severity === "error"
@@ -1096,13 +1097,13 @@ print(result.counts)`}
         {activeTab === "histogram" && (
           <div className="h-full overflow-y-auto results-content">
             {quantumResults ? (
-              <div>
-                <h4 className="text-sm font-medium text-white mb-4">
+              <div className="flex h-full min-h-[14rem] flex-col">
+                <h4 className="mb-2 text-sm font-medium text-white">
                   Measurement Results
                 </h4>
 
-                {/* Chart.js Histogram */}
-                <div className="h-64 mb-4">
+                {/* Chart.js Histogram: fills the pane so the axis is never cut off */}
+                <div className="mb-2 min-h-[11rem] flex-1">
                   <Bar
                     data={(() => {
                       const shots = quantumResults.shots || 0;
@@ -1473,12 +1474,12 @@ print(result.counts)`}
                 <div className="relative overflow-hidden rounded-xl p-4 bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/30">
                   <div className="flex flex-col items-center justify-center">
                     <div className="text-2xl font-bold text-purple-400">
-                      {executionStats.execution.fidelity !== 0
+                      {executionStats.execution.fidelity
                         ? `${executionStats.execution.fidelity.toFixed(1)}%`
-                        : "N/A"}
+                        : Number(executionStats.execution.shots || 0).toLocaleString("en-US")}
                     </div>
                     <div className="text-xs text-black dark:text-gray-400 mt-1">
-                      Fidelity
+                      {executionStats.execution.fidelity ? "Fidelity" : "Shots"}
                     </div>
                   </div>
                 </div>

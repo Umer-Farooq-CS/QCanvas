@@ -88,7 +88,7 @@ const config: Config = {
           sidebar: '#1b1b1c',
           border: 'rgba(139, 144, 160, 0.18)',
           text: 'var(--editor-text)',
-          accent: '#3291ff',
+          accent: '#5850ec', // brand indigo (keep in sync with --editor-accent)
           panelLowest: '#0e0e0e',
           panelHigh: '#2a2a2a',
           panelHighest: '#353535',

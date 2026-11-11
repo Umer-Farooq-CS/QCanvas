@@ -1372,7 +1372,7 @@ function EditorPane({
           </div>
 
           {showRunMenu && (
-            <div className="absolute bg-editor-bg right-0 top-11 z-[120] w-80 rounded-xl border border-editor-border/80 bg-gradient-to-b shadow-[0_20px_45px_rgba(0,0,0,0.45)] p-3.5 space-y-3 backdrop-blur-md">
+            <div className="qc-menu-in origin-top-right absolute bg-editor-bg right-0 top-11 z-[120] w-80 rounded-xl border border-editor-border/80 bg-gradient-to-b shadow-[0_20px_45px_rgba(0,0,0,0.45)] p-3.5 space-y-3 backdrop-blur-md">
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-[11px] uppercase tracking-wide text-black dark:text-gray-400">

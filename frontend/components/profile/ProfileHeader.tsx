@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useAuthStore } from "@/lib/authStore";
 import { useGamificationStore, getLevelBadge } from "@/lib/gamificationStore";
-import { Edit2, MapPin, Calendar, Shield, Sparkles } from "lucide-react";
+import { Edit2, Calendar, Shield, Sparkles } from "lucide-react";
 import { useEffect } from "react";
 import EditProfileModal from "@/components/profile/EditProfileModal";
 
@@ -115,10 +115,6 @@ export default function ProfileHeader() {
             <div className="flex items-center gap-1.5">
               <Shield className="w-3.5 h-3.5 text-qc-subtle" />
               <span>{badge}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-qc-subtle" />
-              <span>Quantum Realm</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5 text-qc-subtle" />
