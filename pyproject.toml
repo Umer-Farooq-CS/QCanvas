@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "qcanvas-sdk"
 version = "1.0.6"
 description = "A package for compiling quantum circuit code from Cirq, Qiskit, and PennyLane to OpenQASM 3.0."
-readme = "README.md"
+readme = "qcanvas/README.md"
 requires-python = ">=3.8"
 license = {text = "LicenseRef-Proprietary (Open Quantum Workbench Proprietary License, see LICENSE)"}
 authors = [
