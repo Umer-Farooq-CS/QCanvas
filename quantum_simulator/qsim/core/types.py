@@ -9,6 +9,7 @@ class RunArgs:
     qasm_input: Union[str, Path]  # QASM3 code or .qasm file path
     backend: str = 'cirq'  # e.g., 'cirq', 'qiskit', 'pennylane'
     shots: int = 1024  # 0 for exact statevector/probs
+    seed: Optional[int] = None  # Optional RNG seed for reproducible sampling
 
 
 @dataclass

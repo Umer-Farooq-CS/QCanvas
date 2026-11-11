@@ -3,6 +3,7 @@ from .base import BaseBackend
 from .cirq import CirqBackend
 from .qiskit import QiskitBackend
 from .pennylane import PennylaneBackend
+from qsim.core.exceptions import UnsupportedBackend
 
 BACKENDS: Dict[str, type[BaseBackend]] = {
     'cirq': CirqBackend,
@@ -10,6 +11,13 @@ BACKENDS: Dict[str, type[BaseBackend]] = {
     'pennylane': PennylaneBackend,
 }
 
+
 def get_backend(name: str) -> BaseBackend:
-    cls = BACKENDS.get(name.lower(), CirqBackend)  # Default cirq
+    """Return a backend instance; unknown names are an error (never a silent default)."""
+    key = (name or '').strip().lower()
+    cls = BACKENDS.get(key)
+    if cls is None:
+        raise UnsupportedBackend(
+            f"Unknown simulation backend '{name}'. Supported backends: {', '.join(sorted(BACKENDS))}."
+        )
     return cls()

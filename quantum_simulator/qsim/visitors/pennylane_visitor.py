@@ -64,9 +64,35 @@ gate_map = {
     "swap": lambda wires, params=None: qml.SWAP(wires=wires),
     "cswap": lambda wires, params=None: qml.CSWAP(wires=wires),
     "iswap": lambda wires, params=None: qml.ISWAP(wires=wires),
-    "sqrtiswap": lambda wires, params=None: qml.SISWAP(wires=wires)
-    
+    "sqrtiswap": lambda wires, params=None: qml.SISWAP(wires=wires),
+    "U": lambda wires, params: qml.U3(*params, wires=wires[0]),
+    "u3": lambda wires, params: qml.U3(*params, wires=wires[0]),
+    "u2": lambda wires, params: qml.U3(math.pi / 2, params[0], params[1], wires=wires[0]),
+    "u1": lambda wires, params: qml.PhaseShift(params[0], wires=wires),
+    "phase": lambda wires, params: qml.PhaseShift(params[0], wires=wires),
+    "CX": lambda wires, params=None: qml.CNOT(wires=wires),
+    "cphase": lambda wires, params: qml.CPhase(params[0], wires=wires),
+    "cu1": lambda wires, params: qml.CPhase(params[0], wires=wires),
+    "ccz": lambda wires, params=None: qml.CCZ(wires=wires),
+    "cu": lambda wires, params: qml.ctrl(
+        qml.QubitUnitary(np.exp(1j * params[3]) * _u_matrix(params[0], params[1], params[2]), wires=wires[1]),
+        control=wires[0]),
+    "cu3": lambda wires, params: qml.ctrl(
+        qml.QubitUnitary(_u_matrix(params[0], params[1], params[2]), wires=wires[1]),
+        control=wires[0]),
+    "rzz": lambda wires, params: qml.IsingZZ(params[0], wires=wires),
+    "rxx": lambda wires, params: qml.IsingXX(params[0], wires=wires),
+    "ryy": lambda wires, params: qml.IsingYY(params[0], wires=wires),
 }
+
+
+def _u_matrix(theta, phi, lam):
+    """Exact OpenQASM 3 U(theta, phi, lambda) matrix."""
+    c, sn = math.cos(theta / 2), math.sin(theta / 2)
+    return np.array([
+        [c, -np.exp(1j * lam) * sn],
+        [np.exp(1j * phi) * sn, np.exp(1j * (phi + lam)) * c],
+    ], dtype=complex)
 
 
 class PennylaneVisitor(BaseVisitor):
@@ -85,8 +111,9 @@ class PennylaneVisitor(BaseVisitor):
         self.visited_files = set()
         self.current_directory_stack = []
         self.custom_gates = {}
-        
+
         self.gate_definition_context_stack = []
+        self._mcm_counter = 0
 
 
     def visit(self, module):
@@ -183,45 +210,20 @@ class PennylaneVisitor(BaseVisitor):
         return False 
 
 
+    STANDARD_INCLUDES = frozenset({"stdgates.inc", "qelib1.inc", "stdgates.qasm", "stdctrl.inc"})
+
     def visit_Include(self, node):
         """
-        Handles the 'include' statement by reading the specified file from disk
-        at runtime, relative to the current file being parsed.
+        Only the standard gate libraries may be included. Programs come from
+        users, so reading arbitrary paths from the server's disk is never allowed.
         """
-        filename = node.filename
-
-        # Per your request, ignore standard library includes
-        if filename in ["stdgates.inc", "stdctrl.inc"]:
+        filename = str(node.filename).replace('"', '').strip()
+        if filename.lower() in self.STANDARD_INCLUDES:
             return
-
-        # Resolve the path of the included file relative to the current file's directory
-        current_dir = self.current_directory_stack[-1]
-        include_path = os.path.abspath(os.path.join(current_dir, filename))
-
-        # Prevent circular/repeated includes
-        if include_path in self.visited_files:
-            return
-
-        if not os.path.exists(include_path):
-            raise FileNotFoundError(f"Included file not found: {include_path}")
-
-        self.visited_files.add(include_path)
-
-        # Push the new directory onto the stack for potential nested includes
-        self.current_directory_stack.append(os.path.dirname(include_path))
-        
-        with open(include_path, 'r') as f:
-            included_code = f.read()
-
-        included_program = parse_openqasm3(included_code)
-
-        # Visit the statements in the included file within the current scope
-        for statement in included_program._statements:
-            self._visit_node(statement)
-
-        # Pop the directory off the stack to return to the previous context
-        self.current_directory_stack.pop()
-        
+        raise PermissionError(
+            f"Only the standard libraries {sorted(self.STANDARD_INCLUDES)} may be included; "
+            f"'{filename}' is not allowed."
+        )
 
     def visit_QubitDeclaration(self, node):
         """
@@ -542,50 +544,18 @@ class PennylaneVisitor(BaseVisitor):
 
 
     def visit_IODeclaration(self, node):
-        """
-        Handles `input` / `output` directives (IODeclaration nodes from pyqasm).
-
-        In QSim simulation mode there is no external caller to supply runtime
-        values, so we treat every `input` declaration the same way as a
-        regular variable declaration — initialising it to a sensible default
-        (zeros for arrays, 0.0 for scalars).  `output` declarations are
-        ignored because they only annotate which variables to export.
-
-        IODeclaration has:
-            node.io_identifier  — 'input' or 'output'
-            node.type           — the type node  (ArrayType, FloatType, …)
-            node.identifier     — the Identifier (name)
-        """
-        import openqasm3.ast as _ast
-
-        # 'output' annotations are informational only; skip them
-        io_kind = getattr(node, 'io_identifier', None)
-        if io_kind is not None and str(io_kind).lower() == 'output':
-            return
-
-        type_node = node.type  # e.g. ArrayType, FloatType, IntType, …
-
-        # Build a synthetic node that looks like a ClassicalDeclaration so we
-        # can re-use the existing visit_*Type infrastructure.
-        class _FakeDecl:
-            """Minimal duck-type wrapper so visit_*Type methods work unchanged."""
-            def __init__(self, type_, identifier):
-                self.type = type_
-                self.identifier = identifier
-                self.init_expression = None   # no initialiser — default to zeros/0
-
-        fake = _FakeDecl(type_node, node.identifier)
-
-        type_class_name = type(type_node).__name__  # e.g. 'ArrayType', 'FloatType'
-        method_name = 'visit_' + type_class_name
-
-        if hasattr(self, method_name):
-            getattr(self, method_name)(fake)
-        else:
-            # Fallback: treat unrecognised input types as float scalars with value 0.0
-            var_name = node.identifier.name
-            self.set_var('env', var_name, 0.0)
-
+        """`output` annotations are ignored; `input` values cannot be supplied, so refuse
+        to simulate rather than silently using 0."""
+        io_kind = str(getattr(node, 'io_identifier', '')).lower()
+        if 'output' in io_kind:
+            return None
+        ident = getattr(node, 'identifier', None)
+        name = getattr(ident, 'name', ident)
+        raise ValueError(
+            f"Input parameter '{name}' has no value. QCanvas simulations cannot bind "
+            f"external inputs; give it a concrete value in your code (for example "
+            f"theta = 0.5) or call the circuit with numbers before simulating."
+        )
 
     def visit_AngleType(self, node):
         """Handles angle[size] declarations by creating an Angle object."""
@@ -691,7 +661,8 @@ class PennylaneVisitor(BaseVisitor):
         for wire, c_idx in zip(wires, classical_indices.value):
         
             # Create and record the measurement operation
-            meas_mp = qml.measurements.MidMeasureMP(wires=wire, reset=False, id=f"m{wire}")
+            self._mcm_counter += 1
+            meas_mp = qml.measurements.MidMeasureMP(wires=wire, reset=False, id=f"mcm{self._mcm_counter}_w{wire}")
             meas = MeasurementValue([meas_mp], processing_fn=lambda x: x)
             # Capture meas_mp by value in this lambda
             self.queue_actions.append(lambda mp=meas_mp: qml.apply(mp))
@@ -716,8 +687,9 @@ class PennylaneVisitor(BaseVisitor):
         ket_zero = [1, 0]
         
         for wire in wires:
-            prep = qml.StatePrep(ket_zero, wires=wire)
-            self.queue_actions.append(lambda p=prep: qml.apply(p))
+            self._mcm_counter += 1
+            reset_mp = qml.measurements.MidMeasureMP(wires=wire, reset=True, id=f"reset{self._mcm_counter}_w{wire}")
+            self.queue_actions.append(lambda p=reset_mp: qml.apply(p))
 
 
     def visit_QuantumBarrier(self, node):
@@ -960,8 +932,9 @@ class PennylaneVisitor(BaseVisitor):
                     
                     mod_control_wires = []
                     if modifier_node.modifier.name in ['ctrl', 'negctrl']:
-                        num_wires = configs.pop()  # Use passed configs
-                        mod_control_wires = control_wires[current_control_idx : current_control_idx + num_wires]
+                        num_wires = self._eval_rvalue(modifier_node.argument).value if modifier_node.argument else 1
+                        end = len(control_wires) - current_control_idx
+                        mod_control_wires = control_wires[end - num_wires : end]
                         current_control_idx += num_wires
                     
                     # Pass the control wires to the modifier function
@@ -988,8 +961,9 @@ class PennylaneVisitor(BaseVisitor):
                 
                 mod_control_wires = []
                 if modifier_node.modifier.name in ['ctrl', 'negctrl']:
-                    num_wires = configs.pop()  # Use passed configs
-                    mod_control_wires = control_wires[current_control_idx : current_control_idx + num_wires]
+                    num_wires = self._eval_rvalue(modifier_node.argument).value if modifier_node.argument else 1
+                    end = len(control_wires) - current_control_idx
+                    mod_control_wires = control_wires[end - num_wires : end]
                     current_control_idx += num_wires
                 
                 # Pass the control wires to the wrapper function
@@ -1029,8 +1003,60 @@ class PennylaneVisitor(BaseVisitor):
             self.global_phase = 0.0
         self.global_phase += phase.value
 
-        phase_op = qml.GlobalPhase(phase.value)
+        modifiers = getattr(node, "modifiers", None) or []
+        angle = phase.value
+        if modifiers:
+            angle, controls = self._gphase_modifier_plan(modifiers, angle, lambda a: self._eval_rvalue(a).value)
+            wires = []
+            for qubit_node in getattr(node, "qubits", None) or []:
+                wires.extend(self._resolve_qubit_operand(qubit_node))
+            if len(wires) != len(controls):
+                raise ValueError(f"gphase: expected {len(controls)} control qubit(s), got {len(wires)}")
+            if controls:
+                base = qml.PhaseShift(angle, wires=wires[-1])
+                if len(wires) == 1:
+                    op = base if controls[0] == 1 else None
+                    if op is None:
+                        flip = [qml.PauliX(wires=wires[0]), base, qml.PauliX(wires=wires[0])]
+                        for o in flip:
+                            self.queue_actions.append(lambda op=o: qml.apply(op))
+                        return
+                else:
+                    flips = [w for w, v in zip(wires[-1:], controls[-1:]) if v == 0]
+                    for w in flips:
+                        self.queue_actions.append(lambda w=w: qml.apply(qml.PauliX(wires=w)))
+                    op = qml.ctrl(base, control=wires[:-1], control_values=controls[:-1])
+                    self.queue_actions.append(lambda op=op: qml.apply(op))
+                    for w in flips:
+                        self.queue_actions.append(lambda w=w: qml.apply(qml.PauliX(wires=w)))
+                    return
+                self.queue_actions.append(lambda op=op: qml.apply(op))
+                return
+        phase_op = qml.GlobalPhase(angle)
         self.queue_actions.append(lambda op=phase_op: qml.apply(op))
+
+
+    @staticmethod
+    def _gphase_modifier_plan(modifiers, angle, eval_arg):
+        """
+        Resolve modifiers on gphase. Returns (angle, control_values) where
+        control_values lists 1 (ctrl) / 0 (negctrl) per control operand, in operand order.
+        """
+        controls = []
+        for mod in modifiers:
+            kind = mod.modifier.name if hasattr(mod.modifier, 'name') else str(mod.modifier)
+            arg = getattr(mod, 'argument', None)
+            if kind in ('ctrl', 'negctrl'):
+                n = int(eval_arg(arg)) if arg is not None else 1
+                controls.extend([1 if kind == 'ctrl' else 0] * n)
+        for mod in reversed(modifiers):
+            kind = mod.modifier.name if hasattr(mod.modifier, 'name') else str(mod.modifier)
+            arg = getattr(mod, 'argument', None)
+            if kind == 'inv':
+                angle = -angle
+            elif kind == 'pow':
+                angle = angle * float(eval_arg(arg))
+        return angle, controls
 
 
     def visit_ClassicalAssignment(self, node):
@@ -1195,6 +1221,24 @@ class PennylaneVisitor(BaseVisitor):
             return Symbol(value=result_value, type='classical_value', is_const=operand.is_const)
     
   
+    @staticmethod
+    def _register_as_integer(value):
+        if not isinstance(value, list) or len(value) < 2:
+            return value
+        if not all(isinstance(b, (MeasurementValue, int, bool, np.integer)) for b in value):
+            return value
+        constant = 0
+        dynamic = None
+        for i, bit in enumerate(value):
+            if isinstance(bit, MeasurementValue):
+                term = bit * (2 ** i)
+                dynamic = term if dynamic is None else dynamic + term
+            else:
+                constant += int(bit) * (2 ** i)
+        if dynamic is None:
+            return constant
+        return dynamic + constant if constant else dynamic
+
     def visit_BinaryExpression(self, node):
         """
         Handles binary operations, including those involving Angle objects.
@@ -1229,6 +1273,10 @@ class PennylaneVisitor(BaseVisitor):
             lhs_value = lhs_value[0]
         if isinstance(rhs_value, list) and len(rhs_value) == 1:
             rhs_value = rhs_value[0]
+        # A multi-bit register used as a number (e.g. `if (c == 3)`) is the unsigned
+        # integer sum(c[i] * 2**i); comparing the Python list itself was always False.
+        lhs_value = self._register_as_integer(lhs_value)
+        rhs_value = self._register_as_integer(rhs_value)
 
         is_measurement = isinstance(lhs_value, MeasurementValue) or isinstance(rhs_value, MeasurementValue)
 
@@ -1775,6 +1823,31 @@ class PennylaneVisitor(BaseVisitor):
             return indices_info.value
     
     
+    def output_spec(self):
+        """
+        Output layout (see qsim.backends.base.BaseBackend): every declared classical
+        bit in declaration order (each a MeasurementValue or a constant 0/1), or all
+        qubits when nothing was measured.
+        """
+        clbits = []
+        measured = False
+        for name, bits in self.clbits_scopes[0].items():
+            values = bits if isinstance(bits, (list, tuple)) else [bits]
+            for b in values:
+                if isinstance(b, MeasurementValue):
+                    measured = True
+                    clbits.append(b)
+                else:
+                    try:
+                        clbits.append(int(b) & 1)
+                    except (TypeError, ValueError):
+                        clbits.append(0)
+        return {
+            "measured": measured,
+            "qubits": list(range(self.total_qubits)),
+            "clbits": clbits,
+        }
+
     def finalize(self):
         with qml.tape.QuantumTape() as tape:
             for action in self.queue_actions:

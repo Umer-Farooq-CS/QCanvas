@@ -425,6 +425,18 @@ def parse_index_set(index_expr, size, variables=None):
             raise IndexError(f"Index {idx} out of bounds for size {size}")
         return [normalized_idx]
 
+def _u_matrix(theta, phi, lam):
+    """Exact OpenQASM 3 U(theta, phi, lambda) matrix."""
+    c, sn = np.cos(theta / 2), np.sin(theta / 2)
+    return np.array([
+        [c, -np.exp(1j * lam) * sn],
+        [np.exp(1j * phi) * sn, np.exp(1j * (phi + lam)) * c],
+    ], dtype=complex)
+
+
+STANDARD_INCLUDES = frozenset({"stdgates.inc", "qelib1.inc", "stdgates.qasm"})
+
+
 class ProgramTermination(Exception):
     """Exception raised when a program termination statement is encountered."""
     pass
@@ -440,7 +452,11 @@ class CirqVisitor(BaseVisitor):
         self.scope_stack = []  # Stack of sets containing variables declared in each scope
         self._loop_break = False
         self._loop_continue = False
-    
+        self._measured_keys = set()      # measurement keys written so far (circuit order)
+        self._declared_qregs = []        # qubit registers in declaration order
+        self._declared_cregs = []        # bit registers in declaration order
+        self._in_dynamic_block = False
+
         self.STD_GATES_ALLOWED = False
         self._gate_call_stack = []  # Track gate calls for recursion detection
         self._in_gate_body = False   # Track if we're inside a gate body
@@ -457,26 +473,26 @@ class CirqVisitor(BaseVisitor):
         # Three-qubit gates
         "ccx", "cswap",
         # Other
-        "cu1", "cu3", "rzz", "gphase"
+        "cu1", "cu3", "rzz", "rxx", "ryy", "gphase", "p", "phase", "cphase",
+        "ccz", "cu", "u1", "u2", "u3"
          ])
 
     def visit_Include(self, node):
-        """Handles 'include "<path>"' statements."""
+        """Handles 'include "<path>"' statements.
+
+        Only the standard gate libraries are accepted. Reading arbitrary paths
+        from the server's disk is never allowed (programs come from users).
+        """
         filename = node.filename.replace('"', '').strip()
 
-        if filename.lower() in ("stdgates.inc", "qelib1.inc", "stdgates.qasm"):
+        if filename.lower() in STANDARD_INCLUDES:
             self.STD_GATES_ALLOWED = True
             return
 
-        if not os.path.exists(filename):
-            raise FileNotFoundError(f"[Include] ❌ Included file not found: {filename}")
-
-
-        with open(filename, "r", encoding="utf-8") as f:
-            included_qasm = f.read()
-
-        included_module = parse_openqasm3(included_qasm, True)
-        self.visit(included_module)
+        raise PermissionError(
+            f"[Include] Only the standard libraries {sorted(STANDARD_INCLUDES)} may be included; "
+            f"'{filename}' is not allowed."
+        )
 
     def visit_AliasStatement(self, node):
         """
@@ -1220,6 +1236,8 @@ class CirqVisitor(BaseVisitor):
         if self.circuit is None:
             self.circuit = cirq.Circuit()
         self.qubits[node.qubit.name] = qubits
+        if node.qubit.name not in self._declared_qregs:
+            self._declared_qregs.append(node.qubit.name)
         return qubits
 
 # Add this exception class at the top of your cirq_visitor.py file
@@ -1530,46 +1548,191 @@ class CirqVisitor(BaseVisitor):
 
         
     def visit_BranchingStatement(self, node):
-            """
-            Handles if-else statements with both static and dynamic conditions.
-            
-            Static conditions: Evaluated at circuit construction time
-            Dynamic conditions: Conditions that depend on measurement results
-                            (evaluated using current measurement variable values)
-            """
-             
-            
-            # Try to evaluate the condition
-            try:
-                # Attempt to evaluate the condition
-                condition = eval_param(node.condition, self.variables)
-                
-                # Check if the condition involves measurement results
-                has_measurement = self._condition_has_measurement(node.condition)
-                
-                                
-                # Execute appropriate branch based on condition value
-                if condition:
-                    # Execute true branch
-                     
-                    if hasattr(node, 'if_block') and node.if_block:
-                        self._execute_block(node.if_block, context="static")
-                    elif hasattr(node, 'true_branch') and node.true_branch:
-                        self._execute_block(node.true_branch, context="static")
-                else:
-                    # Execute false branch if it exists
-                    if hasattr(node, 'else_block') and node.else_block:
-                         
-                        self._execute_block(node.else_block, context="static")
-                    elif hasattr(node, 'false_branch') and node.false_branch:
-                         
-                        self._execute_block(node.false_branch, context="static")
-                        
-            except Exception as e:
-                # If evaluation fails, cannot proceed
-                raise ValueError(f"[BranchingStatement] Failed to evaluate condition: {e}")
-            
-            return None
+        """
+        Handles if-else statements.
+
+        * Conditions that depend on mid-circuit measurement results (feed-forward,
+          e.g. teleportation corrections) become classically-controlled Cirq
+          operations evaluated per shot by the simulator.
+        * Purely classical conditions are evaluated at circuit-construction time.
+        """
+        if self._condition_reads_measured_bits(node.condition):
+            return self._visit_dynamic_branch(node)
+
+        try:
+            condition = eval_param(node.condition, self.variables)
+        except Exception as e:
+            raise ValueError(f"[BranchingStatement] Failed to evaluate condition: {e}")
+
+        if condition:
+            if hasattr(node, 'if_block') and node.if_block:
+                self._execute_block(node.if_block, context="static")
+            elif hasattr(node, 'true_branch') and node.true_branch:
+                self._execute_block(node.true_branch, context="static")
+        else:
+            if hasattr(node, 'else_block') and node.else_block:
+                self._execute_block(node.else_block, context="static")
+            elif hasattr(node, 'false_branch') and node.false_branch:
+                self._execute_block(node.false_branch, context="static")
+        return None
+
+    # ------------------------------------------------------------------
+    # Feed-forward (measurement-dependent) control flow
+    # ------------------------------------------------------------------
+    def _bit_reference(self, expr):
+        """Return (register, index or None) if expr names a classical bit/register."""
+        etype = type(expr).__name__
+        if etype == 'Identifier' and expr.name in self.clbits:
+            return expr.name, None
+        if etype == 'IndexExpression':
+            coll = expr.collection
+            if type(coll).__name__ == 'Identifier' and coll.name in self.clbits:
+                idx = expr.index
+                if isinstance(idx, list):
+                    if len(idx) != 1:
+                        raise ValueError("[BranchingStatement] Only single-bit indexing is supported in conditions.")
+                    idx = idx[0]
+                return coll.name, int(eval_param(idx, self.variables))
+        if etype == 'IndexedIdentifier':
+            name = expr.name.name if hasattr(expr.name, 'name') else expr.name
+            if name in self.clbits and expr.indices:
+                idx = expr.indices[0]
+                if isinstance(idx, list):
+                    idx = idx[0]
+                return name, int(eval_param(idx, self.variables))
+        return None
+
+    def _condition_reads_measured_bits(self, expr):
+        if expr is None:
+            return False
+        ref = self._bit_reference(expr)
+        if ref is not None:
+            reg, idx = ref
+            keys = self.clbits[reg] if idx is None else [self.clbits[reg][normalize_index(idx, len(self.clbits[reg]))]]
+            return any(k in self._measured_keys for k in keys)
+        for attr in ('lhs', 'rhs', 'expression', 'operand'):
+            child = getattr(expr, attr, None)
+            if child is not None and not isinstance(child, (str, int, float)) and self._condition_reads_measured_bits(child):
+                return True
+        return False
+
+    def _bit_symbol(self, reg, idx):
+        import sympy
+        keys = self.clbits[reg]
+        idx = normalize_index(idx, len(keys))
+        key = keys[idx]
+        if key in self._measured_keys:
+            return sympy.Symbol(key)
+        info = self.variables.get(reg, {})
+        value = info.get("value", 0) if isinstance(info, dict) else 0
+        return sympy.Integer((int(value) >> idx) & 1)
+
+    def _sympy_value(self, expr):
+        """Translate a QASM classical expression into a sympy expression over measurement keys."""
+        import sympy
+        etype = type(expr).__name__
+        ref = self._bit_reference(expr)
+        if ref is not None:
+            reg, idx = ref
+            if idx is not None:
+                return self._bit_symbol(reg, idx)
+            # Whole register: unsigned integer, bit i has weight 2**i.
+            total = sympy.Integer(0)
+            for i in range(len(self.clbits[reg])):
+                total = total + self._bit_symbol(reg, i) * (2 ** i)
+            return total
+        if etype == 'BinaryExpression':
+            op = expr.op.name if hasattr(expr.op, 'name') else str(expr.op)
+            lhs = self._sympy_value(expr.lhs)
+            rhs = self._sympy_value(expr.rhs)
+            if op == '==':
+                return sympy.Eq(lhs, rhs)
+            if op == '!=':
+                return sympy.Ne(lhs, rhs)
+            if op == '<':
+                return sympy.Lt(lhs, rhs)
+            if op == '<=':
+                return sympy.Le(lhs, rhs)
+            if op == '>':
+                return sympy.Gt(lhs, rhs)
+            if op == '>=':
+                return sympy.Ge(lhs, rhs)
+            if op == '&&':
+                return sympy.And(self._as_bool(lhs), self._as_bool(rhs))
+            if op == '||':
+                return sympy.Or(self._as_bool(lhs), self._as_bool(rhs))
+            if op == '+':
+                return lhs + rhs
+            if op == '-':
+                return lhs - rhs
+            if op == '*':
+                return lhs * rhs
+            raise ValueError(f"[BranchingStatement] Operator '{op}' is not supported in a measurement-dependent condition.")
+        if etype == 'UnaryExpression':
+            op = expr.op.name if hasattr(expr.op, 'name') else str(expr.op)
+            inner = self._sympy_value(expr.expression)
+            if op == '!':
+                return sympy.Not(self._as_bool(inner))
+            if op == '-':
+                return -inner
+            raise ValueError(f"[BranchingStatement] Operator '{op}' is not supported in a measurement-dependent condition.")
+        if etype == 'BooleanLiteral':
+            return sympy.true if expr.value else sympy.false
+        if etype == 'IntegerLiteral':
+            return sympy.Integer(int(expr.value))
+        if etype == 'FloatLiteral':
+            return sympy.Float(expr.value)
+        # Anything else must be a compile-time classical value.
+        value = eval_param(expr, self.variables)
+        if isinstance(value, dict) and 'value' in value:
+            value = value['value']
+        if isinstance(value, bool):
+            return sympy.true if value else sympy.false
+        return sympy.sympify(value)
+
+    @staticmethod
+    def _as_bool(value):
+        import sympy
+        if isinstance(value, (sympy.logic.boolalg.Boolean, sympy.core.relational.Relational)):
+            return value
+        return sympy.Ne(value, 0)
+
+    def _collect_block_ops(self, block):
+        """Run a block into a scratch circuit and return its operations."""
+        saved_circuit = self.circuit
+        saved_flag = self._in_dynamic_block
+        self.circuit = cirq.Circuit()
+        self._in_dynamic_block = True
+        try:
+            self._execute_block(block, context="dynamic")
+            return list(self.circuit.all_operations())
+        finally:
+            self.circuit = saved_circuit
+            self._in_dynamic_block = saved_flag
+
+    def _visit_dynamic_branch(self, node):
+        import sympy
+        condition = self._as_bool(self._sympy_value(node.condition))
+        if_block = getattr(node, 'if_block', None) or getattr(node, 'true_branch', None)
+        else_block = getattr(node, 'else_block', None) or getattr(node, 'false_branch', None)
+
+        branches = [(if_block, condition)]
+        if else_block:
+            branches.append((else_block, sympy.Not(condition)))
+
+        for block, cond in branches:
+            if not block:
+                continue
+            ops = self._collect_block_ops(block)
+            if cond == sympy.true:
+                self.circuit.append(ops)
+                continue
+            if cond == sympy.false:
+                continue
+            sympy_condition = cirq.SympyCondition(cond)
+            for op in ops:
+                self.circuit.append(op.with_classical_controls(sympy_condition))
+        return None
 
     def _condition_has_measurement(self, condition_expr):
         """
@@ -1823,7 +1986,9 @@ class CirqVisitor(BaseVisitor):
                 "from_measurement": False  # Initially false, will be set by measurement
             }
             self.clbits[var_name] = [f"{var_name}_{i}" for i in range(size)]
-             
+            if not self.scope_stack and var_name not in self._declared_cregs:
+                self._declared_cregs.append(var_name)
+
             return var_name
 
         elif typename in ("IntType", "UintType", "FloatType", "BoolType", "AngleType"):
@@ -2291,8 +2456,44 @@ class CirqVisitor(BaseVisitor):
             )
 
         phase = eval_param(node.argument, self.variables)  # FIX: Add self.variables
+        modifiers = getattr(node, "modifiers", None) or []
+        if modifiers:
+            phase, controls = self._gphase_modifier_plan(modifiers, phase, lambda a: eval_param(a, self.variables))
+            qubits = []
+            for q_arg in getattr(node, "qubits", None) or []:
+                qubits.extend(self._resolve_operand_qubits(q_arg))
+            if len(qubits) != len(controls):
+                raise ValueError(f"[QuantumPhase] expected {len(controls)} control qubit(s), got {len(qubits)}")
+            if controls:
+                gate = cirq.ControlledGate(cirq.GlobalPhaseGate(np.exp(1j * phase)),
+                                           num_controls=len(controls), control_values=controls)
+                self.circuit.append(gate(*qubits))
+                return None
         self.circuit.append(cirq.global_phase_operation(np.exp(1j * phase)))
         return None
+
+    @staticmethod
+    def _gphase_modifier_plan(modifiers, angle, eval_arg):
+        """
+        Resolve modifiers on gphase. Returns (angle, control_values) where
+        control_values lists 1 (ctrl) / 0 (negctrl) per control operand, in operand order.
+        """
+        controls = []
+        for mod in modifiers:
+            kind = mod.modifier.name if hasattr(mod.modifier, 'name') else str(mod.modifier)
+            arg = getattr(mod, 'argument', None)
+            if kind in ('ctrl', 'negctrl'):
+                n = int(eval_arg(arg)) if arg is not None else 1
+                controls.extend([1 if kind == 'ctrl' else 0] * n)
+        for mod in reversed(modifiers):
+            kind = mod.modifier.name if hasattr(mod.modifier, 'name') else str(mod.modifier)
+            arg = getattr(mod, 'argument', None)
+            if kind == 'inv':
+                angle = -angle
+            elif kind == 'pow':
+                angle = angle * float(eval_arg(arg))
+        return angle, controls
+
     def _handle_custom_gate_application(self, node):
         """Handle application of custom user-defined gates."""
         gate_name = node.name.name
@@ -2367,19 +2568,87 @@ class CirqVisitor(BaseVisitor):
         
         return None
     
+    def _resolve_operand_qubits(self, q_arg):
+        """Resolve one gate operand to a list of cirq qubits."""
+        reg_name = q_arg.name if isinstance(q_arg.name, str) else q_arg.name.name
+        if reg_name not in self.qubits:
+            raise NameError(f"[QuantumGate] Qubit register '{reg_name}' is not declared")
+        reg = self.qubits[reg_name]
+        if not hasattr(q_arg, "indices") or not q_arg.indices:
+            return list(reg)
+        index_expr = q_arg.indices[0]
+        if isinstance(index_expr, list):
+            index_expr = index_expr[0]
+        etype = type(index_expr).__name__
+        if etype in ('RangeDefinition', 'RangeExpression', 'DiscreteSet', 'IndexSet'):
+            return [reg[i] for i in parse_index_set(index_expr, len(reg), self.variables)]
+        idx = normalize_index(int(eval_param(index_expr, self.variables)), len(reg))
+        return [reg[idx]]
+
     def _handle_modified_gate(self, node, modifiers):
         """
-        Handle gates with modifiers (ctrl, negctrl, inv).
-        
-        Modifiers are applied in order from right to left:
-        inv @ ctrl @ gate means: apply ctrl to gate, then apply inv to the result
+        Handle gates with modifiers (ctrl, negctrl, inv, pow), any combination.
+
+        OpenQASM semantics: modifiers apply right-to-left to the gate; control
+        qubits come first in the operand list.  Standard gates are built from
+        their exact matrices; custom gates use the legacy expansion path.
         """
-         
-        
-        # Process modifiers from right to left (closest to gate first)
+        gate_name = node.name.name
+        params = []
+        raw = getattr(node, "arguments", None) or getattr(node, "parameters", None) or []
+        if raw:
+            params = [eval_param(p, self.variables) for p in raw]
+
+        if gate_name in self.custom_gates:
+            return self._handle_modified_gate_legacy(node, modifiers)
+
+        if gate_name == 'gphase':
+            base = cirq.GlobalPhaseGate(np.exp(1j * params[0]))
+        else:
+            base = self._base_cirq_gate(gate_name, params)
+        if base is None:
+            raise NotImplementedError(f"[ModifiedGate] Modifiers on gate '{gate_name}' are not supported")
+
+        gate = base
+        for modifier in reversed(modifiers):
+            mod = modifier.modifier if hasattr(modifier, 'modifier') else modifier
+            name = mod.name if hasattr(mod, 'name') else str(mod)
+            arg = getattr(modifier, 'argument', None)
+            if name in ('inv', 'InverseModifier'):
+                gate = cirq.inverse(gate)
+            elif name in ('pow', 'PowModifier'):
+                gate = gate ** float(eval_param(arg, self.variables))
+            elif name in ('ctrl', 'ControlModifier', 'negctrl', 'NegControlModifier'):
+                n = int(eval_param(arg, self.variables)) if arg is not None else 1
+                value = 0 if name.startswith('neg') or name.startswith('Neg') else 1
+                gate = cirq.ControlledGate(gate, num_controls=n, control_values=[value] * n)
+            else:
+                raise NotImplementedError(f"[ModifiedGate] Modifier '{name}' not implemented")
+
+        operands = [self._resolve_operand_qubits(q) for q in node.qubits]
+        width = cirq.num_qubits(gate)
+        sizes = {len(o) for o in operands if len(o) > 1}
+        if len(sizes) > 1:
+            raise ValueError("[ModifiedGate] Broadcast registers must have the same size")
+        if not sizes:
+            qubits = [o[0] for o in operands]
+            if len(qubits) != width:
+                raise ValueError(f"[ModifiedGate] '{gate_name}' with modifiers expects {width} qubits, got {len(qubits)}")
+            self.circuit.append(gate(*qubits))
+        else:
+            for i in range(sizes.pop()):
+                qubits = [o[i] if len(o) > 1 else o[0] for o in operands]
+                self.circuit.append(gate(*qubits))
+        return None
+
+    def _handle_modified_gate_legacy(self, node, modifiers):
+        """
+        Legacy modifier handling (used for custom gates).
+        Modifiers are applied in order from right to left.
+        """
         for i in range(len(modifiers) - 1, -1, -1):
             modifier = modifiers[i]
-            
+
             # Extract the actual modifier type from the modifier attribute (enum)
             if hasattr(modifier, 'modifier'):
                 modifier_enum = modifier.modifier
@@ -2388,9 +2657,9 @@ class CirqVisitor(BaseVisitor):
             else:
                 # Fallback to class name
                 modifier_name = type(modifier).__name__
-            
-             
-            
+
+            if i > 0:
+                raise NotImplementedError("[ModifiedGate] Multiple modifiers on a custom gate are not supported")
             # Map enum names to handler methods
             if modifier_name in ('ctrl', 'ControlModifier'):
                 return self._apply_control_modifier(node, modifier, modifiers[:i])
@@ -2400,7 +2669,7 @@ class CirqVisitor(BaseVisitor):
                 return self._apply_inverse_modifier(node, modifiers[:i])
             else:
                 raise NotImplementedError(f"[ModifiedGate] Modifier '{modifier_name}' not implemented")
-        
+
         return None
 
     def _apply_control_modifier(self, node, ctrl_modifier, remaining_modifiers):
@@ -2757,143 +3026,100 @@ class CirqVisitor(BaseVisitor):
         self.variables = saved_variables
 
 
+    @staticmethod
+    def _base_cirq_gate(gate_name, params):
+        """
+        Exact cirq.Gate for an OpenQASM standard gate (matrix identical to the
+        stdgates.inc definition, including phase, so controlled versions are right).
+        Returns None for unknown names.
+        """
+        params = list(params or [])
+        fixed = {
+            "id": cirq.I, "x": cirq.X, "y": cirq.Y, "z": cirq.Z, "h": cirq.H,
+            "s": cirq.S, "sdg": cirq.S ** -1, "t": cirq.T, "tdg": cirq.T ** -1,
+            "sx": cirq.XPowGate(exponent=0.5),
+            "cx": cirq.CNOT, "CX": cirq.CNOT, "cy": cirq.ControlledGate(cirq.Y), "cz": cirq.CZ,
+            "ch": cirq.ControlledGate(cirq.H), "swap": cirq.SWAP, "iswap": cirq.ISWAP,
+            "sqrtiswap": cirq.SQRT_ISWAP, "ccx": cirq.CCX, "ccz": cirq.CCZ, "cswap": cirq.CSWAP,
+        }
+        if gate_name in fixed:
+            return fixed[gate_name]
+        if gate_name in ("rx", "ry", "rz") and len(params) == 1:
+            return {"rx": cirq.rx, "ry": cirq.ry, "rz": cirq.rz}[gate_name](params[0])
+        if gate_name in ("p", "phase", "u1") and len(params) == 1:
+            return cirq.ZPowGate(exponent=params[0] / np.pi)
+        if gate_name in ("cp", "cphase", "cu1") and len(params) == 1:
+            return cirq.CZPowGate(exponent=params[0] / np.pi)
+        if gate_name in ("crx", "cry", "crz") and len(params) == 1:
+            return cirq.ControlledGate({"crx": cirq.rx, "cry": cirq.ry, "crz": cirq.rz}[gate_name](params[0]))
+        if gate_name in ("U", "u", "u3") and len(params) == 3:
+            return cirq.MatrixGate(_u_matrix(*params))
+        if gate_name == "u2" and len(params) == 2:
+            return cirq.MatrixGate(_u_matrix(np.pi / 2, params[0], params[1]))
+        if gate_name == "cu3" and len(params) == 3:
+            return cirq.ControlledGate(cirq.MatrixGate(_u_matrix(*params)))
+        if gate_name == "cu" and len(params) == 4:
+            return cirq.ControlledGate(cirq.MatrixGate(np.exp(1j * params[3]) * _u_matrix(*params[:3])))
+        if gate_name in ("rzz", "rxx", "ryy") and len(params) == 1:
+            cls = {"rzz": cirq.ZZPowGate, "rxx": cirq.XXPowGate, "ryy": cirq.YYPowGate}[gate_name]
+            return cls(exponent=params[0] / np.pi, global_shift=-0.5)
+        return None
+
     def _apply_controlled_gate(self, gate_name, control_qubits, target_qubits, params, negative=False):
         """
-        Apply a controlled gate with one or more control qubits.
-        
-        Args:
-            gate_name: Name of the gate to control
-            control_qubits: List of control qubits
-            target_qubits: List of target qubits
-            params: Gate parameters
-            negative: If True, control on |0⟩ instead of |1⟩
+        Apply ctrl @ / negctrl @ <gate> with any number of control qubits.
+
+        Uses the exact base-gate matrix wrapped in cirq.ControlledGate, so phases
+        of the base gate are controlled correctly.
         """
         num_controls = len(control_qubits)
-        
-        # For negative control, wrap with X gates
-        if negative:
-            for ctrl in control_qubits:
-                self.circuit.append(cirq.X(ctrl))
-        
-        # Handle special cases for common gates
-        if gate_name == 'x':
-            if num_controls == 1 and len(target_qubits) == 1:
-                # Single control X = CNOT
-                self.circuit.append(cirq.CNOT(control_qubits[0], target_qubits[0]))
-            elif num_controls == 2 and len(target_qubits) == 1:
-                # Double control X = Toffoli
-                self.circuit.append(cirq.CCX(control_qubits[0], control_qubits[1], target_qubits[0]))
-            elif num_controls >= 3 and len(target_qubits) == 1:
-                # Multi-control X - use cirq's multi-control
-                self.circuit.append(cirq.ControlledGate(cirq.X, num_controls=num_controls)(*control_qubits, target_qubits[0]))
-            elif num_controls >= 1 and len(target_qubits) > 1:
-                # Multiple targets - apply controlled X to each target separately
-                for tgt in target_qubits:
-                    if num_controls == 1:
-                        self.circuit.append(cirq.CNOT(control_qubits[0], tgt))
-                    elif num_controls == 2:
-                        self.circuit.append(cirq.CCX(control_qubits[0], control_qubits[1], tgt))
-                    else:
-                        self.circuit.append(cirq.ControlledGate(cirq.X, num_controls=num_controls)(*control_qubits, tgt))
-            else:
-                raise ValueError(f"[ControlledGate] Invalid configuration for controlled X: {num_controls} controls, {len(target_qubits)} targets")
-        
-        elif gate_name in ('U', 'u') and len(params) == 3:
-            # Controlled U gate: decompose U into rotations and control those
-            theta, phi, lam = params
-            target = target_qubits[0]
-            
-            # U(θ, φ, λ) = Rz(φ) Ry(θ) Rz(λ)
-            # Apply controlled version of each rotation
-            for ctrl in control_qubits:
-                self.circuit.append(cirq.ControlledGate(cirq.rz(phi))(ctrl, target))
-            for ctrl in control_qubits:
-                self.circuit.append(cirq.ControlledGate(cirq.ry(theta))(ctrl, target))
-            for ctrl in control_qubits:
-                self.circuit.append(cirq.ControlledGate(cirq.rz(lam))(ctrl, target))
-        
-        elif gate_name in ('rx', 'ry', 'rz') and len(params) == 1:
-            # Controlled rotation gates
-            angle = params[0]
-            gate_map = {'rx': cirq.rx(angle), 'ry': cirq.ry(angle), 'rz': cirq.rz(angle)}
-            base_gate = gate_map[gate_name]
-            
-            if len(target_qubits) == 1:
-                controlled_gate = cirq.ControlledGate(base_gate, num_controls=num_controls)
-                self.circuit.append(controlled_gate(*control_qubits, target_qubits[0]))
-            else:
-                # Apply to each target separately
-                for tgt in target_qubits:
-                    controlled_gate = cirq.ControlledGate(base_gate, num_controls=num_controls)
-                    self.circuit.append(controlled_gate(*control_qubits, tgt))
-        
-        elif gate_name == 'gphase' and len(params) == 1:
-            # ctrl @ gphase(a) = rz(a) on each control qubit
-            angle = params[0]
-            for ctrl in control_qubits:
-                self.circuit.append(cirq.rz(angle)(ctrl))
-        
-        elif gate_name in ('h', 'y', 'z', 's', 't', 'sx'):
-            # Single-qubit gates
-            gate_map = {'h': cirq.H, 'y': cirq.Y, 'z': cirq.Z, 's': cirq.S, 't': cirq.T, 'sx': cirq.XPowGate(exponent=0.5)}
-            base_gate = gate_map[gate_name]
-            
-            if len(target_qubits) == 1:
-                controlled_gate = cirq.ControlledGate(base_gate, num_controls=num_controls)
-                self.circuit.append(controlled_gate(*control_qubits, target_qubits[0]))
-            else:
-                # Apply to each target separately
-                for tgt in target_qubits:
-                    controlled_gate = cirq.ControlledGate(base_gate, num_controls=num_controls)
-                    self.circuit.append(controlled_gate(*control_qubits, tgt))
-        
-        elif gate_name == 'cp' and len(params) == 1:
-            # Controlled phase - already has one control, add more
-            angle = params[0]
-            base_gate = cirq.CZPowGate(exponent=angle/np.pi)
-            
-            if num_controls == 1 and len(target_qubits) == 1:
-                # cp is already controlled, just apply it
-                self.circuit.append(base_gate(control_qubits[0], target_qubits[0]))
-            else:
-                # Multi-control cp - need to construct properly
-                for tgt in target_qubits:
-                    controlled_gate = cirq.ControlledGate(base_gate, num_controls=num_controls)
-                    self.circuit.append(controlled_gate(*control_qubits, tgt))
-        
-        elif gate_name == 'cx' and num_controls == 1 and len(target_qubits) == 2:
-            # ctrl @ cx = Toffoli
-            self.circuit.append(cirq.CCX(control_qubits[0], target_qubits[0], target_qubits[1]))
-        
-        elif gate_name in ('cy', 'cz', 'ch'):
-            # Already controlled gates - add additional controls
-            gate_map = {'cy': cirq.ControlledGate(cirq.Y), 'cz': cirq.CZ, 'ch': cirq.ControlledGate(cirq.H)}
-            
-            if len(target_qubits) == 2 and num_controls == 1:
-                # These are already 2-qubit controlled gates
-                if gate_name == 'cz':
-                    # CZ is symmetric, so we can use either qubit as control
-                    self.circuit.append(cirq.ControlledGate(cirq.CZ)(control_qubits[0], target_qubits[0], target_qubits[1]))
-                else:
-                    base_gate = gate_map[gate_name]
-                    self.circuit.append(base_gate(control_qubits[0], target_qubits[0], target_qubits[1]))
-            else:
-                raise NotImplementedError(f"[ControlledGate] Multi-control {gate_name} not implemented")
-        
-        elif gate_name in self.custom_gates:
+        control_values = [0 if negative else 1] * num_controls
+
+        if gate_name in self.custom_gates:
             # Handle controlled custom gates by expanding with control context
+            if negative:
+                for ctrl in control_qubits:
+                    self.circuit.append(cirq.X(ctrl))
             self._apply_controlled_custom_gate(gate_name, control_qubits, target_qubits, params, negative)
-        
-        else:
+            if negative:
+                for ctrl in control_qubits:
+                    self.circuit.append(cirq.X(ctrl))
+            return
+
+        if gate_name == 'gphase':
+            if len(params) != 1:
+                raise ValueError("[ControlledGate] gphase requires 1 parameter.")
+            # ctrl @ gphase(a): phase e^{ia} when all controls are satisfied.
+            phase = cirq.ZPowGate(exponent=params[0] / np.pi)
+            if negative:
+                for ctrl in control_qubits:
+                    self.circuit.append(cirq.X(ctrl))
+            if num_controls == 1:
+                self.circuit.append(phase(control_qubits[0]))
+            else:
+                self.circuit.append(cirq.ControlledGate(phase, num_controls=num_controls - 1)(*control_qubits))
+            if negative:
+                for ctrl in control_qubits:
+                    self.circuit.append(cirq.X(ctrl))
+            return
+
+        base = self._base_cirq_gate(gate_name, params)
+        if base is None:
             raise NotImplementedError(
                 f"[ControlledGate] Controlled version of gate '{gate_name}' not implemented"
             )
-        
-        # For negative control, unwrap with X gates
-        if negative:
-            for ctrl in control_qubits:
-                self.circuit.append(cirq.X(ctrl))
-
+        width = cirq.num_qubits(base)
+        controlled = cirq.ControlledGate(base, num_controls=num_controls, control_values=control_values)
+        if len(target_qubits) == width:
+            self.circuit.append(controlled(*control_qubits, *target_qubits))
+        elif width == 1 and len(target_qubits) > 1:
+            # Broadcast a single-qubit base gate over several targets.
+            for tgt in target_qubits:
+                self.circuit.append(controlled(*control_qubits, tgt))
+        else:
+            raise ValueError(
+                f"[ControlledGate] '{gate_name}' expects {width} target qubit(s), got {len(target_qubits)}."
+            )
 
     def _apply_inverse_modifier(self, node, remaining_modifiers):
         """
@@ -3149,33 +3375,22 @@ class CirqVisitor(BaseVisitor):
                 for q in target_qubits:
                     self.circuit.append(gate_map[gate_name](q))
         
-        elif gate_name == "U":
-            # Universal single-qubit gate: U(θ, φ, λ)
-            # U(θ, φ, λ) = Rz(φ) Ry(θ) Rz(λ)
-            if len(params) != 3:
-                raise ValueError("Gate 'U' requires 3 parameters (theta, phi, lambda).")
-            if len(target_qubits) != 1:
-                raise ValueError("Gate 'U' is a single-qubit gate.")
-            
-            theta, phi, lam = params
-            q = target_qubits[0]
-            
-            # Apply U gate as: Rz(φ) Ry(θ) Rz(λ)
-            self.circuit.append(cirq.rz(phi)(q))
-            self.circuit.append(cirq.ry(theta)(q))
-            self.circuit.append(cirq.rz(lam)(q))
-        
-        elif gate_name == "u":
-            # Lowercase 'u' - same as 'U'
-            if len(params) != 3:
-                raise ValueError("Gate 'u' requires 3 parameters (theta, phi, lambda).")
-            
-            theta, phi, lam = params
+        elif gate_name in ("U", "u", "u3", "u2", "u1"):
+            # OpenQASM U(theta, phi, lambda) =
+            #   [[cos(t/2), -e^{i l} sin(t/2)], [e^{i p} sin(t/2), e^{i(p+l)} cos(t/2)]]
+            expected = {"U": 3, "u": 3, "u3": 3, "u2": 2, "u1": 1}[gate_name]
+            if len(params) != expected:
+                raise ValueError(f"Gate '{gate_name}' requires {expected} parameter(s).")
+            if gate_name == "u2":
+                theta, phi, lam = np.pi / 2, params[0], params[1]
+            elif gate_name == "u1":
+                theta, phi, lam = 0.0, 0.0, params[0]
+            else:
+                theta, phi, lam = params
+            gate = cirq.MatrixGate(_u_matrix(theta, phi, lam))
             for q in target_qubits:
-                self.circuit.append(cirq.rz(phi)(q))
-                self.circuit.append(cirq.ry(theta)(q))
-                self.circuit.append(cirq.rz(lam)(q))
-        
+                self.circuit.append(gate(q))
+
         elif gate_name in ("crx", "cry", "crz"):
             if len(target_qubits) != 2:
                 raise ValueError(f"Gate '{gate_name}' requires 2 qubits.")
@@ -3243,6 +3458,43 @@ class CirqVisitor(BaseVisitor):
             if len(target_qubits) != 2:
                 raise ValueError(f"Gate 'CX' requires 2 qubits.")
             self.circuit.append(cirq.CNOT(target_qubits[0], target_qubits[1]))
+
+        elif gate_name in ("p", "phase"):
+            if not params:
+                raise ValueError(f"Gate '{gate_name}' requires 1 parameter.")
+            for q in target_qubits:
+                self.circuit.append(cirq.ZPowGate(exponent=params[0] / np.pi)(q))
+
+        elif gate_name in ("cphase", "cu1"):
+            if len(target_qubits) != 2 or not params:
+                raise ValueError(f"Gate '{gate_name}' requires 2 qubits and 1 parameter.")
+            self.circuit.append(cirq.CZPowGate(exponent=params[0] / np.pi)(target_qubits[0], target_qubits[1]))
+
+        elif gate_name == "ccz":
+            if len(target_qubits) != 3:
+                raise ValueError("Gate 'ccz' requires 3 qubits.")
+            self.circuit.append(cirq.CCZ(*target_qubits))
+
+        elif gate_name in ("cu", "cu3"):
+            n_params = 4 if gate_name == "cu" else 3
+            if len(target_qubits) != 2 or len(params) != n_params:
+                raise ValueError(f"Gate '{gate_name}' requires 2 qubits and {n_params} parameters.")
+            theta, phi, lam = params[0], params[1], params[2]
+            gamma = params[3] if gate_name == "cu" else 0.0
+            base = cirq.MatrixGate(np.exp(1j * gamma) * _u_matrix(theta, phi, lam))
+            self.circuit.append(cirq.ControlledGate(base)(target_qubits[0], target_qubits[1]))
+
+        elif gate_name in ("rzz", "rxx", "ryy"):
+            if len(target_qubits) != 2 or not params:
+                raise ValueError(f"Gate '{gate_name}' requires 2 qubits and 1 parameter.")
+            cls = {"rzz": cirq.ZZPowGate, "rxx": cirq.XXPowGate, "ryy": cirq.YYPowGate}[gate_name]
+            # exp(-i theta/2 P(x)P) == PPPowGate(exponent=theta/pi, global_shift=-0.5)
+            self.circuit.append(cls(exponent=params[0] / np.pi, global_shift=-0.5)(target_qubits[0], target_qubits[1]))
+
+        elif gate_name == "sqrtiswap":
+            if len(target_qubits) != 2:
+                raise ValueError("Gate 'sqrtiswap' requires 2 qubits.")
+            self.circuit.append(cirq.SQRT_ISWAP(target_qubits[0], target_qubits[1]))
         
         else:
             # Check if it's a custom gate or truly undefined
@@ -3290,7 +3542,10 @@ class CirqVisitor(BaseVisitor):
         key_map = {q: k for q, k in zip(qubits_to_measure, clbit_keys)}
         
         # Append the measurement operation
+        if self._in_dynamic_block:
+            raise ValueError("[QuantumMeasurement] Measurements inside a measurement-conditioned block are not supported.")
         self.circuit.append(cirq.measure_each(*qubits_to_measure, key_func=lambda q: key_map[q]))
+        self._measured_keys.update(clbit_keys)
         
         # Mark the variable as from measurement
         if creg_name in self.variables:
@@ -3371,7 +3626,10 @@ class CirqVisitor(BaseVisitor):
         key_map = {q: k for q, k in zip(qubits_to_measure, clbit_keys)}
         
         # Append measurement
+        if self._in_dynamic_block:
+            raise ValueError("[QuantumMeasurementAssignment] Measurements inside a measurement-conditioned block are not supported.")
         self.circuit.append(cirq.measure_each(*qubits_to_measure, key_func=lambda q: key_map[q]))
+        self._measured_keys.update(clbit_keys)
         
         # Mark the variable as from measurement
         if creg_name in self.variables:
@@ -3386,8 +3644,52 @@ class CirqVisitor(BaseVisitor):
         q = self.qubits[node.qubit.name][node.qubit.index]
         c = self.clbits[node.target.name][node.target.index]
         self.circuit.append(cirq.measure(q, key=c))
+        self._measured_keys.add(c)
+
+    def visit_IODeclaration(self, node):
+        """`output` annotations are ignored; `input` values cannot be supplied, so refuse
+        to simulate rather than silently using 0."""
+        io_kind = str(getattr(node, 'io_identifier', '')).lower()
+        if 'output' in io_kind:
+            return None
+        ident = getattr(node, 'identifier', None)
+        name = getattr(ident, 'name', ident)
+        raise ValueError(
+            f"Input parameter '{name}' has no value. QCanvas simulations cannot bind "
+            f"external inputs; give it a concrete value in your code (for example "
+            f"theta = 0.5) or call the circuit with numbers before simulating."
+        )
 
     def finalize(self, visited_block=None):
         """Finalize and return the circuit or variables for classical-only programs."""
-         
+        if self.circuit is None:
+            self.circuit = cirq.Circuit()
         return self.circuit
+
+    def output_spec(self):
+        """
+        Describe how results must be reported (see qsim.backends.base.BaseBackend):
+        declared classical bits in declaration order (bit 0 first), or all qubits
+        when nothing was measured.
+        """
+        qubits = []
+        for name in self._declared_qregs:
+            qubits.extend(self.qubits.get(name, []))
+        clbits = []
+        for name in self._declared_cregs:
+            keys = self.clbits.get(name)
+            if not keys:
+                continue
+            info = self.variables.get(name, {})
+            value = info.get("value", 0) if isinstance(info, dict) else 0
+            try:
+                value = int(value)
+            except (TypeError, ValueError):
+                value = 0
+            for i, key in enumerate(keys):
+                clbits.append((key, (value >> i) & 1))
+        return {
+            "measured": bool(self._measured_keys),
+            "qubits": qubits,
+            "clbits": clbits,
+        }

@@ -96,9 +96,13 @@ def get_circuit():
         assert "measure q[0] -> c[0];" in qasm
         assert "measure q[1] -> c[1];" in qasm
         
-        # Should have control flow examples
-        assert "if (c[0] == 1)" in qasm
-        assert "for int loop_index in [0:1]" in qasm
+        # Only the user's operations may appear: the converter used to append a
+        # fake `if (c[0] == 1) x q[1];` and an ry loop the user never wrote.
+        assert "if (" not in qasm
+        assert "for int" not in qasm
+        assert "loop_index" not in qasm
+        assert "ry(" not in qasm
+        assert qasm.count("measure") == 2
         
     def test_inverse_modifier(self):
         """Test inverse gate modifier"""

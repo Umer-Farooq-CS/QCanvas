@@ -64,6 +64,8 @@ from typing import List, Any, Set, Optional, Tuple, Dict, Union
 from quantum_converters.base.circuit_ast import (
     CircuitAST, GateNode, MeasurementNode, ResetNode, BarrierNode, ForLoopNode, IfStatementNode
 )
+from quantum_converters.base.circuit_validation import UnsupportedCircuitError
+from quantum_converters.base.safe_eval import NotStatic, static_eval
 
 
 # VERBOSE is imported from config.config
@@ -88,9 +90,23 @@ class PennyLaneASTVisitor(ast.NodeVisitor):
         self.variables: Dict[str, Any] = {}  # Track variable assignments
         # Maps array name -> required size (max_index + 1) for undeclared subscript params
         self.array_parameters: Dict[str, int] = {}
+        self.unsupported_operations: Set[str] = set()
+        self.mcm_vars: Dict[str, Any] = {}   # m = qml.measure(...) -> clbit index
+        self.loop_stack: List[Tuple[str, Any, Any]] = []
+        self.measured = False
 
     # Detect qml.device(..., wires=N) and track variable assignments
     def visit_Assign(self, node: ast.Assign) -> None:
+        if isinstance(node.value, ast.Call) and self._is_qml_call(node.value, 'measure'):
+            clbits = self._handle_measurement_pennylane(node.value)
+            if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name) and clbits:
+                self.mcm_vars[node.targets[0].id] = clbits[0]
+            return
+        if (isinstance(node.value, ast.Call) and self._is_qml_call(node.value)
+                and node.value.func.attr not in self._NON_OPERATION_CALLS):
+            # e.g. op = qml.RX(0.1, wires=0) records the op on the tape in PennyLane.
+            self._handle_qml_call(node.value)
+            return
         try:
             # Track simple variable assignments
             if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
@@ -152,17 +168,62 @@ class PennyLaneASTVisitor(ast.NodeVisitor):
 
     def visit_Expr(self, node: ast.Expr) -> None:
         # Capture qml gate/measurement expressions
+        if isinstance(node.value, ast.Call):
+            call = node.value
+            if isinstance(call.func, ast.Call) and self._is_qml_call(call.func):
+                inner = call.func.func.attr
+                if inner == 'cond':
+                    self._handle_cond(call)
+                else:
+                    # qml.adjoint(op)(...), qml.ctrl(op, ...)(...), templates, ...
+                    self.unsupported_operations.add(f"qml.{inner}(...)(...)")
+                return
+            self._handle_qml_call(call)
+
+    _NON_OPERATION_CALLS = frozenset({'device', 'qnode', 'QNode', 'draw', 'draw_mpl', 'specs', 'grad',
+                                      'jacobian', 'workflow', 'transforms', 'math', 'numpy'})
+
+    def _mcm_condition(self, node: ast.AST) -> str:
+        """Translate a qml.cond condition on measurement variables into OpenQASM."""
+        if isinstance(node, ast.Name) and node.id in self.mcm_vars:
+            return f"c[{self.mcm_vars[node.id]}] == 1"
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Invert) \
+                and isinstance(node.operand, ast.Name) and node.operand.id in self.mcm_vars:
+            return f"c[{self.mcm_vars[node.operand.id]}] == 0"
+        if (isinstance(node, ast.Compare) and len(node.ops) == 1 and isinstance(node.left, ast.Name)
+                and node.left.id in self.mcm_vars and isinstance(node.comparators[0], ast.Constant)
+                and node.comparators[0].value in (0, 1, True, False) and isinstance(node.ops[0], (ast.Eq, ast.NotEq))):
+            value = int(node.comparators[0].value)
+            if isinstance(node.ops[0], ast.NotEq):
+                value = 1 - value
+            return f"c[{self.mcm_vars[node.left.id]}] == {value}"
+        if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.BitAnd, ast.BitOr)):
+            joiner = " && " if isinstance(node.op, ast.BitAnd) else " || "
+            return f"({self._mcm_condition(node.left)}){joiner}({self._mcm_condition(node.right)})"
+        raise UnsupportedCircuitError(f"qml.cond condition '{ast.unparse(node)}' is not supported")
+
+    def _handle_cond(self, call: ast.Call) -> None:
+        """qml.cond(m, qml.Gate)(args, wires=...) -> if (c[k] == 1) { gate }."""
+        cond_call = call.func
+        if len(cond_call.args) != 2 or cond_call.keywords:
+            self.unsupported_operations.add("qml.cond with a false branch / keywords")
+            return
+        condition = self._mcm_condition(cond_call.args[0])
+        target = cond_call.args[1]
+        if not (isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and target.value.id == 'qml'):
+            self.unsupported_operations.add(f"qml.cond(..., {ast.unparse(target)})")
+            return
+        fake = ast.Call(func=target, args=call.args, keywords=call.keywords)
+        body = []
+        saved = self.operations
+        self.operations = body
         try:
-            if isinstance(node.value, ast.Call):
-                if VERBOSE:
-                    try:
-                        vprint(f"[PennyLaneASTVisitor] visit_Expr: call={ast.dump(node.value, include_attributes=False)}")
-                    except Exception:
-                        vprint("[PennyLaneASTVisitor] visit_Expr: call=<dump failed>")
-                self._handle_qml_call(node.value)
-        except Exception:
-            pass
-        self.generic_visit(node)
+            self._handle_qml_call(fake)
+        finally:
+            self.operations = saved
+        if any(isinstance(op, MeasurementNode) for op in body):
+            raise UnsupportedCircuitError("measurements inside qml.cond are not supported")
+        self.operations.append(IfStatementNode(condition=condition, body=body, else_body=None))
 
     def visit_Return(self, node: ast.Return) -> None:
         """Handle return statements, which often contain PennyLane measurements."""
@@ -256,7 +317,10 @@ class PennyLaneASTVisitor(ast.NodeVisitor):
         # Extract range information
         range_start, range_end = self._extract_range(node.iter)
         if range_start is None or range_end is None:
-            # Not a simple range() call, skip for now
+            # Not a simple range() call: we cannot translate its body faithfully.
+            if any(isinstance(n, ast.Call) and self._is_qml_call(n) for n in ast.walk(node)):
+                self.unsupported_operations.add(f"for-loop over {ast.unparse(node.iter)}")
+                return
             self.generic_visit(node)
             return
 
@@ -267,9 +331,13 @@ class PennyLaneASTVisitor(ast.NodeVisitor):
         loop_body = []
         saved_operations = self.operations
         self.operations = loop_body
-        for stmt in node.body:
-            self.visit(stmt)
-        self.operations = saved_operations
+        self.loop_stack.append((loop_var, range_start, range_end))
+        try:
+            for stmt in node.body:
+                self.visit(stmt)
+        finally:
+            self.loop_stack.pop()
+            self.operations = saved_operations
 
         if old_val is None:
             self.variables.pop(loop_var, None)
@@ -547,7 +615,8 @@ class PennyLaneASTVisitor(ast.NodeVisitor):
             vprint(f"[PennyLaneASTVisitor] Handling qml.{method_name}")
 
         # Handle measurements - qml.measure(wires=i), qml.probs(wires=[...]), etc.
-        if method_name in ['measure', 'probs', 'sample', 'expval', 'state']:
+        if method_name in ['measure', 'probs', 'sample', 'counts', 'expval', 'var', 'state',
+                           'density_matrix', 'vn_entropy', 'mutual_info', 'purity']:
             if VERBOSE:
                 vprint(f"[PennyLaneASTVisitor]   Routing to measurement handler: {method_name}")
             self._handle_measurement_pennylane(call)
@@ -556,6 +625,8 @@ class PennyLaneASTVisitor(ast.NodeVisitor):
         gate_map = self._get_gate_mapping()
 
         if method_name == 'MultiControlledX':
+            if any(kw.arg not in ('wires',) for kw in call.keywords):
+                raise UnsupportedCircuitError("qml.MultiControlledX with control_values/work_wires is not supported")
             qubits = self._extract_wires(call)
             if qubits:
                 # In MultiControlledX(wires=wires), the last wire is target, others are controls
@@ -563,7 +634,7 @@ class PennyLaneASTVisitor(ast.NodeVisitor):
                 if len(qubits) == 3:
                     self.operations.append(GateNode(name='ccx', qubits=qubits))
                 else:
-                    self.operations.append(GateNode(name='x', qubits=qubits, modifiers={'ctrl': controls}))
+                    self.operations.append(GateNode(name='x', qubits=qubits, modifiers={'ctrl': len(controls)}))
                 return
 
         if method_name == 'GroverOperator':
@@ -571,6 +642,32 @@ class PennyLaneASTVisitor(ast.NodeVisitor):
             if qubits:
                 self._decompose_grover_operator(qubits)
                 return
+
+        if method_name == 'Rot':
+            # Rot(phi, theta, omega) = RZ(omega) RY(theta) RZ(phi)  (RZ(phi) acts first)
+            qubits = self._extract_wires(call)
+            params = self._extract_params(call, method_name)
+            if len(qubits) != 1 or len(params) != 3:
+                raise UnsupportedCircuitError(f"could not parse qml.Rot call '{ast.unparse(call)}'")
+            phi, theta, omega = params
+            self.operations.append(GateNode(name='rz', qubits=list(qubits), parameters=[phi]))
+            self.operations.append(GateNode(name='ry', qubits=list(qubits), parameters=[theta]))
+            self.operations.append(GateNode(name='rz', qubits=list(qubits), parameters=[omega]))
+            return
+
+        if method_name == 'Barrier':
+            self.operations.append(BarrierNode(qubits=self._extract_wires(call) or None))
+            return
+
+        if method_name == 'GlobalPhase':
+            # Emitted for fidelity of the QASM; it never changes measurement statistics.
+            params = self._extract_params(call, method_name)
+            self.operations.append(GateNode(name='gphase', qubits=[], parameters=params))
+            return
+
+        if method_name in self._GATE_ALIASES:
+            gate_map = dict(gate_map)
+            gate_map[method_name] = self._GATE_ALIASES[method_name]
 
         if method_name in gate_map:
             self._log_qml_call(method_name, call)
@@ -582,16 +679,28 @@ class PennyLaneASTVisitor(ast.NodeVisitor):
                 vprint(f"[PennyLaneASTVisitor]   Extracted params: {params}")
 
             if not qubits:
-                if VERBOSE:
-                    vprint(f"[PennyLaneASTVisitor]   SKIP: No wires resolved for {method_name}")
-                return  # If no wires were resolvable, skip
+                raise UnsupportedCircuitError(f"could not resolve the wires of '{ast.unparse(call)}'")
 
             self.operations.append(GateNode(name=gate_map[method_name], qubits=qubits, parameters=params))
             if VERBOSE:
                 vprint(f"[PennyLaneASTVisitor] Added op {method_name} wires={qubits} params={params}")
-        else:
-            if VERBOSE:
-                vprint(f"[PennyLaneASTVisitor]   Gate {method_name} not in mapping")
+        elif method_name not in self._NON_OPERATION_CALLS:
+            self.unsupported_operations.add(f"qml.{method_name}")
+
+    # PennyLane names (and aliases) that map 1:1 onto OpenQASM gates.
+    _GATE_ALIASES = {
+        'X': 'x', 'Y': 'y', 'Z': 'z', 'H': 'h', 'SX': 'sx', 'CH': 'ch', 'ISWAP': 'iswap',
+        'U1': 'p', 'U2': 'u2', 'U3': 'u3', 'CPhase': 'cp', 'IsingXX': 'rxx', 'IsingYY': 'ryy',
+        'IsingZZ': 'rzz', 'CCZ': 'ccz', 'CSWAP': 'cswap', 'Toffoli': 'ccx', 'Identity': 'id',
+        'I': 'id',
+    }
+    # Number and keyword names of the angle parameters of each gate.
+    _PARAM_NAMES = {
+        'RX': ['phi'], 'RY': ['phi'], 'RZ': ['phi'], 'PhaseShift': ['phi'], 'U1': ['phi'],
+        'CRX': ['phi'], 'CRY': ['phi'], 'CRZ': ['phi'], 'ControlledPhaseShift': ['phi'], 'CPhase': ['phi'],
+        'IsingXX': ['phi'], 'IsingYY': ['phi'], 'IsingZZ': ['phi'], 'GlobalPhase': ['phi'],
+        'U2': ['phi', 'delta'], 'U3': ['theta', 'phi', 'delta'], 'Rot': ['phi', 'theta', 'omega'],
+    }
 
     def _decompose_grover_operator(self, wires: List[int]):
         """Decompose Grover's diffusion operator into standard gates."""
@@ -607,7 +716,7 @@ class PennyLaneASTVisitor(ast.NodeVisitor):
         if len(wires) == 3:
             self.operations.append(GateNode(name='ccx', qubits=wires))
         else:
-            self.operations.append(GateNode(name='x', qubits=wires, modifiers={'ctrl': controls}))
+            self.operations.append(GateNode(name='x', qubits=wires, modifiers={'ctrl': len(controls)}))
         self.operations.append(GateNode(name='h', qubits=[wires[-1]]))
         # X on all
         for w in wires:
@@ -623,25 +732,55 @@ class PennyLaneASTVisitor(ast.NodeVisitor):
         PennyLane measurements: qml.measure(wires=i)
         Maps to OpenQASM: c[clbit_index] = measure q[qubit_index];
         """
+        method = call.func.attr
+        if method in ('expval', 'var', 'state', 'density_matrix', 'vn_entropy', 'mutual_info', 'purity'):
+            # Not a computational-basis readout; the simulator samples the final state.
+            return []
+        for kw in call.keywords:
+            if kw.arg in ('postselect',) or (kw.arg == 'reset' and method != 'measure'):
+                raise UnsupportedCircuitError(f"qml.{method}({kw.arg}=...) is not supported")
+            if kw.arg not in ('wires', 'reset', 'op'):
+                raise UnsupportedCircuitError(f"qml.{method}({kw.arg}=...) is not supported")
         wires = self._extract_wires(call)
         if not wires:
             if VERBOSE:
-                vprint("[PennyLaneASTVisitor] qml.measure() with no wires found")
-            return
-        
+                vprint("[PennyLaneASTVisitor] measurement with no wires found")
+            return []
+        reset = any(kw.arg == 'reset' and isinstance(kw.value, ast.Constant) and kw.value.value is True
+                    for kw in call.keywords)
+
+        clbits = []
         for wire in wires:
-            # If wire is a variable (string), use same variable for clbit
-            # This handles for loop cases like: for i in range(n): qml.measure(wires=i)
-            if isinstance(wire, str):
-                # Variable wire - clbit should use same variable
-                clbit = wire
-            else:
-                # Constant wire - use sequential clbit index
-                clbit = self.clbits
-                self.clbits += 1
+            clbit = self._allocate_clbit()
+            clbits.append(clbit)
             self.operations.append(MeasurementNode(qubit=wire, clbit=clbit))
+            if reset:
+                self.operations.append(ResetNode(qubit=wire))
+            self.measured = True
             if VERBOSE:
                 vprint(f"[PennyLaneASTVisitor] Added measurement q[{wire}] -> c[{clbit}]")
+        return clbits
+
+    def _allocate_clbit(self):
+        """Next classical bit; inside range() loops each iteration gets its own bit."""
+        if not self.loop_stack:
+            clbit = self.clbits
+            self.clbits += 1
+            return clbit
+        total = 1
+        for var, start, end in self.loop_stack:
+            if not isinstance(start, int) or not isinstance(end, int):
+                raise UnsupportedCircuitError(f"measurement inside a loop with non-constant range over '{var}'")
+            total *= max(0, end - start)
+        base = self.clbits
+        self.clbits += total
+        terms, stride = [], 1
+        for var, start, end in reversed(self.loop_stack):
+            term = var if start == 0 else f"({var}-{start})"
+            terms.append(term if stride == 1 else f"{term}*{stride}")
+            stride *= max(0, end - start)
+        expr = "+".join(reversed(terms))
+        return expr if base == 0 else f"{base}+{expr}"
 
     def _get_gate_mapping(self) -> dict:
         """Get mapping of PennyLane gate names to OpenQASM mnemonics."""
@@ -722,7 +861,7 @@ class PennyLaneASTVisitor(ast.NodeVisitor):
                         if expr:
                             try:
                                 # Try evaluating the expression with current variables
-                                val = eval(expr, {"__builtins__": {}}, self.variables)
+                                val = static_eval(ast.parse(expr, mode='eval'), self._numeric_variables())
                                 if isinstance(val, int):
                                     result.append(val)
                                 else:
@@ -752,7 +891,7 @@ class PennyLaneASTVisitor(ast.NodeVisitor):
                 expr = ast.unparse(node) if hasattr(ast, 'unparse') else None
                 if expr:
                     try:
-                        val = eval(expr, {"__builtins__": {}}, self.variables)
+                        val = static_eval(ast.parse(expr, mode='eval'), self._numeric_variables())
                         if isinstance(val, int):
                             return [val]
                         return [expr.replace(' ', '')]
@@ -764,20 +903,30 @@ class PennyLaneASTVisitor(ast.NodeVisitor):
         return []
 
     def _extract_params(self, call: ast.Call, method_name: str) -> List[Any]:
-        params: List[Any] = []
-        # Parameterized gates: RX/RY/RZ/PhaseShift and their controlled versions
-        # Also includes GlobalPhase
-        parameterized_gates = [
-            'RX', 'RY', 'RZ', 'PhaseShift', 
-            'CRX', 'CRY', 'CRZ', 'ControlledPhaseShift',
-            'GlobalPhase'
-        ]
-        if method_name in parameterized_gates and call.args:
-            angle = call.args[0]
-            params.append(self._extract_parameter(angle))
+        """Angle parameters, positional (before the wires) or by keyword."""
+        names = self._PARAM_NAMES.get(method_name, [])
+        if not names:
+            if any(kw.arg not in ('wires', 'id') for kw in call.keywords):
+                raise UnsupportedCircuitError(f"unsupported keyword arguments in '{ast.unparse(call)}'")
+            return []
+        has_wires_kw = any(kw.arg == 'wires' for kw in call.keywords)
+        positional = list(call.args if has_wires_kw else call.args[:-1])
+        values: List[Any] = [None] * len(names)
+        for i, arg in enumerate(positional):
+            if i >= len(names):
+                raise UnsupportedCircuitError(f"too many arguments in '{ast.unparse(call)}'")
+            values[i] = self._extract_parameter(arg)
+        for kw in call.keywords:
+            if kw.arg in ('wires', 'id'):
+                continue
+            if kw.arg not in names:
+                raise UnsupportedCircuitError(f"unsupported keyword '{kw.arg}' in '{ast.unparse(call)}'")
+            values[names.index(kw.arg)] = self._extract_parameter(kw.value)
+        if any(v is None for v in values):
+            raise UnsupportedCircuitError(f"missing parameters in '{ast.unparse(call)}'")
         if VERBOSE:
-            vprint(f"[PennyLaneASTVisitor]   _extract_params method={method_name} -> {params}")
-        return params
+            vprint(f"[PennyLaneASTVisitor]   _extract_params method={method_name} -> {values}")
+        return values
 
     def _extract_parameter(self, node: ast.AST):
         if VERBOSE:
@@ -958,7 +1107,7 @@ class PennyLaneASTVisitor(ast.NodeVisitor):
             expr = ast.unparse(node) if hasattr(ast, 'unparse') else None
             if expr:
                 try:
-                    val = eval(expr, {"__builtins__": {}}, self.variables)
+                    val = static_eval(ast.parse(expr, mode='eval'), self._numeric_variables())
                     if isinstance(val, (int, float, list)):
                         return val
                 except Exception:
@@ -969,52 +1118,48 @@ class PennyLaneASTVisitor(ast.NodeVisitor):
         return 'expr'
 
     def _handle_listcomp_parameter(self, node: ast.ListComp):
-        """Handle list comprehensions via static evaluation."""
+        """[f(i) for i in range(n)] evaluated statically (no eval of user code)."""
+        if len(node.generators) != 1 or node.generators[0].ifs or not isinstance(node.generators[0].target, ast.Name):
+            return 'expr'
+        gen = node.generators[0]
         try:
-            expr = ast.unparse(node)
-            safe_globals = {
-                "__builtins__": {
-                    "range": range,
-                    "list": list,
-                    "len": len,
-                    "enumerate": enumerate,
-                    "int": int,
-                    "float": float,
-                },
-                "np": np,
-                "numpy": np,
-            }
-            return eval(expr, safe_globals, self.variables)
-        except:
+            values = self._static_iterable(gen.iter)
+            out = []
+            for v in values:
+                env = dict(self._numeric_variables())
+                env[gen.target.id] = v
+                out.append(static_eval(node.elt, env))
+            return out
+        except NotStatic:
             return 'expr'
 
+    def _numeric_variables(self):
+        return {k: v for k, v in self.variables.items() if not isinstance(v, str)}
+
+    def _static_iterable(self, node):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == 'range' \
+                and not node.keywords and 1 <= len(node.args) <= 3:
+            bounds = [static_eval(a, self._numeric_variables()) for a in node.args]
+            if not all(isinstance(b, int) for b in bounds):
+                raise NotStatic("range bounds")
+            return list(range(*bounds))
+        value = static_eval(node, self._numeric_variables())
+        if not isinstance(value, list):
+            raise NotStatic("not iterable")
+        return value
+
     def _handle_call_parameter(self, node: ast.Call):
-        """Handle function calls like list(range(n)) or np.floor(...)."""
-        try:
-            expr = ast.unparse(node)
-            # Define allowed builtins and libraries
-            safe_globals = {
-                "__builtins__": {
-                    "range": range,
-                    "list": list,
-                    "len": len,
-                    "enumerate": enumerate,
-                    "int": int,
-                    "float": float,
-                    "max": max,
-                    "min": min,
-                    "round": round,
-                },
-                "np": np,
-                "numpy": np,
-            }
-            # Special handling for qml.device - don't evaluate that as a parameter
-            if self._is_qml_call(node):
+        """Handle calls like list(range(n)), np.array([...]) or np.sin(x) statically."""
+        if self._is_qml_call(node):
+            return 'expr'
+        if isinstance(node.func, ast.Name) and node.func.id == 'list' and len(node.args) == 1:
+            try:
+                return self._static_iterable(node.args[0])
+            except NotStatic:
                 return 'expr'
-                
-            val = eval(expr, safe_globals, self.variables)
-            return val
-        except:
+        try:
+            return static_eval(node, self._numeric_variables())
+        except NotStatic:
             return 'expr'
 
 
@@ -1039,13 +1184,16 @@ class PennyLaneASTParser:
         # Reset visitor
         self.visitor = PennyLaneASTVisitor()
         self.visitor.visit(tree)
+        if self.visitor.unsupported_operations:
+            unsupported = ", ".join(sorted(self.visitor.unsupported_operations))
+            raise UnsupportedCircuitError(f"Unsupported PennyLane operations encountered: {unsupported}")
 
         # Determine qubit count: prefer device wires; else infer from max wire index
         if self.visitor.qubits <= 0:
             self.visitor.qubits = self._infer_qubit_count()
 
         # Determine classical bit count: use clbits if set, else infer from qubits
-        clbit_count = self.visitor.clbits if self.visitor.clbits > 0 else self.visitor.qubits
+        clbit_count = self.visitor.clbits
 
         circuit_ast = CircuitAST(
             qubits=self.visitor.qubits,

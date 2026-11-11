@@ -33,30 +33,39 @@ def run_qasm(args: Union[RunArgs, dict]) -> SimResult:
         module = parse_openqasm3(qasm_input)
 
         # 2. Visitor: Traverse AST and build circuit
-        visitor = get_visitor(args.backend)
+        # Resolve the backend first so an unknown name fails before any work.
+        backend_name = args.backend
+        backend = get_backend(backend_name)
+        visitor = get_visitor(backend_name)
         visitor.visit(module)
         circuit = visitor.finalize()  # Assumes _block accumulator
 
-        # 3. Backend: Run simulation (auto-pair if unspecified)
-        backend_name = args.backend
-        backend = get_backend(backend_name)
-        raw_result = backend.run(circuit, args.shots)
+        # 3. Backend: Run simulation. The visitor's output spec makes every
+        #    backend report bitstrings in the same layout (see BaseBackend).
+        spec = visitor.output_spec() if hasattr(visitor, 'output_spec') else None
+        raw_result = backend.run(circuit, args.shots, spec=spec, seed=getattr(args, 'seed', None))
         counts = backend.to_counts(raw_result)
 
         # 4. Build SimResult (infer n_qubits from circuit if possible)
-        n_qubits = (
-            getattr(circuit, 'n_qubits', None)
-            or getattr(circuit, 'num_qubits', None)
-            or len(list(getattr(circuit, 'all_qubits', lambda: [])())) 
-            or len(getattr(circuit, 'wires', []))  # PennyLane
-            or 1  # Fallback
-        )
+        if spec is not None and spec.get('qubits') is not None:
+            n_qubits = len(spec['qubits'])
+        else:
+            n_qubits = (
+                getattr(circuit, 'n_qubits', None)
+                or getattr(circuit, 'num_qubits', None)
+                or len(list(getattr(circuit, 'all_qubits', lambda: [])()))
+                or len(getattr(circuit, 'wires', []))  # PennyLane
+                or 1  # Fallback
+            )
         metadata = {
             'n_qubits': n_qubits,
             'backend': args.backend,
             'shots': args.shots,
             'success': True,
         }
+        if spec is not None:
+            metadata['measured'] = bool(spec.get('measured'))
+            metadata['n_clbits'] = len(spec.get('clbits') or [])
         probs = raw_result.get('probs') if args.shots == 0 else None
 
         return SimResult(counts=counts, metadata=metadata, probs=probs)

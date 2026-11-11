@@ -60,6 +60,8 @@ from typing import List, Set, Any, Optional, Dict, Tuple, Union
 from quantum_converters.base.circuit_ast import (
     CircuitAST, GateNode, MeasurementNode, ResetNode, BarrierNode, ForLoopNode, IfStatementNode
 )
+from quantum_converters.base.circuit_validation import UnsupportedCircuitError
+from quantum_converters.base.safe_eval import NotStatic, static_number
 
 # VERBOSE is imported from config.config
 
@@ -92,6 +94,8 @@ class CirqASTVisitor(ast.NodeVisitor):
         self.unsupported_operations: Set[str] = set()
         self.variables: Dict[str, Any] = {}  # Track numeric variable assignments
         self.array_parameters: Dict[str, int] = {}  # Track array parameters and their sizes
+        self.qubit_ranges: Dict[str, int] = {}  # var -> size for `q = cirq.LineQubit.range(n)`
+        self.loop_stack: List[Tuple[str, int, int]] = []  # enclosing range() loops (var, start, end)
 
     def visit_Assign(self, node: ast.Assign) -> None:
         """Handle variable assignments, particularly Circuit creation."""
@@ -198,13 +202,15 @@ class CirqASTVisitor(ast.NodeVisitor):
         loop_body = []
         saved_operations = self.operations
         self.operations = loop_body
-        
-        # Visit all statements in the loop body
-        for stmt in node.body:
-            self.visit(stmt)
-        
-        # Restore operations list
-        self.operations = saved_operations
+        self.loop_stack.append((loop_var, range_start, range_end))
+        try:
+            # Visit all statements in the loop body
+            for stmt in node.body:
+                self.visit(stmt)
+        finally:
+            self.loop_stack.pop()
+            # Restore operations list
+            self.operations = saved_operations
         
         # Create ForLoopNode only if it contains circuit operations
         if loop_body:
@@ -442,14 +448,54 @@ class CirqASTVisitor(ast.NodeVisitor):
                 return True
         return False
 
+    def _line_qubit_indices(self, call_node) -> List[int]:
+        """
+        Cirq qubit identity: cirq.LineQubit(k) is qubit k, LineQubit.range(a, b) is
+        qubits a..b-1 (two range() calls of the same size are the SAME qubits).
+        Grid/Named qubits have no static integer identity -> runtime path.
+        """
+        func = call_node.func
+        owner = func.value.attr if isinstance(func.value, ast.Attribute) else getattr(func.value, 'id', None)
+        if func.attr == 'range':
+            if owner != 'LineQubit':
+                raise UnsupportedCircuitError(f"{owner}.range(...) qubits are not supported statically")
+            ints = {k: v for k, v in self.variables.items() if isinstance(v, int) and not isinstance(v, bool)}
+            try:
+                bounds = [int(static_number(a, ints)) for a in call_node.args]
+            except NotStatic:
+                raise UnsupportedCircuitError("could not determine the size of a LineQubit.range(...)")
+            if not 1 <= len(bounds) <= 3 or call_node.keywords:
+                raise UnsupportedCircuitError("unsupported LineQubit.range(...) call")
+            return list(range(*bounds))
+        if func.attr == 'LineQubit':
+            if len(call_node.args) != 1 or call_node.keywords:
+                raise UnsupportedCircuitError("unsupported cirq.LineQubit(...) call")
+            ints = {k: v for k, v in self.variables.items() if isinstance(v, int) and not isinstance(v, bool)}
+            try:
+                return [int(static_number(call_node.args[0], ints))]
+            except NotStatic:
+                raise UnsupportedCircuitError("could not determine a cirq.LineQubit index statically")
+        raise UnsupportedCircuitError(f"cirq.{func.attr}(...) qubits are not supported statically")
+
     def _handle_qubit_creation(self, target, call_node):
         """Handle qubit creation and assignment."""
+        indices = self._line_qubit_indices(call_node)
+        if indices:
+            self.qubit_counter = max(self.qubit_counter, max(indices) + 1)
         if isinstance(target, ast.Tuple):
-            self._handle_tuple_qubit_creation(target)
+            if len(target.elts) != len(indices) or not all(isinstance(e, ast.Name) for e in target.elts):
+                raise UnsupportedCircuitError("qubit unpacking does not match the number of qubits")
+            for elt, idx in zip(target.elts, indices):
+                self.qubit_vars[elt.id] = idx
         elif isinstance(target, ast.Name):
-            var_name = target.id
-            self._handle_single_qubit_creation(var_name, call_node)
-        # Other target types are ignored
+            if self._is_range_qubit_creation(call_node):
+                self.qubit_ranges[target.id] = len(indices)
+                for i, idx in enumerate(indices):
+                    self.qubit_vars[f"{target.id}[{i}]"] = idx
+            else:
+                self.qubit_vars[target.id] = indices[0]
+        else:
+            raise UnsupportedCircuitError("unsupported qubit assignment target")
 
     def _is_main_guard(self, node: ast.If) -> bool:
         """Check if an if statement is the 'if __name__ == "__main__":' guard."""
@@ -475,91 +521,76 @@ class CirqASTVisitor(ast.NodeVisitor):
             
         return False
 
-    def _handle_tuple_qubit_creation(self, target: ast.Tuple):
-        """Handle tuple unpacking for qubit creation like q0, q1 = cirq.LineQubit.range(2)."""
-        for elt in target.elts:
-            if isinstance(elt, ast.Name):
-                self.qubit_vars[elt.id] = self.qubit_counter
-                self.qubit_counter += 1
-
-    def _handle_single_qubit_creation(self, var_name: str, call_node):
-        """Handle single variable qubit creation."""
-        if self._is_range_qubit_creation(call_node):
-            self._handle_range_qubit_creation(var_name, call_node)
-        else:
-            # Handle single qubit creation like q0 = cirq.LineQubit(0)
-            if call_node.args:
-                index = self._extract_qubit_index(call_node.args[0])
-                self.qubit_vars[var_name] = index
-                self.qubit_counter = max(self.qubit_counter, index + 1)
-
     def _is_range_qubit_creation(self, call_node) -> bool:
         """Check if this is a range-based qubit creation."""
         return (isinstance(call_node.func, ast.Attribute) and
                 call_node.func.attr == 'range')
 
-    def _handle_range_qubit_creation(self, var_name: str, call_node):
-        """Handle range-based qubit creation like cirq.LineQubit.range(n)."""
-        if not call_node.args:
-            return
-        
-        count = None
-        arg = call_node.args[0]
-        
-        # Handle ast.Num (deprecated) for older Python
-        if isinstance(arg, ast.Num):
-            count = arg.n
-        # Handle ast.Constant (Python 3.8+)
-        elif isinstance(arg, ast.Constant) and isinstance(arg.value, int):
-            count = arg.value
-        # Handle variable reference like n_bits
-        elif isinstance(arg, ast.Name):
-            var_name_ref = arg.id
-            if var_name_ref in self.variables:
-                count = self.variables[var_name_ref]
-                if VERBOSE:
-                    vprint(f"[CirqASTVisitor] Resolved LineQubit.range variable: {var_name_ref} = {count}")
-        
-        if count is not None and isinstance(count, int):
-            for i in range(count):
-                self.qubit_vars[f"{var_name}[{i}]"] = self.qubit_counter
-                self.qubit_counter += 1
-
     def _parse_circuit_constructor_args(self, circuit_call: ast.Call) -> None:
         """Parse arguments passed to Circuit constructor (operations)."""
         # Circuit constructor arguments are the operations to add
         for arg in circuit_call.args:
-            if isinstance(arg, ast.Call):
-                # This is a function call like cirq.H(q0) or cirq.measure(q0)
-                self._parse_operation_call(arg)
-            elif isinstance(arg, ast.Name):
-                # Handle operation variables
-                if arg.id in self.op_vars:
-                    op = self.op_vars[arg.id]
-                    if isinstance(op, (GateNode, MeasurementNode, ResetNode, BarrierNode, ForLoopNode, IfStatementNode, list)):
-                        if isinstance(op, list):
-                            self.operations.extend(op)
-                        else:
-                            self.operations.append(op)
-            elif isinstance(arg, ast.List):
-                # Handle list of operations
-                for item in arg.elts:
-                    if isinstance(item, ast.Call):
-                        self._parse_operation_call(item)
-                    elif isinstance(item, ast.Name):
-                        if item.id in self.op_vars:
-                            op = self.op_vars[item.id]
-                            if isinstance(op, list): self.operations.extend(op)
-                            else: self.operations.append(op)
+            items = arg.elts if isinstance(arg, (ast.List, ast.Tuple)) else [arg]
+            for item in items:
+                self._append_item(item)
+        for kw in circuit_call.keywords:
+            self._unsupported(f"cirq.Circuit({kw.arg}=...)")
+
+    def _unsupported(self, what: str) -> None:
+        """Record a construct we cannot translate exactly (parse() then fails loudly)."""
+        self.unsupported_operations.add(what)
+
+    def _add_ops(self, op) -> None:
+        if isinstance(op, list):
+            self.operations.extend(op)
+        else:
+            self.operations.append(op)
+
+    def _append_item(self, item: ast.expr) -> None:
+        """Add one operation expression (as passed to Circuit(...) or circuit.append(...))."""
+        if isinstance(item, ast.Name):
+            if item.id in self.op_vars:
+                self._add_ops(self.op_vars[item.id])
+            else:
+                self._unsupported(f"operation variable '{item.id}'")
+            return
+        if isinstance(item, ast.Call):
+            inner_method = self._extract_method_name(item)
+            if inner_method in ('on', 'with_classical_controls') or isinstance(item.func, ast.Call):
+                op = self._resolve_operation(item)
+                if op is not None:
+                    self._add_ops(op)
+                    return
+                if isinstance(item.func, ast.Call):
+                    param_method = self._extract_parameterized_gate_name(item.func)
+                    if param_method:
+                        before = len(self.unsupported_operations)
+                        n_ops = len(self.operations)
+                        self._parse_gate_operation(param_method, item.func.args + item.args, item.keywords, item)
+                        if len(self.operations) > n_ops or len(self.unsupported_operations) > before:
+                            return
+                self._unsupported(self._describe(item))
+                return
+            if inner_method:
+                self._parse_gate_operation(inner_method, item.args, item.keywords, item)
+                return
+        self._unsupported(self._describe(item))
+
+    @staticmethod
+    def _describe(node: ast.AST) -> str:
+        try:
+            text = ast.unparse(node)
+        except Exception:
+            text = type(node).__name__
+        return text if len(text) <= 60 else text[:57] + "..."
 
     def _parse_operation_call(self, call_node: ast.Call) -> None:
         """Parse a single operation call like cirq.H(q0) or cirq.measure(q0)."""
         op = self._resolve_operation(call_node)
         if op:
-            if isinstance(op, list):
-                self.operations.extend(op)
-            else:
-                self.operations.append(op)
+            self._add_ops(op)
+        else:
+            self._unsupported(self._describe(call_node))
 
     def _resolve_operation(self, call_node: ast.Call) -> Optional[Any]:
         """Resolve a call node to an operation or list of operations."""
@@ -692,27 +723,34 @@ class CirqASTVisitor(ast.NodeVisitor):
         if isinstance(node.func.value, ast.Name) and node.func.value.id in self.circuit_vars:
             method_name = node.func.attr
             
-            # Handle circuit.append(cirq.Gate(qubit)) pattern
+            # circuit.append(op) / circuit.append([op, op, ...])
             if method_name == 'append':
-                if node.args and isinstance(node.args[0], ast.Call):
-                    # Extract the inner gate call: cirq.H(q0), cirq.CNOT(q0, q1), etc.
-                    inner_call = node.args[0]
-                    inner_method = self._extract_method_name(inner_call)
-                    if inner_method:
-                        if VERBOSE:
-                            vprint(f"[CirqASTVisitor] Extracted from append: {inner_method}")
-                        self._parse_gate_operation(inner_method, inner_call.args, inner_call.keywords, inner_call)
-                    else:
-                        # Try parameterized gate pattern
-                        if isinstance(inner_call.func, ast.Call):
-                            param_method = self._extract_parameterized_gate_name(inner_call.func)
-                            if param_method:
-                                adjusted_args = inner_call.func.args + inner_call.args
-                                self._parse_gate_operation(param_method, adjusted_args, inner_call.keywords, inner_call)
+                if not node.args:
+                    return
+                target = node.args[0]
+                items = target.elts if isinstance(target, (ast.List, ast.Tuple)) else [target]
+                for item in items:
+                    self._append_item(item)
+                for kw in node.keywords:
+                    # e.g. strategy=cirq.InsertStrategy.NEW only changes moment layout
+                    if kw.arg != 'strategy':
+                        self._unsupported(f"circuit.append({kw.arg}=...)")
                 return
-            
-            # For other methods, parse directly
-            self._parse_gate_operation(method_name, node.args, node.keywords)
+
+            if method_name in self._MUTATING_CIRCUIT_METHODS:
+                self._unsupported(f"circuit.{method_name}(...)")
+            # Read-only methods (to_text_diagram, all_qubits, ...) do not change the circuit.
+
+    _MUTATING_CIRCUIT_METHODS = frozenset({
+        'insert', 'batch_insert', 'batch_append', 'batch_insert_into', 'batch_remove', 'batch_replace',
+        'clear_operations_touching', 'insert_at_frontier', 'insert_into_range', 'extend', '__iadd__',
+    })
+
+    def visit_AugAssign(self, node: ast.AugAssign) -> None:
+        """`circuit += op` is not modelled statically."""
+        if isinstance(node.target, ast.Name) and node.target.id in self.circuit_vars:
+            self._unsupported("circuit += ...")
+        self.generic_visit(node)
 
     def _create_gate_operation(self, method_name: str, args: List[ast.expr], keywords: List[ast.keyword], call_node: ast.Call = None) -> Optional[Any]:
         """Create a gate operation node from a call."""
@@ -730,39 +768,49 @@ class CirqASTVisitor(ast.NodeVisitor):
                 return GateNode(name='cx' if method_upper in ('CX', 'CNOT') else method_name.lower(), qubits=[q1, q2])
         elif method_upper in ['RX', 'RY', 'RZ']:
             # Handle parameterized rotations
-            param = None
-            qubit = 0
+            kw_param = None
+            for kw in keywords or []:
+                if kw.arg in ['rads', 'theta', 'exponent', 'half_turns']:
+                    kw_param = self._extract_parameter(kw.value)
+                    if kw.arg in ['exponent', 'half_turns']:
+                        kw_param = f"({kw_param})*pi"
+            name = method_name.lower()
             if len(args) >= 2:
-                param = self._extract_parameter(args[0])
-                qubit = self._extract_qubit_index(args[1])
-            elif args:
-                # Pattern like cirq.rx(theta)(q): the inner call carries parameter,
-                # the outer call supplies qubits.
-                param = self._extract_parameter(args[0])
-                return GateNode(name=method_name.lower(), qubits=[], parameters=[param])
-            if keywords:
-                for kw in keywords:
-                    if kw.arg in ['rads', 'theta', 'exponent', 'half_turns']:
-                        param = self._extract_parameter(kw.value)
-                        if kw.arg in ['exponent', 'half_turns']: param = f"({param})*pi"
-            return GateNode(name=method_name.lower(), qubits=[qubit], parameters=[param] if param else [])
+                return GateNode(name=name, qubits=[self._extract_qubit_index(args[1])],
+                                parameters=[self._extract_parameter(args[0])])
+            if len(args) == 1:
+                if kw_param is not None:
+                    # Merged form Rx(rads=t)(q): the single positional arg is the qubit.
+                    return GateNode(name=name, qubits=[self._extract_qubit_index(args[0])], parameters=[kw_param])
+                # Factory form cirq.rx(theta): the outer call supplies the qubit.
+                return GateNode(name=name, qubits=[], parameters=[self._extract_parameter(args[0])])
+            if kw_param is not None:
+                # cirq.Rx(rads=theta): the outer call supplies the qubit.
+                return GateNode(name=name, qubits=[], parameters=[kw_param])
+            return None
         elif method_upper == 'RESET':
             if args:
                 qubit = self._extract_qubit_index(args[0])
                 return ResetNode(qubit=qubit)
-        elif method_upper == 'TOFFOLI':
+        elif method_upper in ('CCZ', 'ISWAP'):
+            n = 3 if method_upper == 'CCZ' else 2
+            if len(args) == n:
+                return GateNode(name=method_upper.lower(), qubits=[self._extract_qubit_index(a) for a in args])
+        elif method_upper in ('TOFFOLI', 'CCX', 'CCNOT'):
             if len(args) >= 3:
                 q0 = self._extract_qubit_index(args[0])
                 q1 = self._extract_qubit_index(args[1])
                 q2 = self._extract_qubit_index(args[2])
                 return GateNode(name='ccx', qubits=[q0, q1, q2])
-        elif method_upper == 'FREDKIN':
+        elif method_upper in ('FREDKIN', 'CSWAP'):
             if len(args) >= 3:
                 q0 = self._extract_qubit_index(args[0])
                 q1 = self._extract_qubit_index(args[1])
                 q2 = self._extract_qubit_index(args[2])
                 return GateNode(name='cswap', qubits=[q0, q1, q2])
-        elif method_upper == 'MEASURE':
+        elif method_upper in ('MEASURE', 'MEASURE_EACH'):
+            if method_upper == 'MEASURE_EACH' and keywords:
+                return None
             return self._handle_measurement_cirq_node(args, keywords)
         
         # Fallback to old path if needed or return None
@@ -781,18 +829,22 @@ class CirqASTVisitor(ast.NodeVisitor):
                         val = kw.value.value if isinstance(kw.value, ast.Constant) else kw.value.s
                         key = str(val)
 
+        for kw in keywords or []:
+            if kw.arg != 'key':
+                # invert_mask / confusion_map change the recorded bits
+                raise UnsupportedCircuitError(f"cirq.measure({kw.arg}=...) is not supported")
+
         ops = []
-        
+
         # If we have a key, ensure all qubits in this call are tracked under that key
         if key and key not in self.measurement_keys:
             self.measurement_keys[key] = []
-        
-        for arg in args:
-            qubit = self._extract_qubit_index(arg)
-            
-            # Use unique clbit for every unique measurement operation
-            clbit = self.clbit_counter
-            self.clbit_counter += 1
+
+        for qubit in self._expand_qubit_args(args):
+
+            # Use a unique clbit for every measurement *execution*: inside loops each
+            # iteration gets its own bit (c[base + flat_iteration_index]).
+            clbit = self._allocate_clbit()
             
             if key:
                 self.measurement_keys[key].append(clbit)
@@ -801,22 +853,60 @@ class CirqASTVisitor(ast.NodeVisitor):
         
         return ops if len(ops) > 1 else (ops[0] if ops else None)
 
+    def _allocate_clbit(self) -> Union[int, str]:
+        if not self.loop_stack:
+            clbit = self.clbit_counter
+            self.clbit_counter += 1
+            return clbit
+        total = 1
+        for _, start, end in self.loop_stack:
+            total *= max(0, end - start)
+        base = self.clbit_counter
+        self.clbit_counter += total
+        terms = []
+        stride = 1
+        for var, start, end in reversed(self.loop_stack):
+            term = var if start == 0 else f"({var}-{start})"
+            terms.append(term if stride == 1 else f"{term}*{stride}")
+            stride *= max(0, end - start)
+        expr = "+".join(reversed(terms))
+        return expr if base == 0 else f"{base}+{expr}"
+
+    def _expand_qubit_args(self, args: List[ast.expr]) -> List[Union[int, str]]:
+        """Resolve qubit arguments, expanding `*qubits` for LineQubit.range variables."""
+        out = []
+        for arg in args:
+            if isinstance(arg, ast.Starred):
+                inner = arg.value
+                if isinstance(inner, ast.Name) and inner.id in self.qubit_ranges:
+                    out.extend(self.qubit_vars[f"{inner.id}[{i}]"] for i in range(self.qubit_ranges[inner.id]))
+                elif isinstance(inner, (ast.List, ast.Tuple)):
+                    out.extend(self._extract_qubit_index(e) for e in inner.elts)
+                else:
+                    raise UnsupportedCircuitError(f"cannot expand '*{self._describe(inner)}' statically")
+            elif isinstance(arg, (ast.List, ast.Tuple)):
+                out.extend(self._extract_qubit_index(e) for e in arg.elts)
+            elif isinstance(arg, ast.Name) and arg.id in self.qubit_ranges:
+                out.extend(self.qubit_vars[f"{arg.id}[{i}]"] for i in range(self.qubit_ranges[arg.id]))
+            else:
+                out.append(self._extract_qubit_index(arg))
+        return out
+
     def _parse_gate_operation(self, method_name: str, args: List[ast.expr], keywords: List[ast.keyword], call_node: ast.Call = None) -> None:
         """Parse a gate operation and add it to operations list."""
         op = self._create_gate_operation(method_name, args, keywords, call_node)
         if op:
+            # Fully handled by the node factory (previously this fell through and
+            # crashed with UnboundLocalError on `method_upper`).
             if isinstance(op, list): self.operations.extend(op)
             else: self.operations.append(op)
-        else:
-            # Fallback for complex gates not yet in _create_gate_operation
-            method_upper = method_name.upper()
-        
+            return
+
+        # Fallback for complex gates not yet in _create_gate_operation
+        method_upper = method_name.upper()
+
         # Route to appropriate handler based on gate type
-        if method_upper in ['H', 'X', 'Y', 'Z', 'S', 'T', 'SX', 'I', 'ID']:
-            self._handle_single_qubit_gate_cirq(method_name, args)
-        elif method_upper in ['CNOT', 'CX', 'CZ', 'CY', 'CH', 'SWAP']:
-            self._handle_two_qubit_gate_cirq(method_name, args)
-        elif method_upper in ['RX', 'RY', 'RZ']:
+        if method_upper in ['RX', 'RY', 'RZ']:
             self._handle_parameterized_rotation_gate_cirq(method_name, args, keywords)
         elif method_upper in ['ZPOWGATE', 'RZPOWGATE']:
             self._handle_zpow_gate_cirq(args, call_node)
@@ -830,10 +920,16 @@ class CirqASTVisitor(ast.NodeVisitor):
             self._handle_reset_cirq(args)
         elif method_upper in ['TOFFOLI', 'FREDKIN']:
             self._handle_multi_qubit_named_gate(method_name, args)
-        elif method_upper == 'CXPOWGATE':
-            self._handle_cxpow_gate_cirq(args, call_node)
-        elif method_upper == 'CZPOWGATE':
-            self._handle_czpow_gate_cirq(args, call_node)
+        elif method_upper in ('CXPOWGATE', 'CZPOWGATE'):
+            keywords_all = (call_node.keywords if call_node is not None and call_node.keywords else
+                            (call_node.func.keywords if call_node is not None and isinstance(call_node.func, ast.Call) else []))
+            exponent = self._extract_keyword_arg(keywords_all, 'exponent', 1.0)
+            if exponent not in (1, 1.0):
+                self._unsupported(f"{method_name}(exponent={exponent})")
+            elif method_upper == 'CXPOWGATE':
+                self._handle_cxpow_gate_cirq(args, call_node)
+            else:
+                self._handle_czpow_gate_cirq(args, call_node)
         else:
             # if VERBOSE:
             vprint(f"[CirqASTVisitor] Unsupported gate: {method_name}")
@@ -1152,8 +1248,12 @@ class CirqASTVisitor(ast.NodeVisitor):
         elif isinstance(node, ast.Call):
             # Handle cirq.LineQubit(i) where i is a variable
             return self._handle_call_qubit_node(node)
-        else:
-            return 0
+        elif isinstance(node, ast.BinOp):
+            try:
+                return int(static_number(node, {k: v for k, v in self.variables.items() if isinstance(v, int)}))
+            except NotStatic:
+                return ast.unparse(node).replace(' ', '')
+        raise UnsupportedCircuitError(f"cannot resolve qubit '{self._describe(node)}' statically")
 
     # Removed deprecated ast.Num handler; ast.Constant path covers ints
 
@@ -1188,8 +1288,15 @@ class CirqASTVisitor(ast.NodeVisitor):
                         return self.qubit_vars[key]
                     return index
             elif isinstance(index_node, ast.Name):
-                return index_node.id
-        return 0
+                key_var = index_node.id
+                if key_var in self.variables and isinstance(self.variables[key_var], int):
+                    key = f"{base_name}[{self.variables[key_var]}]"
+                    if key in self.qubit_vars:
+                        return self.qubit_vars[key]
+                if base_name in self.qubit_ranges:
+                    # q[i] inside a loop over the range variable
+                    return index_node.id
+        raise UnsupportedCircuitError(f"cannot resolve qubit '{self._describe(node)}' statically")
 
     def _handle_call_qubit_node(self, node: ast.Call) -> Union[int, str]:
         """Handle qubit creation calls like cirq.LineQubit(i) where i may be a variable."""
@@ -1198,14 +1305,19 @@ class CirqASTVisitor(ast.NodeVisitor):
             isinstance(node.func.value, ast.Name) and
             node.func.value.id == 'cirq' and
             node.func.attr == 'LineQubit'):
-            if node.args:
+            if node.args and len(node.args) == 1:
                 arg = node.args[0]
-                if isinstance(arg, ast.Constant):
+                if isinstance(arg, ast.Constant) and isinstance(arg.value, int):
                     return arg.value
                 elif isinstance(arg, ast.Name):
                     # Variable index like cirq.LineQubit(i)
+                    val = self.variables.get(arg.id)
+                    if isinstance(val, int) and not isinstance(val, bool):
+                        return val
                     return arg.id
-        return 0
+                elif isinstance(arg, ast.BinOp):
+                    return ast.unparse(arg).replace(' ', '')
+        raise UnsupportedCircuitError(f"cannot resolve qubit '{self._describe(node)}' statically")
 
     def _extract_parameter(self, node: ast.expr) -> Any:
         """Extract parameter value or name from AST node."""
@@ -1238,7 +1350,13 @@ class CirqASTVisitor(ast.NodeVisitor):
         elif isinstance(node, ast.Subscript):
             # Handle subscripts like gamma[layer]
             return self._extract_expression(node)
-        return 0
+        elif isinstance(node, (ast.UnaryOp, ast.Call)):
+            try:
+                return static_number(node, {k: v for k, v in self.variables.items()
+                                            if isinstance(v, (int, float)) and not isinstance(v, bool)})
+            except NotStatic:
+                pass
+        raise UnsupportedCircuitError(f"cannot resolve parameter '{self._describe(node)}' statically")
 
     def _extract_expression(self, node: ast.expr) -> str:
         """Extract mathematical expression as string."""
@@ -1365,9 +1483,9 @@ class CirqASTParser:
             vprint(f"[CirqASTParser] Qubits: {self.visitor.qubit_counter}, Clbits: {self.visitor.qubit_counter}")
             vprint(f"[CirqASTParser] Parameters: {list(self.visitor.parameters)}")
 
-        # if self.visitor.unsupported_operations:
-        #     unsupported = ", ".join(sorted(self.visitor.unsupported_operations))
-        #     raise ValueError(f"Unsupported Cirq operations encountered: {unsupported}")
+        if self.visitor.unsupported_operations:
+            unsupported = ", ".join(sorted(self.visitor.unsupported_operations))
+            raise UnsupportedCircuitError(f"Unsupported Cirq operations encountered: {unsupported}")
 
         # Validate that we found a circuit
         if not self.visitor.operations:
@@ -1390,6 +1508,13 @@ class CirqASTParser:
         if qubit_count == 0:
             # Fallback: infer from for loop ranges and operations
             qubit_count = self._infer_qubit_count()
+        else:
+            # cirq.LineQubit(k) can be used inline without a prior declaration.
+            for op in all_ops:
+                qs = op.qubits if isinstance(op, GateNode) else ([op.qubit] if isinstance(op, (MeasurementNode, ResetNode)) else [])
+                for q in qs:
+                    if isinstance(q, int) and not isinstance(q, bool):
+                        qubit_count = max(qubit_count, q + 1)
         
         # Create CircuitAST
         circuit_ast = CircuitAST(

@@ -61,6 +61,8 @@ from typing import List, Dict, Any, Optional, Set, Tuple, Union
 from quantum_converters.base.circuit_ast import (
     CircuitAST, GateNode, MeasurementNode, ResetNode, BarrierNode, ForLoopNode, IfStatementNode
 )
+from quantum_converters.base.circuit_validation import UnsupportedCircuitError
+from quantum_converters.base.safe_eval import NotStatic, static_eval
 
 # VERBOSE is imported from config.config
 
@@ -91,6 +93,9 @@ class QiskitASTVisitor(ast.NodeVisitor):
         self.classical_registers: Set[str] = set()  # Track classical register names
         self.clbit_counter: int = 0  # Counter for automatic clbit allocation
         self.array_parameters: Dict[str, int] = {}  # Track array parameters and their sizes
+        self.unsupported_operations: Set[str] = set()  # constructs we cannot translate exactly
+        self.qreg_offsets: Dict[str, int] = {}  # quantum register -> first global qubit index
+        self.creg_offsets: Dict[str, int] = {}  # classical register -> first global clbit index
 
     def visit_Assign(self, node: ast.Assign) -> None:
         """Handle variable assignments, particularly QuantumCircuit creation."""
@@ -102,7 +107,10 @@ class QiskitASTVisitor(ast.NodeVisitor):
             var_name = node.targets[0].id
             # Don't store Python variable assignments for classical register names
             if var_name not in self.classical_registers:
+                # Tracking a Python variable must not declare circuit parameters.
+                params_before = set(self.parameters)
                 val = self._extract_parameter(node.value)
+                self.parameters = params_before
                 if val != 'expr':
                     self.variables[var_name] = val
                     if VERBOSE:
@@ -135,7 +143,14 @@ class QiskitASTVisitor(ast.NodeVisitor):
         elif isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Attribute):
             if VERBOSE:
                 vprint("[QiskitASTVisitor] Assignment invokes method; treating as circuit operation if applicable")
-            self._handle_circuit_method_call(node.value)
+            func = node.value.func
+            if (isinstance(func.value, ast.Name) and func.value.id in self.circuit_vars
+                    and func.attr in ('copy', 'compose', 'decompose', 'inverse', 'reverse_bits',
+                                      'reverse_ops', 'assign_parameters', 'power', 'repeat',
+                                      'control', 'tensor', 'copy_empty_like')):
+                self.unsupported_operations.add(f"qc.{func.attr}(...) result")
+            else:
+                self._handle_circuit_method_call(node.value)
 
         self.generic_visit(node)
 
@@ -192,6 +207,11 @@ class QiskitASTVisitor(ast.NodeVisitor):
 
         loop_var = node.target.id
         range_start, range_end = self._extract_range(node.iter)
+        if isinstance(range_start, str) or isinstance(range_end, str):
+            # Symbolic bounds (e.g. a function argument) are not compile-time constants.
+            if self._has_circuit_ops(node.body):
+                self.unsupported_operations.add(f"for-loop over {ast.unparse(node.iter)}")
+                return
 
         if self._has_circuit_ops(node.body) and range_start is not None and range_end is not None:
             # Preserve control flow in emitted QASM rather than unrolling.
@@ -220,7 +240,76 @@ class QiskitASTVisitor(ast.NodeVisitor):
             )
             return
 
+        if self._has_circuit_ops(node.body):
+            self.unsupported_operations.add(f"for-loop over {ast.unparse(node.iter)}")
+            return
         self.generic_visit(node)
+
+    def visit_With(self, node: ast.With) -> None:
+        """`with qc.if_test((clbit, value)):` -> classically controlled block."""
+        if (len(node.items) == 1 and isinstance(node.items[0].context_expr, ast.Call)
+                and isinstance(node.items[0].context_expr.func, ast.Attribute)
+                and isinstance(node.items[0].context_expr.func.value, ast.Name)
+                and node.items[0].context_expr.func.value.id in self.circuit_vars
+                and node.items[0].context_expr.func.attr == 'if_test'
+                and node.items[0].optional_vars is None):
+            call = node.items[0].context_expr
+            if len(call.args) != 1 or call.keywords:
+                self.unsupported_operations.add("if_test(...) form")
+                return
+            condition = self._if_test_condition(call.args[0])
+            if condition is None:
+                return
+            body = []
+            saved = self.operations
+            self.operations = body
+            try:
+                for stmt in node.body:
+                    self.visit(stmt)
+            finally:
+                self.operations = saved
+            self.operations.append(IfStatementNode(condition=condition, body=body, else_body=None))
+            return
+        if self._has_circuit_ops(node.body):
+            self.unsupported_operations.add("with-block around circuit operations")
+            return
+        self.generic_visit(node)
+
+    def _global_clbit(self, node: ast.expr) -> Optional[int]:
+        """Global classical-bit index for cr[k] / qc.clbits[k] / k."""
+        if isinstance(node, ast.Subscript):
+            idx = self._resolve_int_arg(node.slice)
+            if idx is None:
+                return None
+            base = node.value
+            if isinstance(base, ast.Name) and base.id in self.creg_offsets:
+                size = self.registers[base.id]['size']
+                return self.creg_offsets[base.id] + (idx % size if idx < 0 else idx)
+            if (isinstance(base, ast.Attribute) and base.attr == 'clbits'
+                    and isinstance(base.value, ast.Name) and base.value.id in self.circuit_vars):
+                return idx % self.clbits if idx < 0 else idx
+            return None
+        if isinstance(node, ast.Constant) and isinstance(node.value, int):
+            return node.value
+        return None
+
+    def _if_test_condition(self, cond: ast.expr) -> Optional[str]:
+        if isinstance(cond, ast.Tuple) and len(cond.elts) == 2:
+            target, value_node = cond.elts
+            value = self._resolve_int_arg(value_node)
+            if value is None and isinstance(value_node, ast.Constant) and isinstance(value_node.value, bool):
+                value = int(value_node.value)
+            if value is None:
+                self.unsupported_operations.add("if_test with a non-constant value")
+                return None
+            bit = self._global_clbit(target)
+            if bit is not None:
+                return f"c[{bit}] == {int(bool(value))}"
+            if isinstance(target, ast.Name) and target.id in self.creg_offsets:
+                if self.creg_offsets[target.id] == 0 and self.registers[target.id]['size'] == self.clbits:
+                    return f"c == {value}"
+        self.unsupported_operations.add(f"if_test({ast.unparse(cond)})")
+        return None
 
     def visit_If(self, node: ast.If) -> None:
         """Handle if statements in Qiskit code."""
@@ -290,14 +379,19 @@ class QiskitASTVisitor(ast.NodeVisitor):
             end = self._extract_range_bound(node.args[1])
             if start is not None and end is not None:
                 return start, end
-        
+        if len(node.args) == 3:
+            self.unsupported_operations.add("range() with a step")
+
         return None, None
 
     def _extract_range_bound(self, node: ast.expr) -> Union[int, str, None]:
         """Extract a range bound - could be an int or a variable name."""
         val = self._extract_constant_value(node)
-        if val is not None:
+        if isinstance(val, int) and not isinstance(val, bool):
             return val
+        resolved = self._resolve_int_arg(node)
+        if resolved is not None:
+            return resolved
         
         # If it's a variable name, return the name string
         if isinstance(node, ast.Name):
@@ -312,8 +406,9 @@ class QiskitASTVisitor(ast.NodeVisitor):
                 return node.value
         elif isinstance(node, ast.Name):
             # Check if it's a variable we know about
-            if node.id in self.variables:
-                return self.variables[node.id]
+            val = self.variables.get(node.id)
+            if isinstance(val, int) and not isinstance(val, bool):
+                return val
             return None
         return None
 
@@ -454,6 +549,19 @@ class QiskitASTVisitor(ast.NodeVisitor):
     def _extract_circuit_dimensions(self, node: ast.Call) -> None:
         """Extract qubits and clbits from QuantumCircuit constructor."""
         args = node.args
+        if self.circuit_vars:
+            # A second QuantumCircuit in the same program (sub-circuit, compose, ...)
+            # cannot be merged statically.
+            self.unsupported_operations.add("multiple QuantumCircuit objects")
+        if args and all(isinstance(a, ast.Name) and a.id in self.registers for a in args):
+            # QuantumCircuit(qr1, qr2, cr): registers are laid out in argument order.
+            self.qubits, self.clbits = 0, 0
+            for a in args:
+                self._add_register_to_circuit(a.id)
+            return
+        if any(isinstance(a, ast.Name) and a.id in self.registers for a in args):
+            self.unsupported_operations.add("QuantumCircuit with mixed register/int arguments")
+            return
         if len(args) >= 1:
             # First argument is number of qubits — try constant/name first, then full expression
             try:
@@ -477,6 +585,15 @@ class QiskitASTVisitor(ast.NodeVisitor):
             except Exception:
                 if VERBOSE:
                     vprint(f"[QiskitASTVisitor] Exception resolving clbits count")
+
+    def _add_register_to_circuit(self, reg_name: str) -> None:
+        info = self.registers[reg_name]
+        if info['type'] == 'quantum':
+            self.qreg_offsets[reg_name] = self.qubits
+            self.qubits += int(info['size'])
+        else:
+            self.creg_offsets[reg_name] = self.clbits
+            self.clbits += int(info['size'])
 
     def _resolve_int_arg(self, node: ast.expr) -> Optional[int]:
         """
@@ -560,24 +677,18 @@ class QiskitASTVisitor(ast.NodeVisitor):
         reg_type = 'quantum' if 'QuantumRegister' in func_name else 'classical'
         
         # Extract size
-        size = 0
+        size = None
         if call.args:
-            if isinstance(call.args[0], ast.Constant):
-                size = int(call.args[0].value)
-            elif isinstance(call.args[0], ast.Name) and call.args[0].id in self.variables:
-                val = self.variables[call.args[0].id]
-                size = int(val) if val is not None else 0
+            size = self._resolve_int_arg(call.args[0])
+        if size is None:
+            self.unsupported_operations.add(f"register '{reg_name}' with unknown size")
+            size = 0
         
         self.registers[reg_name] = {'type': reg_type, 'size': size}
         if reg_type == 'quantum':
             self.quantum_registers.add(reg_name)
-            # Update global qubit count if this is the first/main register
-            if self.qubits == 0:
-                self.qubits = size
         else:
             self.classical_registers.add(reg_name)
-            if self.clbits == 0:
-                self.clbits = size
                 
         if VERBOSE:
             vprint(f"[QiskitASTVisitor] Tracked {reg_type} register: {reg_name} (size {size})")
@@ -657,8 +768,20 @@ class QiskitASTVisitor(ast.NodeVisitor):
             self._handle_universal_gate(args)
         elif method_name == 'mcx':
             self._handle_mcx_gate(args)
-        elif method_name == 'compose':
-            self._handle_compose_qiskit(args)
+        elif method_name in ('rxx', 'ryy', 'rzz'):
+            self._handle_controlled_two_qubit_gate(method_name, args)
+        elif method_name == 'iswap':
+            self._handle_two_qubit_gate(method_name, args)
+        elif method_name == 'sxdg':
+            if len(args) == 1:
+                for q in self._extract_qubit_list(args[0]):
+                    self.operations.append(GateNode(name='sx', qubits=[q], modifiers={'inv': True}))
+        elif method_name == 'add_register':
+            for a in args:
+                if isinstance(a, ast.Name) and a.id in self.registers:
+                    self._add_register_to_circuit(a.id)
+                else:
+                    self.unsupported_operations.add("add_register(...)")
         elif method_name == 'measure':
             self._handle_measurement_qiskit(args)
         elif method_name == 'measure_all':
@@ -668,11 +791,27 @@ class QiskitASTVisitor(ast.NodeVisitor):
         elif method_name == 'barrier':
             self._handle_barrier_qiskit(args)
         elif method_name == 'if_else':
-            # Qiskit 2.1+ if_else method: qc.if_else(condition, true_body, false_body=None)
-            self._handle_if_else_qiskit(args)
+            # Bodies are separate QuantumCircuit objects; not modelled statically.
+            self.unsupported_operations.add("qc.if_else(...)")
+        elif method_name in self._READ_ONLY_METHODS:
+            pass
+        else:
+            self.unsupported_operations.add(f"qc.{method_name}(...)")
+
+    # Methods that do not change the circuit.
+    _READ_ONLY_METHODS = frozenset({
+        'draw', 'depth', 'size', 'width', 'count_ops', 'num_nonlocal_gates', 'num_tensor_factors',
+        'num_unitary_factors', 'num_connected_components', 'qasm', 'to_instruction', 'to_gate',
+        'copy', 'copy_empty_like', 'decompose', 'inverse', 'reverse_bits', 'reverse_ops',
+        'remove_final_measurements', 'has_calibration_for', 'find_bit', 'get_parameter',
+        'has_parameter', 'assign_parameters',
+    })
 
     def _handle_single_qubit_gate(self, method_name: str, args: List[ast.expr]) -> None:
         """Handle single-qubit gates without parameters."""
+        if len(args) != 1:
+            self.unsupported_operations.add(f"qc.{method_name} with {len(args)} arguments")
+            return
         if args:
             qubits = self._extract_qubit_list(args[0])
             for qubit in qubits:
@@ -710,9 +849,10 @@ class QiskitASTVisitor(ast.NodeVisitor):
             'crz': 1,
             'cu': 4,
         }
-        required_params = param_counts.get(method_name, 0)
+        required_params = param_counts.get(method_name, 1)
         total_required = required_params + 2  # parameters + two qubit indices
-        if len(args) < total_required:
+        if len(args) != total_required:
+            self.unsupported_operations.add(f"qc.{method_name} with {len(args)} arguments")
             return
 
         params = [self._extract_parameter(arg) for arg in args[:required_params]]
@@ -728,6 +868,9 @@ class QiskitASTVisitor(ast.NodeVisitor):
 
     def _handle_parameterized_single_qubit_gate(self, method_name: str, args: List[ast.expr]) -> None:
         """Handle parameterized single-qubit gates."""
+        if len(args) != 2:
+            self.unsupported_operations.add(f"qc.{method_name} with {len(args)} arguments")
+            return
         if len(args) >= 2:
             if VERBOSE:
                 vprint("[QiskitASTVisitor]   rule=rotation_gate -> extract_parameter(args[0]); extract_qubit_index(args[1])")
@@ -828,7 +971,9 @@ class QiskitASTVisitor(ast.NodeVisitor):
 
         # Standard processing
         qubits = self._extract_qubit_list(args[0])
-        clbits = self._extract_qubit_list(args[1])
+        clbits = self._extract_qubit_list(args[1], kind='clbit')
+        if len(qubits) != len(clbits):
+            raise UnsupportedCircuitError("qc.measure() with different numbers of qubits and clbits")
         
         for q, c in zip(qubits, clbits):
             self.operations.append(MeasurementNode(qubit=q, clbit=c))
@@ -853,17 +998,19 @@ class QiskitASTVisitor(ast.NodeVisitor):
 
     def _handle_range_call_measurement(self, args: List[ast.expr]) -> None:
         """Handle measurement of range(n) to range(n)."""
-        end_q = self._extract_constant_value(args[0].args[0])
-        end_c = self._extract_constant_value(args[1].args[0])
-        if end_q is not None and end_c is not None and end_q == end_c:
-            body = [MeasurementNode(qubit='i', clbit='i')]
-            for_loop = ForLoopNode(variable='i', range_start=0, range_end=end_q, body=body)
-            self.operations.append(for_loop)
+        q_list = self._extract_qubit_list(args[0])
+        c_list = self._extract_qubit_list(args[1], kind='clbit')
+        if len(q_list) != len(c_list):
+            raise UnsupportedCircuitError("qc.measure(range(...), range(...)) with different lengths")
+        for q, c in zip(q_list, c_list):
+            self.operations.append(MeasurementNode(qubit=q, clbit=c))
 
     def _handle_batch_measurement(self, args: List[ast.expr]) -> None:
         """Handle measurement of multiple qubits to multiple clbits."""
         qubits = [self._extract_qubit_index(item) for item in args[0].elts]
         clbits = [self._extract_clbit_index(item) for item in args[1].elts]
+        if len(qubits) != len(clbits):
+            raise UnsupportedCircuitError("qc.measure() with different numbers of qubits and clbits")
 
         for q, c in zip(qubits, clbits):
             self.operations.append(MeasurementNode(qubit=q, clbit=c))
@@ -891,8 +1038,10 @@ class QiskitASTVisitor(ast.NodeVisitor):
         if VERBOSE:
             vprint(f"[QiskitASTVisitor] Adding measure_all (qubits={self.qubits})")
         
-        # In Qiskit, measure_all() adds a new ClassicalRegister, 
-        # but for QCanvas purposes we measure everything to new clbit indices
+        # In Qiskit, measure_all() adds a new ClassicalRegister ("meas") after the
+        # existing ones; we mirror that layout with new clbit indices.
+        if self.qubits <= 0:
+            raise UnsupportedCircuitError("measure_all() on a circuit of unknown size")
         offset = self.clbits
         for i in range(self.qubits):
             self.operations.append(MeasurementNode(qubit=i, clbit=offset + i))
@@ -1086,28 +1235,34 @@ class QiskitASTVisitor(ast.NodeVisitor):
                     return True
         return False
 
-    def _extract_qubit_list(self, node: ast.expr) -> List[Union[int, str]]:
+    def _extract_qubit_list(self, node: ast.expr, kind: str = 'qubit') -> List[Union[int, str]]:
         """Extract a list of qubit indices from an AST node (Constant, Name, List, range() call)."""
         if isinstance(node, (ast.Constant, ast.Name, ast.Subscript)):
             # Check if it's a register object
-            if isinstance(node, ast.Name):
-                if node.id in self.quantum_registers:
-                    size = self.registers[node.id]['size']
-                    return list(range(size))
-                elif node.id in self.classical_registers:
-                    size = self.registers[node.id]['size']
-                    return list(range(size))
-            return [self._extract_qubit_index(node)]
-        elif isinstance(node, ast.List):
-            return [self._extract_qubit_index(elt) for elt in node.elts]
+            if isinstance(node, ast.Name) and node.id in self.registers:
+                offsets = self.qreg_offsets if node.id in self.quantum_registers else self.creg_offsets
+                if node.id not in offsets:
+                    raise UnsupportedCircuitError(f"register '{node.id}' is not part of the circuit")
+                size = self.registers[node.id]['size']
+                return list(range(offsets[node.id], offsets[node.id] + size))
+            if isinstance(node, ast.Name) and isinstance(self.variables.get(node.id), list):
+                values = self.variables[node.id]
+                if all(isinstance(v, int) and not isinstance(v, bool) for v in values):
+                    return list(values)
+            if isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Slice):
+                raise UnsupportedCircuitError(f"register slices like '{ast.unparse(node)}' are not supported")
+            return [self._extract_qubit_index(node, kind)]
+        elif isinstance(node, (ast.List, ast.Tuple)):
+            return [self._extract_qubit_index(elt, kind) for elt in node.elts]
         elif isinstance(node, ast.Call):
             # Try to extract range information
             r = self._extract_range(node)
             if r and isinstance(r[0], int) and isinstance(r[1], int):
                 return list(range(r[0], r[1]))
-        return [self._extract_qubit_index(node)]
+            raise UnsupportedCircuitError(f"cannot resolve qubits '{ast.unparse(node)}' statically")
+        return [self._extract_qubit_index(node, kind)]
 
-    def _extract_qubit_index(self, node: ast.expr) -> Union[int, str]:
+    def _extract_qubit_index(self, node: ast.expr, kind: str = 'qubit') -> Union[int, str]:
         """Extract qubit index from AST node."""
         if VERBOSE:
             try:
@@ -1115,26 +1270,54 @@ class QiskitASTVisitor(ast.NodeVisitor):
             except Exception:
                 pass
 
-        # Special case for Subscript: qr[0] -> extract 0
+        # Special case for Subscript: qr[0] -> global index (register offset + 0)
         if isinstance(node, ast.Subscript):
             idx_node = node.slice
             if hasattr(ast, 'Index') and isinstance(idx_node, ast.Index):
                 idx_node = idx_node.value
+            base = node.value
+            offsets = self.creg_offsets if kind == 'clbit' else self.qreg_offsets
+            if isinstance(base, ast.Name) and base.id in self.registers:
+                if base.id not in offsets:
+                    raise UnsupportedCircuitError(f"register '{base.id}' is not part of the circuit")
+                offset = offsets[base.id]
+                size = self.registers[base.id]['size']
+            elif (isinstance(base, ast.Attribute) and isinstance(base.value, ast.Name)
+                  and base.value.id in self.circuit_vars and base.attr in ('qubits', 'clbits')):
+                offset, size = 0, (self.clbits if base.attr == 'clbits' else self.qubits)
+            elif isinstance(base, ast.Name) and isinstance(self.variables.get(base.id), list):
+                # plain Python list of indices, e.g. targets = [0, 2]
+                val = self._extract_parameter(node)
+                if isinstance(val, int) and not isinstance(val, bool):
+                    return val
+                raise UnsupportedCircuitError(f"cannot resolve index '{ast.unparse(node)}' statically")
+            else:
+                raise UnsupportedCircuitError(f"cannot resolve qubit '{ast.unparse(node)}' statically")
             val = self._extract_parameter(idx_node)
-            return val if isinstance(val, (int, str)) else 0
+            if isinstance(val, bool) or not isinstance(val, (int, str)) or val == 'expr':
+                val = self._extract_parameter_value(idx_node) if not isinstance(idx_node, ast.Constant) else val
+            if isinstance(val, int):
+                if val < 0:
+                    val += size
+                return offset + val
+            if isinstance(val, str):
+                val = val.replace(' ', '')
+                return val if offset == 0 else f"{offset}+{val}"
+            raise UnsupportedCircuitError(f"cannot resolve qubit '{ast.unparse(node)}' statically")
 
         # Use _extract_parameter to handle variables and arithmetic (i + 1)
         val = self._extract_parameter(node)
-        if isinstance(val, (int, str)) and val != 'expr':
+        if isinstance(val, float) and float(val).is_integer():
+            val = int(val)
+        if isinstance(val, (int, str)) and not isinstance(val, bool) and val != 'expr':
             return val
         
         # Fallback to symbolic if eval failed or it's a complex expression
         if isinstance(node, ast.Name):
             return node.id
         elif isinstance(node, (ast.BinOp, ast.UnaryOp)):
-            return self._extract_parameter_value(node)
-            
-        return 0
+            return self._extract_parameter_value(node).replace(' ', '')
+        raise UnsupportedCircuitError(f"cannot resolve qubit '{ast.unparse(node)}' statically")
 
     def _extract_clbit_index(self, node: ast.expr) -> Union[int, str]:
         """Extract classical bit index from AST node."""
@@ -1143,7 +1326,7 @@ class QiskitASTVisitor(ast.NodeVisitor):
                 vprint(f"[QiskitASTVisitor]   _extract_clbit_index node={ast.dump(node, include_attributes=False)}")
             except Exception:
                 vprint("[QiskitASTVisitor]   _extract_clbit_index node=<dump failed>")
-        return self._extract_qubit_index(node)  # Same logic
+        return self._extract_qubit_index(node, kind='clbit')
 
     def _extract_parameter(self, node: ast.expr) -> Any:
         """Extract parameter value or name from AST node."""
@@ -1198,39 +1381,53 @@ class QiskitASTVisitor(ast.NodeVisitor):
                     idx_str = ", ".join(str(idx) for idx in resolved_indices)
                     return f"{base_name}[{idx_str}]"
 
-            # Robust evaluation via eval for other expressions
-            expr_str = ast.unparse(node)
-            safe_globals = {
-                "__builtins__": {
-                    "range": range, "list": list, "len": len, "enumerate": enumerate,
-                    "int": int, "float": float, "np": np, "numpy": np, "max": max, "min": min,
-                    "abs": abs, "round": round,
-                },
-                "np": np, "numpy": np,
-                "ParameterVector": lambda name, length: [np.pi/4] * length,
-                "Parameter": lambda name: np.pi/4,
-            }
-            try:
-                # Don't evaluate circuit constructor calls as parameters
-                if isinstance(node, ast.Call) and self._is_quantum_circuit_call(node):
-                    return 'expr'
-                
-                # Check for np.pi/4 type patterns
-                if 'pi' in expr_str and 'np.' not in expr_str and 'numpy.' not in expr_str:
-                    expr_str = expr_str.replace('pi', 'np.pi')
-
-                val = eval(expr_str, safe_globals, self.variables)
-                return val
-            except:
-                # Special case for Qiskit Parameter objects we can't resolve: 
-                # default to a numeric constant for structural benchmarking if it looks like a variational parameter
-                if "theta" in expr_str or "gamma" in expr_str or "beta" in expr_str or "param" in expr_str:
-                    return np.pi/4
-                # If it's a simple name not in variables, return it as symbolic
-                if isinstance(node, ast.Name): return node.id
+            # Static evaluation (never executes user code; never guesses values).
+            if isinstance(node, ast.Call) and self._is_quantum_circuit_call(node):
                 return 'expr'
-        return 'expr'
-        return 'expr'
+            numeric_vars = {k: v for k, v in self.variables.items() if not isinstance(v, str)}
+            try:
+                return static_eval(node, numeric_vars)
+            except NotStatic:
+                pass
+            try:
+                return self._symbolic_expression(node)
+            except NotStatic:
+                return 'expr'
+
+    _SYMBOLIC_FUNCS = {'sin', 'cos', 'tan', 'exp', 'sqrt', 'arcsin', 'arccos', 'arctan', 'log'}
+
+    def _symbolic_expression(self, node: ast.expr) -> str:
+        """OpenQASM text for an expression over loop variables / free parameters and pi."""
+        if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)) and not isinstance(node.value, bool):
+            return repr(node.value)
+        if isinstance(node, ast.Name):
+            val = self.variables.get(node.id)
+            if isinstance(val, (int, float)) and not isinstance(val, bool):
+                return repr(val)
+            if val == node.id:
+                return node.id  # loop variable
+            if node.id in ('pi', 'π'):
+                return 'pi'
+            if node.id in self.variables:
+                raise NotStatic(node.id)
+            self.parameters.add(node.id)
+            return node.id
+        if isinstance(node, ast.Attribute) and node.attr == 'pi' and isinstance(node.value, ast.Name) \
+                and node.value.id in ('np', 'numpy', 'math'):
+            return 'pi'
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
+            return f"-({self._symbolic_expression(node.operand)})"
+        if isinstance(node, ast.BinOp):
+            ops = {ast.Add: '+', ast.Sub: '-', ast.Mult: '*', ast.Div: '/', ast.Pow: '**'}
+            op = ops.get(type(node.op))
+            if op is None:
+                raise NotStatic("operator")
+            return f"({self._symbolic_expression(node.left)} {op} {self._symbolic_expression(node.right)})"
+        if isinstance(node, ast.Call) and not node.keywords and len(node.args) == 1:
+            fname = node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, 'id', None)
+            if fname in self._SYMBOLIC_FUNCS:
+                return f"{fname}({self._symbolic_expression(node.args[0])})"
+        raise NotStatic(type(node).__name__)
 
     def _evaluate_simple_expression(self, node: ast.expr) -> Optional[Union[int, float]]:
         """Try to evaluate simple arithmetic expressions like n + 1 using tracked variables."""
@@ -1380,6 +1577,10 @@ class QiskitASTParser:
             vprint(f"[QiskitASTParser] Found operations: {len(self.visitor.operations)}")
             vprint(f"[QiskitASTParser] Qubits: {self.visitor.qubits}, Clbits: {self.visitor.clbits}")
             vprint(f"[QiskitASTParser] Parameters: {list(self.visitor.parameters)}")
+
+        if self.visitor.unsupported_operations:
+            unsupported = ", ".join(sorted(self.visitor.unsupported_operations))
+            raise UnsupportedCircuitError(f"Unsupported Qiskit constructs encountered: {unsupported}")
 
         # Validate that we found a circuit. Empty circuits are still valid when
         # a QuantumCircuit was declared (e.g. range(0) loops).

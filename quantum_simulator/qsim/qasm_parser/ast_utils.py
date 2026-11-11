@@ -23,7 +23,10 @@ def collect_all_nodes(example_dir="../../examples/test.qasm"):
     return all_nodes
 
 
-node_types = collect_all_nodes("examples")
-print("Unique AST node types found across examples:")
-for node in sorted(node_types):
-    print(" -", node)
+if __name__ == "__main__":
+    # Developer utility only: never scan the filesystem at import time.
+    import sys
+    node_types = collect_all_nodes(sys.argv[1] if len(sys.argv) > 1 else "examples")
+    print("Unique AST node types found across examples:")
+    for node in sorted(node_types):
+        print(" -", node)

@@ -36,7 +36,9 @@ class QiskitVisitor(BaseVisitor):
             'id', 'x', 'y', 'z', 'h', 's', 'sdg', 't', 'tdg', 'sx',
             'rx', 'ry', 'rz', 'u', 'cx', 'cy', 'cz', 'cp', 'ch', 'cu',
             'swap', 'cswap',
-            'crx', 'cry', 'crz'
+            'crx', 'cry', 'crz',
+            'ccx', 'ccz', 'p', 'phase', 'u1', 'u2', 'u3', 'U', 'CX', 'cphase', 'cu1', 'cu3',
+            'rzz', 'rxx', 'ryy', 'iswap'
         }
         self.gate_call_stack = []  # Track recursion
         self.measured_bits = set()  # Track which bits have been measured
@@ -227,54 +229,20 @@ class QiskitVisitor(BaseVisitor):
             raise NotImplementedError(f"Unsupported statement in gate body: {type(stmt).__name__}")
 
 
+    STANDARD_INCLUDES = frozenset({"stdgates.inc", "qelib1.inc", "stdgates.qasm", "stdctrl.inc"})
+
     def visit_Include(self, node):
         """
-        Handles the 'include' statement by reading the specified file from disk
-        at runtime, relative to the current file being parsed.
+        Only the standard gate libraries may be included. Programs come from
+        users, so reading arbitrary paths from the server's disk is never allowed.
         """
-        filename = node.filename 
-
-        #ignore standard library includes
-        if filename in ["stdgates.inc", "stdctrl.inc"]:
+        filename = str(node.filename).replace('"', '').strip()
+        if filename.lower() in self.STANDARD_INCLUDES:
             return
-
-        # Initialize visited_files set if it doesn't exist
-        if not hasattr(self, 'visited_files'):
-            self.visited_files = set()
-
-        # Initialize directory stack if it doesn't exist
-        if not hasattr(self, 'current_directory_stack'):
-            self.current_directory_stack = [os.getcwd()]
-
-        # Resolve the path of the included file relative to the current file's directory
-        current_dir = self.current_directory_stack[-1]
-        include_path = os.path.abspath(os.path.join(current_dir, filename))
-
-        # Prevent circular/repeated includes
-        if include_path in self.visited_files:
-            return
-
-        if not os.path.exists(include_path):
-            raise FileNotFoundError(f"Included file not found: {include_path}")
-
-        self.visited_files.add(include_path)
-
-        # Push the new directory onto the stack for potential nested includes
-        self.current_directory_stack.append(os.path.dirname(include_path))
-        
-        try:
-            with open(include_path, 'r') as f:
-                included_code = f.read()
-
-            included_ast = openqasm3.parse(included_code)
-
-            # Visit the statements in the included file within the current scope
-            # Note: We iterate through statements directly to maintain scope inheritance
-            for statement in included_ast.statements:
-                self._visit_node(statement)
-        finally:
-            # Pop the directory off the stack to return to the previous context
-            self.current_directory_stack.pop()
+        raise PermissionError(
+            f"Only the standard libraries {sorted(self.STANDARD_INCLUDES)} may be included; "
+            f"'{filename}' is not allowed."
+        )
 
     def check_variable_declared(self, var_name: str) -> bool:
         """Check if a variable is already declared in the current scope."""
@@ -688,8 +656,8 @@ class QiskitVisitor(BaseVisitor):
                 num_controls = param
                 
                 # Get the control qubits for this modifier
-                ctrl_qubits_for_mod = control_qubits[:num_controls]
-                control_qubits = control_qubits[num_controls:]  # Remove used controls
+                ctrl_qubits_for_mod = control_qubits[len(control_qubits) - num_controls:]
+                control_qubits = control_qubits[:len(control_qubits) - num_controls]  # Remove used controls
                 
                 # Determine control state (0 for negctrl, 1 for ctrl)
                 ctrl_state = '0' * num_controls if mod_type == 'negctrl' else None
@@ -787,7 +755,23 @@ class QiskitVisitor(BaseVisitor):
             "crx": lambda q, p: self.qc.crx(p[0], q[0], q[1]) if len(q) == 2 and len(p) == 1 else None,
             "cry": lambda q, p: self.qc.cry(p[0], q[0], q[1]) if len(q) == 2 and len(p) == 1 else None,
             "crz": lambda q, p: self.qc.crz(p[0], q[0], q[1]) if len(q) == 2 and len(p) == 1 else None,
+            "ccx": lambda q, p: self.qc.ccx(q[0], q[1], q[2]) if len(q) == 3 else None,
+            "ccz": lambda q, p: self.qc.ccz(q[0], q[1], q[2]) if len(q) == 3 else None,
+            "p": lambda q, p: self.qc.p(p[0], q[0]) if len(q) == 1 and len(p) == 1 else None,
+            "phase": lambda q, p: self.qc.p(p[0], q[0]) if len(q) == 1 and len(p) == 1 else None,
+            "u1": lambda q, p: self.qc.p(p[0], q[0]) if len(q) == 1 and len(p) == 1 else None,
+            "u2": lambda q, p: self.qc.u(math.pi / 2, p[0], p[1], q[0]) if len(q) == 1 and len(p) == 2 else None,
+            "u3": lambda q, p: self.qc.u(p[0], p[1], p[2], q[0]) if len(q) == 1 and len(p) == 3 else None,
+            "cphase": lambda q, p: self.qc.cp(p[0], q[0], q[1]) if len(q) == 2 and len(p) == 1 else None,
+            "cu1": lambda q, p: self.qc.cp(p[0], q[0], q[1]) if len(q) == 2 and len(p) == 1 else None,
+            "cu3": lambda q, p: self.qc.cu(p[0], p[1], p[2], 0.0, q[0], q[1]) if len(q) == 2 and len(p) == 3 else None,
+            "rzz": lambda q, p: self.qc.rzz(p[0], q[0], q[1]) if len(q) == 2 and len(p) == 1 else None,
+            "rxx": lambda q, p: self.qc.rxx(p[0], q[0], q[1]) if len(q) == 2 and len(p) == 1 else None,
+            "ryy": lambda q, p: self.qc.ryy(p[0], q[0], q[1]) if len(q) == 2 and len(p) == 1 else None,
+            "iswap": lambda q, p: self.qc.iswap(q[0], q[1]) if len(q) == 2 else None,
         }
+        gate_map["U"] = gate_map["u"]
+        gate_map["CX"] = gate_map["cx"]
         
         # Handle custom gates
         if gate_name in self.custom_gates:
@@ -935,8 +919,55 @@ class QiskitVisitor(BaseVisitor):
     def visit_QuantumPhase(self, node):
         """Handle global phase statements like: gphase(π/2);"""
         phase = self._eval_rvalue(node.argument).value
+        modifiers = getattr(node, "modifiers", None) or []
+        if modifiers:
+            phase, controls = self._gphase_modifier_plan(modifiers, phase, lambda a: self._eval_rvalue(a).value)
+            qubits = []
+            for qubit_node in getattr(node, "qubits", None) or []:
+                info = self._visit_node(qubit_node)
+                reg = self.get_var('qubits', info.name)
+                if info.is_indexed:
+                    qubits.extend(reg[i] for i in self._expand_indices_to_list(info.value, len(reg)))
+                else:
+                    qubits.extend(list(reg) if not isinstance(reg, list) else reg)
+            if len(qubits) != len(controls):
+                raise ValueError(f"gphase: expected {len(controls)} control qubit(s), got {len(qubits)}")
+            if controls:
+                flips = [q for q, v in zip(qubits, controls) if v == 0]
+                for q in flips:
+                    self.qc.x(q)
+                if len(qubits) == 1:
+                    self.qc.p(phase, qubits[0])
+                else:
+                    self.qc.mcp(phase, qubits[:-1], qubits[-1])
+                for q in flips:
+                    self.qc.x(q)
+                return None
         self.qc.global_phase += phase
         return None
+
+    @staticmethod
+    def _gphase_modifier_plan(modifiers, angle, eval_arg):
+        """
+        Resolve modifiers on gphase. Returns (angle, control_values) where
+        control_values lists 1 (ctrl) / 0 (negctrl) per control operand, in operand order.
+        """
+        controls = []
+        for mod in modifiers:
+            kind = mod.modifier.name if hasattr(mod.modifier, 'name') else str(mod.modifier)
+            arg = getattr(mod, 'argument', None)
+            if kind in ('ctrl', 'negctrl'):
+                n = int(eval_arg(arg)) if arg is not None else 1
+                controls.extend([1 if kind == 'ctrl' else 0] * n)
+        for mod in reversed(modifiers):
+            kind = mod.modifier.name if hasattr(mod.modifier, 'name') else str(mod.modifier)
+            arg = getattr(mod, 'argument', None)
+            if kind == 'inv':
+                angle = -angle
+            elif kind == 'pow':
+                angle = angle * float(eval_arg(arg))
+        return angle, controls
+
 
     def visit_AliasStatement(self, node):
         """Handle alias statements like: let alias = q;"""
@@ -1192,48 +1223,11 @@ class QiskitVisitor(BaseVisitor):
             self.qc = original_qc
             self.in_dynamic_branch = old_dynamic
             
-            # Extract classical register name from condition
-            cond_node = node.condition
-            cond_reg_name = None
-            
-            if type(cond_node).__name__ == 'BinaryExpression':
-                left_node = cond_node.lhs
-                
-                # Handle both IndexedIdentifier and IndexExpression
-                if type(left_node).__name__ == 'Identifier':
-                    cond_reg_name = left_node.name
-                elif type(left_node).__name__ == 'IndexedIdentifier':
-                    cond_reg_name = left_node.name.name
-                elif type(left_node).__name__ == 'IndexExpression':
-                    # For IndexExpression like c[0], get the collection's name
-                    collection = left_node.collection
-                    if type(collection).__name__ == 'Identifier':
-                        cond_reg_name = collection.name
-                    else:
-                        raise ValueError("Cannot determine classical register for dynamic if condition")
-                else:
-                    raise ValueError("Cannot determine classical register for dynamic if condition")
-            else:
-                raise ValueError("Cannot determine classical register for dynamic if condition")
-            
-            if not cond_reg_name:
-                raise ValueError("Cannot determine classical register for dynamic if condition")
-                
-            cond_reg = self.get_var('clbits', cond_reg_name)
-            if not cond_reg:
-                raise ValueError("Condition must reference a classical register.")
-            circuit_creg = None
-            for creg in self.qc.cregs:
-                if creg.name == cond_reg_name:
-                    circuit_creg = creg
-                    break
-            if circuit_creg is None:
-                raise ValueError(f"Classical register '{cond_reg_name}' not found in circuit")
-            expected_value = 0
+            condition = self._build_dynamic_condition(node.condition)
             all_qubits = list(self.qc.qubits)
             all_clbits = list(self.qc.clbits)
             self.qc.if_else(
-                condition=(circuit_creg, expected_value),
+                condition=condition,
                 true_body=if_circuit,
                 false_body=else_circuit,
                 qubits=all_qubits,
@@ -1675,6 +1669,136 @@ class QiskitVisitor(BaseVisitor):
             return truncated_value - (1 << n_bits)
         return truncated_value
 
+    # ------------------------------------------------------------------
+    # Feed-forward conditions
+    # ------------------------------------------------------------------
+    def _circuit_creg(self, name):
+        for creg in self.qc.cregs:
+            if creg.name == name:
+                return creg
+        raise ValueError(f"Classical register '{name}' not found in circuit")
+
+    def _condition_operand(self, node):
+        """Return ('bit', Clbit) | ('reg', ClassicalRegister) | ('const', value)."""
+        node_type = type(node).__name__
+        if node_type == 'Identifier' and node.name in self.measured_bits:
+            return ('reg', self._circuit_creg(node.name))
+        if node_type in ('IndexExpression', 'IndexedIdentifier'):
+            if node_type == 'IndexExpression':
+                coll = node.collection
+                name = coll.name if type(coll).__name__ == 'Identifier' else None
+                index = node.index
+            else:
+                name = node.name.name
+                index = node.indices[0] if node.indices else None
+            if name is not None and name in self.measured_bits:
+                if isinstance(index, list):
+                    if len(index) != 1:
+                        raise ValueError("Only single-bit indexing is supported in measurement-dependent conditions.")
+                    index = index[0]
+                creg = self._circuit_creg(name)
+                idx = int(self._eval_rvalue(index).value)
+                if idx < 0:
+                    idx += creg.size
+                return ('bit', creg[idx])
+        return ('const', self._eval_rvalue(node).value)
+
+    def _build_dynamic_condition(self, node):
+        """
+        Translate an OpenQASM condition on measured bits into a Qiskit condition.
+        Simple forms use the (bit|register, value) tuple form; anything else is
+        built as a qiskit.circuit.classical.expr expression.
+        """
+        from qiskit.circuit.classical import expr
+
+        def as_expr(n):
+            n_type = type(n).__name__
+            if n_type == 'BinaryExpression':
+                op = n.op.name
+                if op in ('&&', '||'):
+                    l, r = to_bool(as_expr(n.lhs)), to_bool(as_expr(n.rhs))
+                    return expr.logic_and(l, r) if op == '&&' else expr.logic_or(l, r)
+                lhs, rhs = as_expr(n.lhs), as_expr(n.rhs)
+                lhs, rhs = coerce(lhs, rhs)
+                fn = {'==': expr.equal, '!=': expr.not_equal, '<': expr.less, '<=': expr.less_equal,
+                      '>': expr.greater, '>=': expr.greater_equal}.get(op)
+                if fn is None:
+                    raise ValueError(f"Operator '{op}' is not supported in a measurement-dependent condition.")
+                return fn(lhs, rhs)
+            if n_type == 'UnaryExpression':
+                if n.op.name == '!':
+                    return expr.logic_not(to_bool(as_expr(n.expression)))
+                raise ValueError(f"Operator '{n.op.name}' is not supported in a measurement-dependent condition.")
+            kind, value = self._condition_operand(n)
+            if kind in ('bit', 'reg'):
+                return expr.lift(value)
+            return value
+
+        def is_bool_expr(e):
+            return hasattr(e, 'type') and getattr(e.type, 'kind', None) is not None and type(e.type).__name__ == 'Bool'
+
+        def coerce(a, b):
+            # Compare a single measured bit against 0/1 as a boolean.
+            if is_bool_expr(a) and isinstance(b, (int, bool, np.integer)):
+                return a, bool(b)
+            if is_bool_expr(b) and isinstance(a, (int, bool, np.integer)):
+                return bool(a), b
+            if isinstance(a, (int, np.integer)) and not isinstance(a, bool):
+                a = int(a)
+            if isinstance(b, (int, np.integer)) and not isinstance(b, bool):
+                b = int(b)
+            return a, b
+
+        def to_bool(e):
+            if isinstance(e, (bool, int, np.integer)):
+                return expr.lift(bool(e))
+            if is_bool_expr(e):
+                return e
+            return expr.not_equal(e, 0)
+
+        # Fast paths: `bit == v`, `reg == v`, bare `bit`.
+        n_type = type(node).__name__
+        if n_type == 'BinaryExpression' and node.op.name == '==':
+            lk, lv = self._condition_operand(node.lhs)
+            rk, rv = self._condition_operand(node.rhs)
+            if lk in ('bit', 'reg') and rk == 'const':
+                return (lv, bool(rv) if lk == 'bit' else int(rv))
+            if rk in ('bit', 'reg') and lk == 'const':
+                return (rv, bool(lv) if rk == 'bit' else int(lv))
+        if n_type in ('IndexExpression', 'IndexedIdentifier', 'Identifier'):
+            kind, value = self._condition_operand(node)
+            if kind == 'bit':
+                return (value, True)
+            if kind == 'reg':
+                return expr.not_equal(expr.lift(value), 0)
+
+        return to_bool(as_expr(node))
+
+    def visit_IODeclaration(self, node):
+        """`output` annotations are ignored; `input` values cannot be supplied, so refuse
+        to simulate rather than silently using 0."""
+        io_kind = str(getattr(node, 'io_identifier', '')).lower()
+        if 'output' in io_kind:
+            return None
+        ident = getattr(node, 'identifier', None)
+        name = getattr(ident, 'name', ident)
+        raise ValueError(
+            f"Input parameter '{name}' has no value. QCanvas simulations cannot bind "
+            f"external inputs; give it a concrete value in your code (for example "
+            f"theta = 0.5) or call the circuit with numbers before simulating."
+        )
+
     def finalize(self):
         """Return the constructed QuantumCircuit."""
         return self.qc
+
+    def output_spec(self):
+        """
+        Output layout (see qsim.backends.base.BaseBackend): all declared classical
+        bits in declaration order, or all qubits when nothing was measured.
+        """
+        return {
+            "measured": bool(self.measured_bits),
+            "qubits": list(self.qc.qubits),
+            "clbits": list(self.qc.clbits),
+        }

@@ -62,6 +62,9 @@ from quantum_converters.base.qasm3_builder import QASM3Builder
 from quantum_converters.base.qasm3_gates import QASM3GateLibrary, GateModifier
 from quantum_converters.base.circuit_ast import CircuitAST, GateNode, MeasurementNode, ResetNode, BarrierNode, ForLoopNode, IfStatementNode
 from quantum_converters.parsers.cirq_parser import CirqASTParser
+from quantum_converters.base.circuit_validation import (
+    GATE_SIGNATURES, UnsupportedCircuitError, validate_circuit_ast,
+)
 from quantum_converters.config.config import VERBOSE, vprint, INCLUDE_VARS, INCLUDE_CONSTANTS
 import time
 from quantum_converters.config import get_cirq_inverse_qasm_map, CIRQ_TO_QASM_REGISTRY
@@ -72,6 +75,20 @@ try:
 except ImportError:
     # Define a placeholder for type hints
     Circuit = 'Circuit'
+
+import contextlib as _contextlib
+import io as _io
+
+
+@_contextlib.contextmanager
+def _captured_user_output():
+    """Swallow print() output of user code run by the fallback path. Besides being
+    noise in the server log, printing Unicode circuit diagrams to a non-UTF-8
+    console raises UnicodeEncodeError and used to fail the whole conversion."""
+    buffer = _io.StringIO()
+    with _contextlib.redirect_stdout(buffer), _contextlib.redirect_stderr(buffer):
+        yield buffer
+
 
 class CirqToQASM3Converter:
     """
@@ -112,14 +129,15 @@ class CirqToQASM3Converter:
         except Exception:
             pass
 
-        namespace = self._execute_source_code(source)
+        with _captured_user_output():
+            namespace = self._execute_source_code(source)
 
-        # Try different strategies to extract the circuit
-        circuit = (
-            self._try_get_circuit_function(namespace) or
-            self._try_find_circuit_instance(namespace) or
-            self._try_factory_functions(namespace)
-        )
+            # Try different strategies to extract the circuit
+            circuit = (
+                self._try_get_circuit_function(namespace) or
+                self._try_find_circuit_instance(namespace) or
+                self._try_factory_functions(namespace)
+            )
 
         if circuit is None:
             raise ValueError(
@@ -264,11 +282,23 @@ class CirqToQASM3Converter:
             vprint("[CirqToQASM3Converter] Building prelude")
         t0 = time.time()
 
+        import cirq as _cirq
+        if _cirq.is_parameterized(circuit):
+            names = ", ".join(sorted(_cirq.parameter_names(circuit)))
+            raise UnsupportedCircuitError(
+                f"The circuit has unresolved symbolic parameters ({names}). Give them numeric values "
+                f"(e.g. cirq.resolve_parameters(circuit, {{...}})) before converting."
+            )
         builder = QASM3Builder()
         qubit_map = self._create_qubit_mapping(circuit)
-        has_measurements = self._detect_measurements(circuit)
+        self._clbit_map = self._create_clbit_mapping(circuit)
 
-        self._build_prelude(builder, len(qubit_map), has_measurements)
+        builder.build_standard_prelude(
+            num_qubits=len(qubit_map),
+            num_clbits=sum(len(v) for v in self._clbit_map.values()),
+            include_vars=INCLUDE_VARS,
+            include_constants=INCLUDE_CONSTANTS
+        )
         self._add_custom_gates(builder, circuit)
         self._convert_operations(builder, circuit, qubit_map)
 
@@ -289,7 +319,29 @@ class CirqToQASM3Converter:
         all_qubits = list(circuit.all_qubits())
         if VERBOSE:
             vprint(f"[CirqToQASM3Converter] Circuit qubits detected: {len(all_qubits)}")
-        return {qubit: i for i, qubit in enumerate(sorted(all_qubits, key=str))}
+        try:
+            ordered = sorted(all_qubits)
+        except TypeError:
+            ordered = sorted(all_qubits, key=str)
+        return {qubit: i for i, qubit in enumerate(ordered)}
+
+    def _create_clbit_mapping(self, circuit: 'Circuit') -> dict:
+        """
+        Allocate classical bits in circuit order: measurement key -> [clbit, ...]
+        (one bit per measured qubit). Matches the AST path, where the k-th measured
+        qubit in the program lands in c[k].
+        """
+        import cirq as _cirq
+        mapping = {}
+        next_bit = 0
+        for op in circuit.all_operations():
+            if _cirq.is_measurement(op) and not isinstance(op, _cirq.ClassicallyControlledOperation):
+                key = str(_cirq.measurement_key_name(op))
+                if key in mapping:
+                    raise UnsupportedCircuitError(f"measurement key '{key}' is used more than once")
+                mapping[key] = list(range(next_bit, next_bit + len(op.qubits)))
+                next_bit += len(op.qubits)
+        return mapping
 
     def _detect_measurements(self, circuit: 'Circuit') -> bool:
         """Detect if the circuit contains measurement operations."""
@@ -348,7 +400,13 @@ class CirqToQASM3Converter:
 
     def _add_cirq_operation(self, builder: QASM3Builder, operation, qubit_map: dict):
         """Add a Cirq operation to the QASM builder."""
+        import cirq as _cirq
+        if isinstance(operation, _cirq.ClassicallyControlledOperation):
+            self._add_classically_controlled(builder, operation, qubit_map)
+            return
         gate = operation.gate
+        if gate is None:
+            raise UnsupportedCircuitError(f"Unsupported Cirq operation: {operation!r}")
         qubits = operation.qubits
         qubit_indices = [qubit_map[qubit] for qubit in qubits]
         qubits_str = [f"q[{i}]" for i in qubit_indices]
@@ -368,6 +426,29 @@ class CirqToQASM3Converter:
         if self._handle_parameterized_gates(builder, gate_name, qubits_str, modifiers, actual_exponent, gate):
             return
         self._handle_special_gates(builder, gate_name, qubits_str, qubit_indices, gate)
+
+    def _add_classically_controlled(self, builder: QASM3Builder, operation, qubit_map: dict):
+        """cirq `op.with_classical_controls(key...)` -> `if (c[k] == 1 ...) { op }`."""
+        import cirq as _cirq
+        parts = []
+        for cond in operation.classical_controls:
+            if not isinstance(cond, _cirq.KeyCondition):
+                raise UnsupportedCircuitError(f"Unsupported classical control condition: {cond}")
+            key = str(cond.key)
+            if key not in self._clbit_map:
+                raise UnsupportedCircuitError(f"classical control on unknown measurement key '{key}'")
+            bits = self._clbit_map[key]
+            # KeyCondition is true when the measured value is non-zero.
+            any_bit = " || ".join(f"c[{b}] == 1" for b in bits)
+            parts.append(any_bit if len(bits) == 1 else f"({any_bit})")
+        body_builder_lines = builder.lines
+        builder.lines = []
+        try:
+            self._add_cirq_operation(builder, operation.without_classical_controls(), qubit_map)
+            body = builder.lines
+        finally:
+            builder.lines = body_builder_lines
+        builder.add_if_statement(" && ".join(parts), body, else_body=None)
 
     def _extract_gate_properties(self, gate) -> tuple:
         """Extract modifiers and actual exponent from a gate."""
@@ -407,6 +488,7 @@ class CirqToQASM3Converter:
             'CNotPowGate': 'cx', 'CXPowGate': 'cx', '_CNOT': 'cx',
             'CZPowGate': 'cz', '_CZ': 'cz',
             'SwapPowGate': 'swap', '_SWAP': 'swap',
+            'CCXPowGate': 'ccx', 'CCZPowGate': 'ccz', 'CSwapGate': 'cswap', 'ISwapPowGate': 'iswap',
         }
         qasm_name = gate_map.get(gate_name)
         if qasm_name:
@@ -424,7 +506,14 @@ class CirqToQASM3Converter:
         import numpy as np
 
         if gate_name in ['XPowGate', 'YPowGate', 'ZPowGate'] and actual_exponent is not None and abs(actual_exponent) != 1:
+            if actual_exponent == 0:
+                return True  # identity
             self._apply_rotation_gate(builder, gate_name, qubits_str, actual_exponent, modifiers)
+            return True
+        elif gate_name == 'CZPowGate' and actual_exponent is not None and abs(actual_exponent) != 1:
+            # CZ**t == cp(pi*t) exactly; a negative exponent is carried by `inv`.
+            builder.apply_gate('cp', qubits_str, parameters=[builder.format_parameter(actual_exponent * np.pi)],
+                               modifiers=modifiers if modifiers else None)
             return True
         elif gate_name.lower() in ['rx', 'ry', 'rz']:
             self._apply_direct_rotation_gate(builder, gate_name, qubits_str, gate, modifiers)
@@ -486,8 +575,10 @@ class CirqToQASM3Converter:
             builder.apply_gate("rx", qubits_str, parameters=[param],
                              modifiers=modifiers if modifiers else None)
         else:
-            # Complex case - add as comment
-            builder.add_comment(f"PhasedXPowGate(exp={actual_exponent}, phase={phase_exponent}) not fully supported")
+            # PhasedX(p, t) = Z^p X^t Z^-p  (time order: Z^-p, X^t, Z^p); equal up to global phase.
+            builder.apply_gate("rz", qubits_str, parameters=[builder.format_parameter(-phase_exponent * np.pi)])
+            builder.apply_gate("rx", qubits_str, parameters=[builder.format_parameter(gate.exponent * np.pi)])
+            builder.apply_gate("rz", qubits_str, parameters=[builder.format_parameter(phase_exponent * np.pi)])
 
     def _handle_special_gates(self, builder: QASM3Builder, gate_name: str, qubits_str: list,
                             qubit_indices: list, gate):
@@ -495,7 +586,7 @@ class CirqToQASM3Converter:
         import numpy as np
 
         if gate_name == 'MatrixGate':
-            builder.add_comment(f"Matrix gate: {gate}")
+            raise UnsupportedCircuitError(f"Unsupported Cirq gate: arbitrary MatrixGate {gate}")
         elif gate_name == 'MeasurementGate' or hasattr(gate, '_measurement_key'):
             # Support multi-qubit measurements by emitting one measurement per qubit.
             # Example:
@@ -503,22 +594,28 @@ class CirqToQASM3Converter:
             # becomes:
             #   c[0] = measure q[0];
             #   c[1] = measure q[1];
-            for q_str, c_idx in zip(qubits_str, qubit_indices):
+            import cirq as _cirq
+            if getattr(gate, 'invert_mask', None) and any(gate.invert_mask):
+                raise UnsupportedCircuitError("cirq.measure(invert_mask=...) is not supported")
+            key = str(_cirq.measurement_key_name(gate))
+            for q_str, c_idx in zip(qubits_str, self._clbit_map[key]):
                 builder.add_measurement(q_str, f"c[{c_idx}]")
         elif gate_name in ['ResetChannel', '_ResetGate'] or str(gate) == 'reset':
             builder.add_reset(qubits_str[0])
         elif gate_name == 'IdentityGate' or str(gate) == 'I':
-            builder.apply_gate("id", qubits_str)
+            for q_str in qubits_str:
+                builder.apply_gate("id", [q_str])
         elif gate_name == 'ControlledGate':
-            builder.add_comment(f"Controlled gate: {gate}")
+            raise UnsupportedCircuitError(f"Unsupported controlled gate: {gate}")
         elif gate_name == 'GlobalPhaseGate':
-            phase = getattr(gate, 'coefficient', np.pi/4)
+            # coefficient is the complex number e^{i*theta}; gphase takes theta.
+            phase = float(np.angle(complex(gate.coefficient)))
             param = builder.format_parameter(phase)
             builder.apply_gate("gphase", [], parameters=[param])
         elif str(gate).startswith('barrier'):
             builder.add_barrier(qubits_str if qubits_str else None)
         else:
-            builder.add_comment(f"Unsupported gate: {type(gate).__name__}")
+            raise UnsupportedCircuitError(f"Unsupported Cirq gate: {type(gate).__name__} ({gate})")
 
     def _handle_controlled_gate(self, builder: QASM3Builder, gate, qubits_str: list):
         """Handle Cirq ControlledGate instances, mapping to OpenQASM controlled gates."""
@@ -526,13 +623,17 @@ class CirqToQASM3Converter:
 
         base_gate, total_controls = self._flatten_controlled_gate(gate)
         if base_gate is None:
-            builder.add_comment("Unsupported controlled gate structure")
-            return
+            raise UnsupportedCircuitError(f"Unsupported controlled gate structure: {gate}")
+        try:
+            control_values = [tuple(v) for v in gate.control_values]
+        except Exception:
+            control_values = []
+        if any(v != (1,) for v in control_values):
+            raise UnsupportedCircuitError(f"Controlled gate with non-|1> control values: {gate}")
 
         mapping = self._map_controlled_base_gate(builder, base_gate, total_controls)
         if mapping is None:
-            builder.add_comment(f"Unsupported controlled gate: {type(base_gate).__name__}")
-            return
+            raise UnsupportedCircuitError(f"Unsupported controlled gate: {gate}")
 
         gate_name, params = mapping
         builder.apply_gate(gate_name, qubits_str, parameters=params if params else None)
@@ -558,9 +659,6 @@ class CirqToQASM3Converter:
         if gate_type in ['YPowGate', '_PauliY', '_Y']:
             if total_controls == 1 and self._is_full_turn(exponent):
                 return ('cy', [])
-            angle = self._angle_from_exponent(exponent)
-            if angle is not None and total_controls == 1:
-                return ('cry', [builder.format_parameter(angle)])
 
         if gate_type in ['HPowGate', '_H']:
             if total_controls == 1 and self._is_full_turn(exponent):
@@ -569,9 +667,8 @@ class CirqToQASM3Converter:
         if gate_type in ['XPowGate', '_PauliX', '_X']:
             if total_controls == 1 and self._is_full_turn(exponent):
                 return ('cx', [])
-            angle = self._angle_from_exponent(exponent)
-            if angle is not None and total_controls == 1:
-                return ('crx', [builder.format_parameter(angle)])
+            if total_controls == 2 and self._is_full_turn(exponent):
+                return ('ccx', [])
 
         if gate_type in ['ZPowGate', '_PauliZ', '_Z']:
             if total_controls == 1 and self._is_full_turn(exponent):
@@ -579,7 +676,7 @@ class CirqToQASM3Converter:
             if total_controls == 2 and self._is_full_turn(exponent):
                 return ('ccz', [])
             angle = self._angle_from_exponent(exponent)
-            if angle is not None and total_controls == 1:
+            if angle is not None and total_controls == 1 and getattr(base_gate, 'global_shift', 0) == 0:
                 return ('cp', [builder.format_parameter(angle)])
 
         if gate_type in ['Rx', 'Ry', 'Rz']:
@@ -647,18 +744,13 @@ class CirqToQASM3Converter:
         qubits_str = [f"q[{i}]" for i in operation.qubits]
         modifiers = operation.modifiers if operation.modifiers else None
 
-        if self._is_standard_gate(gate_name):
-            builder.apply_gate(gate_name, qubits_str, modifiers=modifiers)
-        elif self._is_parameterized_gate(gate_name):
-            self._add_parameterized_gate(builder, gate_name, qubits_str, operation, modifiers)
-        elif self._is_two_qubit_gate(gate_name):
-            builder.apply_gate(gate_name, qubits_str, modifiers=modifiers)
-        elif self._is_three_qubit_gate(gate_name):
-            builder.apply_gate(gate_name, qubits_str, modifiers=modifiers)
-        elif gate_name == 'gphase':
+        if gate_name not in GATE_SIGNATURES:
+            raise UnsupportedCircuitError(f"Unsupported gate: {gate_name}")
+        if gate_name == 'gphase':
             self._add_global_phase_gate(builder, operation)
-        else:
-            builder.add_comment(f"Unsupported gate: {gate_name}")
+            return
+        params = [builder.format_parameter(p) for p in (operation.parameters or [])]
+        builder.apply_gate(gate_name, qubits_str, parameters=params or None, modifiers=modifiers)
 
     def _is_standard_gate(self, gate_name: str) -> bool:
         """Check if gate is a standard single-qubit gate."""
@@ -770,7 +862,7 @@ class CirqToQASM3Converter:
             for param_name, param_shape in sorted(circuit_ast.array_parameters.items()):
                 # Format shape as comma-separated list
                 shape_str = ", ".join(str(s) for s in param_shape)
-                builder.lines.append(f"array[float[64], {shape_str}] {param_name};")
+                builder.lines.append(f"input array[float[64], {shape_str}] {param_name};")
             builder.add_blank_line()
 
         # ── Simple scalar parameters (bare variable names used in gates) ────────
@@ -782,22 +874,12 @@ class CirqToQASM3Converter:
         if scalar_params:
             builder.add_section_comment("Scalar input parameters")
             for param_name in scalar_params:
-                builder.declare_variable(param_name, 'float')
+                builder.add_input_directive(param_name, 'float[64]')
             builder.add_blank_line()
         builder.add_section_comment("Circuit operations")
         for op in circuit_ast.operations:
             self._add_ast_operation(builder, op)
-
-        # Preserve historical output expected by integration tests.
-        try:
-            if circuit_ast.has_measurements() and circuit_ast.qubits >= 2:
-                builder.add_blank_line()
-                builder.add_section_comment("Classical control flow examples")
-                builder.add_if_statement("c[0] == 1", ["x q[1];"], else_body=None)
-                builder.add_blank_line()
-                builder.add_for_loop("int loop_index", f"[0:{circuit_ast.qubits - 1}]", ["ry(pi_4) q[loop_index];"])
-        except Exception:
-            pass
+        # Only the operations the user wrote are emitted (no demo control flow).
         return builder.get_code()
 
     def convert(self, cirq_source: str) -> ConversionResult:
@@ -848,11 +930,15 @@ class CirqToQASM3Converter:
                 vprint("[CirqToQASM3Converter] Attempt AST-based conversion")
             parser = CirqASTParser()
             circuit_ast = parser.parse(cirq_source)
+            validate_circuit_ast(circuit_ast, "Cirq")
             stats = self._analyze_circuit_ast(circuit_ast)
             qasm3_program = self._convert_ast_to_qasm3(circuit_ast)
             return ConversionResult(qasm_code=qasm3_program, stats=stats)
-        except Exception:
-            pass
+        except Exception as e:
+            # The static translation could not represent the program exactly;
+            # fall back to building the real cirq.Circuit.
+            if VERBOSE:
+                vprint(f"[CirqToQASM3Converter] AST path rejected: {e}")
 
         # Fallback: execute source to obtain cirq.Circuit
         if VERBOSE:
