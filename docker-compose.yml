@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: pgvector/pgvector:pg15
@@ -39,6 +37,9 @@ services:
   # Production deployment lives in docker-compose.prod.yml (slim image, no
   # bind-mount, pgvector-backed RAG, Redis-backed run history, API key auth).
   cirq_agent:
+    # Optional (admin-only feature, needs AWS Bedrock keys). Start it with:
+    #   docker compose --profile ai up -d
+    profiles: ["ai"]
     build:
       context: ./Cirq-RAG-Code-Assistant
       dockerfile: Dockerfile.dev
@@ -46,7 +47,8 @@ services:
     ports:
       - "8001:8000"
     env_file:
-      - ./Cirq-RAG-Code-Assistant/.env
+      - path: ./Cirq-RAG-Code-Assistant/.env
+        required: false
     environment:
       - PYTHONPATH=/app
       # Do not pass AWS_ACCESS_KEY_ID / AWS_SECRET with ${VAR:-} here: unset host vars become
@@ -98,13 +100,13 @@ services:
       - ./backend:/app/backend
       - ./quantum_converters:/app/quantum_converters
       - ./quantum_simulator:/app/quantum_simulator
+      - ./qcanvas:/app/qcanvas
+      - ./config:/app/config
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      cirq_agent:
-        condition: service_started
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     healthcheck:
       test:

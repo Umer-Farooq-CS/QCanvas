@@ -27,7 +27,7 @@ jobs:
 
     - name: Run tests
       working-directory: backend
-      run: pytest --ignore=test_api.py --ignore=test_auth.py --disable-warnings -q
+      run: pytest --ignore=tests/legacy/test_api.py --ignore=tests/legacy/test_auth.py --disable-warnings -q
 
   frontend:
     runs-on: ubuntu-latest

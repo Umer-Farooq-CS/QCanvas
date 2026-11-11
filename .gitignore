@@ -348,3 +348,7 @@ frontend/.next/
 
 # Design audit screenshots (local only)
 design-audit/*.png
+
+# FastQSim session token cache (secret, written at runtime)
+**/.fastqsim_token_cache
+backend/test_db_output.txt

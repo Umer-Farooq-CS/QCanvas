@@ -3,7 +3,18 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from app.config.settings import settings
 
-SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
+def _with_explicit_driver(url):
+    """
+    Pin the Postgres driver we actually install (psycopg2-binary).
+    SQLAlchemy 2.1 changed the default for plain "postgresql://" URLs to
+    psycopg 3, which isn't installed, so a fresh image crashed at startup.
+    """
+    if url and (url.startswith("postgresql://") or url.startswith("postgres://")):
+        return "postgresql+psycopg2://" + url.split("://", 1)[1]
+    return url
+
+
+SQLALCHEMY_DATABASE_URL = _with_explicit_driver(settings.DATABASE_URL)
 
 
 def _engine_kwargs(url: str) -> dict:

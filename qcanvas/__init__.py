@@ -103,6 +103,13 @@ def compile(obj, framework: Optional[str] = None, **kwargs) -> str:
             "and make sure the same interpreter is running your app."
         )
 
+    if framework == "qiskit" and qiskit_converter is not None and not isinstance(obj, str):
+        # A QuantumCircuit OBJECT (e.g. `compile(qc)` in hybrid code). The
+        # convenience converter expects source text, so use the converter's
+        # circuit-object path; same QASM builder, same output style.
+        from quantum_converters.converters.qiskit_to_qasm import QiskitToQASM3Converter
+
+        return QiskitToQASM3Converter()._convert_to_qasm3(obj)
     if framework == "qiskit" and qiskit_converter is not None:
         result = qiskit_converter(obj, **kwargs)
         return getattr(result, "qasm_code", result)

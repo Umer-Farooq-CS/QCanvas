@@ -139,4 +139,4 @@ This scaffold is ready for:
 
 ## License
 
-MIT License - see LICENSE file for details.
+Open Quantum Workbench Proprietary License. See the LICENSE file in the repository root.

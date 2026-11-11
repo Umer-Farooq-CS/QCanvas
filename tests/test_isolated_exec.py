@@ -45,6 +45,12 @@ def job_hard_exit(code: int) -> None:
     os._exit(code)
 
 
+def job_sleep(seconds: float) -> str:
+    import time
+    time.sleep(seconds)
+    return "slept"
+
+
 def job_memory_error() -> None:
     raise MemoryError()
 
@@ -374,12 +380,14 @@ def test_event_loop_not_blocked_while_job_runs():
                 ticks += 1
 
         task = asyncio.create_task(ticker())
-        outcome = await ie.run_isolated_async(job_hard_exit, args=(0,), timeout=10)
+        # The job must outlast several ticks on every platform (a fork-server
+        # child on Linux starts and exits in a few ms).
+        outcome = await ie.run_isolated_async(job_sleep, args=(0.6,), timeout=10)
         task.cancel()
         return outcome, ticks
 
     outcome, ticks = asyncio.run(scenario())
-    assert outcome.error_type == "WorkerCrashed"  # exited without a result
+    assert outcome.ok and outcome.value == "slept"
     assert ticks >= 3, "event loop was blocked while waiting for the child"
 
 

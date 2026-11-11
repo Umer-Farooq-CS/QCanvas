@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "A backend quantum simulation framework"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "MIT"}
+license = {text = "LicenseRef-Proprietary (Open Quantum Workbench Proprietary License, see LICENSE)"}
 authors = [
   {name = "Aneeq Malik", email = "i221167@nu.edu.pk"}, 
   {name = "Abeer Noor", email = "i221122@nu.edu.pk"}, 
