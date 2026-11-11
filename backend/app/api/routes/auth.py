@@ -203,6 +203,9 @@ def get_current_user(
             detail="Guest session has expired. Start a new demo or create an account.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Keep active guests from ever looking "abandoned" (throttled DB write).
+    guest_service.touch_guest(db, user)
     
     return user
 
@@ -704,7 +707,7 @@ def refresh_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    guest_service.touch_guest(db, current_user)
+    guest_service.touch_guest(db, current_user, force=True)
 
     access_token = create_access_token(
         data={

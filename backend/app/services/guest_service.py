@@ -116,10 +116,20 @@ def purge_guest(db: Session, user: User) -> None:
     user.token_version = (user.token_version or 0) + 1
 
 
-def touch_guest(db: Session, user: User) -> None:
-    """Record guest activity (called on token refresh, i.e. hourly while the IDE is open)."""
-    if user.role == UserRole.DEMO:
-        user.last_login_at = datetime.utcnow()
+GUEST_ACTIVITY_WRITE_INTERVAL = timedelta(minutes=15)
+
+
+def touch_guest(db: Session, user: User, force: bool = False) -> None:
+    """
+    Record guest activity. Called on every authenticated request (throttled to
+    one DB write per 15 minutes) and on token refresh.
+    """
+    if user.role != UserRole.DEMO:
+        return
+    now = datetime.utcnow()
+    last = user.last_login_at
+    if force or last is None or now - last >= GUEST_ACTIVITY_WRITE_INTERVAL:
+        user.last_login_at = now
         db.commit()
 
 
@@ -142,7 +152,13 @@ def purge_idle_guests(db: Session, limit: int = 10) -> int:
                 User.deleted_at == None,  # noqa: E711
                 User.email != LEGACY_SHARED_DEMO_EMAIL,
                 User.last_login_at < cutoff,
+                # "Abandoned" means the guest owns NO workspace data at all, so
+                # evicting it destroys nothing (it's a short TTL for empty accounts).
                 ~exists().where(File.user_id == User.id),
+                ~exists().where(Folder.user_id == User.id),
+                ~exists().where(Project.user_id == User.id),
+                ~exists().where(Simulation.user_id == User.id),
+                ~exists().where(Conversion.user_id == User.id),
             )
             .order_by(User.last_login_at.asc())
             .limit(limit)
