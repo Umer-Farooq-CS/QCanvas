@@ -96,21 +96,24 @@ function MemberCard({ member }: { member: TeamMember }) {
   }
 
   return (
-    <li className="qc-card flex gap-4 overflow-hidden p-4 sm:flex-col sm:gap-0 sm:p-0">
-      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-qc-surface-2 sm:h-56 sm:w-full sm:rounded-none">
+    <li className="qc-card flex gap-5 overflow-hidden p-4 sm:p-5">
+      {/* Portrait-shaped frame so faces are never cropped, whatever the card width. */}
+      <div className="relative aspect-[4/5] w-24 shrink-0 overflow-hidden rounded-xl bg-qc-surface-2 sm:w-32 lg:w-36">
         <Image
           src={member.image}
           alt={`Portrait of ${member.name}`}
           fill
-          sizes="(min-width: 640px) 360px, 80px"
-          className="object-cover object-top"
+          sizes="(min-width: 1024px) 144px, (min-width: 640px) 128px, 96px"
+          className="object-cover object-[50%_22%]"
         />
       </div>
-      <div className="flex min-w-0 flex-1 flex-col sm:p-5 sm:pt-4">
+      <div className="flex min-w-0 flex-1 flex-col py-1">
         <h4 className="font-semibold text-qc-fg">{member.name}</h4>
         <p className="text-sm text-qc-subtle">{member.role}</p>
         <p className="mt-2 text-sm leading-relaxed text-qc-muted">{member.bio}</p>
-        <MemberLinks member={member} />
+        <div className="mt-auto pt-3">
+          <MemberLinks member={member} />
+        </div>
       </div>
     </li>
   );

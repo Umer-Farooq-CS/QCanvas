@@ -91,9 +91,10 @@ class Settings(BaseSettings):
     # General
     # When True, unhandled-exception responses include the exception text/type.
     DEBUG: bool = False
-    # "production" disables dev conveniences such as accepting any localhost
-    # port as a CORS origin. Set ENVIRONMENT=production in deployed envs.
-    ENVIRONMENT: str = "development"
+    # Fail closed: production unless a local .env explicitly opts into
+    # "development" (which enables dev-only conveniences such as accepting any
+    # localhost port as a CORS origin).
+    ENVIRONMENT: str = "production"
 
     # ------------------------------------------------------------------
     # Rate limiting (slowapi). Limit strings use the "N/period" syntax and may

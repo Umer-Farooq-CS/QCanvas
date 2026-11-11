@@ -81,12 +81,13 @@ app.add_middleware(AuditLogMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
-    # Production: qcanvas.codes (+ subdomains). Development additionally accepts
+    # Default (production): qcanvas.codes (+ subdomains). ENVIRONMENT=development
+    # (opt-in, local .env only) additionally accepts
     # any localhost / 127.0.0.1 port, so `next dev -p 3001` etc. can sign in
     # (previously only :3000 was allowed and other ports got "Failed to fetch").
     allow_origin_regex=(
         r"^https://([a-zA-Z0-9-]+\.)?qcanvas\.codes$"
-        if settings.ENVIRONMENT.strip().lower() == "production"
+        if settings.ENVIRONMENT.strip().lower() not in ("development", "dev", "local")
         else r"^(https://([a-zA-Z0-9-]+\.)?qcanvas\.codes|http://(localhost|127\.0\.0\.1)(:\d+)?)$"
     ),
     allow_credentials=True,
