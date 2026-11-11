@@ -62,6 +62,51 @@ No failed network requests (4xx/5xx) and no console errors on any public page. A
 - **Docs, Examples, About:** quiet page headers, no decorative motion, content visible without scroll triggers, no fake links or testimonial.
 - **Auth pages:** a calm card on a plain background, no pulsing logo, and autocomplete attributes. The session logic (`getNextPath`, `canAccessApp`, the `qcanvas-auth-message` toast, `hasValidAuth`) is unchanged.
 - **Profile, achievements and gamification toasts:** neutral surfaces, no infinite pulses or bounces, and no emoji.
+- **Shared site components** (new, in `components/site/`):
+  - `SiteFooter`
+  - `AuthShell` (frame for the auth pages)
+  - `CodeSample` (build-time syntax highlighting, no client JS)
+  - `OpenExampleButton` (the only client island on `/` besides the Navbar)
+- **Global primitives** for any page to use:
+  - `qc-btn`, `qc-btn-primary`, `qc-btn-secondary`, `qc-btn-quiet`
+  - `qc-input`, `qc-select`, `qc-card`, `qc-link`, `qc-eyebrow`
+  - `qc-code`, `qc-logo`, `qc-fade-in`, `qc-pop-in`
+- **New pages and assets:** a custom 404 page, and an OG image (71 KB).
+
+### First-load JS (production build, before → after)
+
+| Route | Before | After |
+|---|---|---|
+| `/` | 197 kB (8.34 kB page) | **117 kB** (2 kB page) |
+| `/about` | 200 kB | 122 kB |
+| `/login` | 181 kB | 118 kB |
+| `/signup` | 190 kB | 118 kB |
+| `/docs` | 200 kB | 187 kB |
+| `/examples` | 196 kB | 187 kB |
+| `/profile` | 198 kB | 191 kB |
+| `/achievements` | 192 kB | 185 kB |
+| `/app` (not edited) | 551 kB | 544 kB |
+| shared by all | 87.5 kB | 87.5 kB |
+
+### Token reference (`app/globals.css`)
+
+| Token | Dark | Light | Use |
+|---|---|---|---|
+| `--qc-bg` | `#0e1014` | `#f6f7f9` | page background |
+| `--qc-surface` | `#15171c` | `#ffffff` | cards, panels |
+| `--qc-surface-2` | `#1b1e24` | `#f0f2f5` | raised, hover |
+| `--qc-surface-3` | `#23272e` | `#e7eaef` | tracks, active tab |
+| `--qc-line` | `#2a2f38` | `#e1e4ea` | borders |
+| `--qc-line-strong` | `#3a404c` | `#cdd2da` | input borders, hover borders |
+| `--qc-fg` | `#e6e8ec` (15.5:1) | `#11141a` (17:1) | primary text |
+| `--qc-fg-muted` | `#a1a8b5` (8.0:1) | `#4b5262` (7.6:1) | body and secondary text |
+| `--qc-fg-subtle` | `#8a92a1` (5.9:1) | `#646b7a` (5.0:1) | captions, meta |
+| `--qc-accent` | `#6ea8ff` (7.9:1) | `#1f5fd1` (5.4:1) | links, focus, data |
+| `--qc-accent-solid` | `#2563eb` | `#2563eb` | primary button fill (white text 5.2:1) |
+| `--qc-success` / `warning` / `danger` | `#3ecf8e` / `#f0b429` / `#f26d6d` | `#15803d` / `#a16207` / `#c82828` | status |
+| `--qc-qiskit` / `cirq` / `pennylane` | `#a7c8ff` / `#46eaed` / `#ffabf3` | `#2563eb` / `#0b7d85` / `#b832a6` | framework identity (same as Monaco tokens) |
+
+Motion: UI transitions run 150–220ms on `--qc-ease-out` (`cubic-bezier(.2,.8,.2,1)`), animating transform, opacity and colour only. `prefers-reduced-motion` collapses all transitions and animations except spinners.
 
 ---
 
