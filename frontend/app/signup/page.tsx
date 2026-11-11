@@ -6,7 +6,7 @@ import { Book, Play, Moon, Sun, CodeSquareIcon } from "@/components/Icons";
 import { Eye, EyeOff, Github, User, Mail, Lock } from "lucide-react";
 import toast from "react-hot-toast";
 import { useFileStore } from "@/lib/store";
-import { useAuthStore } from "@/lib/authStore";
+import { hasValidAuth, useAuthStore } from "@/lib/authStore";
 import { authApi } from "@/lib/api";
 import Image from "next/image";
 import Link from "next/link";
@@ -14,7 +14,8 @@ import Link from "next/link";
 export default function SignupPage() {
   const router = useRouter();
   const { theme, toggleTheme } = useFileStore();
-  const { isAuthenticated, setAuth, setLoading } = useAuthStore();
+  const { isAuthenticated, token, setAuth, setLoading } = useAuthStore();
+  const canAccessApp = hasValidAuth({ isAuthenticated, token });
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -30,10 +31,10 @@ export default function SignupPage() {
 
   // Check if already authenticated
   useEffect(() => {
-    if (isAuthenticated) {
+    if (canAccessApp) {
       router.push("/app");
     }
-  }, [isAuthenticated, router]);
+  }, [canAccessApp, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -38,7 +38,10 @@ class Settings(BaseSettings):
 
     # Security
     SECRET_KEY: str = "development_secret_key"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    # Max idle session length. Active users get a fresh token via /api/auth/refresh.
+    # Default: 7 days. (Was a hardcoded 30 min, which silently broke saves/file loads
+    # for anyone who kept the IDE open or came back later.)
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
     AUTH_EMAIL_OTP_ENABLED: bool = False
     OTP_EXPIRE_MINUTES: int = 5
     OTP_MAX_ATTEMPTS: int = 5

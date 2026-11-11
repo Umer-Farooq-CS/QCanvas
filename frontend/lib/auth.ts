@@ -1,16 +1,21 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from './authStore';
+import { handleSessionExpired, hasValidAuth, useAuthStore } from './authStore';
 
 export function useRequireAuth(redirectUrl = '/login') {
-    const { isAuthenticated, isLoading } = useAuthStore();
+    const { isAuthenticated, isLoading, token } = useAuthStore();
     const router = useRouter();
+    const valid = hasValidAuth({ isAuthenticated, token });
 
     useEffect(() => {
-        if (!isLoading && !isAuthenticated) {
+        if (isLoading || valid) return;
+        if (token) {
+            // Stored token has expired: clear it and explain why.
+            handleSessionExpired();
+        } else {
             router.push(redirectUrl as Parameters<typeof router.push>[0]);
         }
-    }, [isAuthenticated, isLoading, router, redirectUrl]);
+    }, [valid, isLoading, token, router, redirectUrl]);
 
-    return { isAuthenticated, loading: isLoading };
+    return { isAuthenticated: valid, loading: isLoading };
 }

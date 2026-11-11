@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFileStore } from "@/lib/store";
 import MenuBar from "./MenuBar";
 import ActivityBar, { ActivityView } from "./ActivityBar";
@@ -44,6 +44,29 @@ export default function IDELayout({
   contentRef?: React.RefObject<HTMLDivElement>;
 }>) {
   const sidebarCollapsed = useFileStore((s) => s.sidebarCollapsed);
+  const toggleSidebar = useFileStore((s) => s.toggleSidebar);
+
+  // VS Code-style activity bar: clicking the active view hides the sidebar,
+  // clicking any view while the sidebar is hidden shows it again.
+  const handleActivityClick = useCallback(
+    (id: ActivityView) => {
+      if (id === "cirqAssistant") {
+        onSidebarActivityChange(id);
+        return;
+      }
+      if (sidebarCollapsed) {
+        onSidebarActivityChange(id);
+        toggleSidebar();
+        return;
+      }
+      if (id === sidebarActivity) {
+        toggleSidebar();
+        return;
+      }
+      onSidebarActivityChange(id);
+    },
+    [sidebarCollapsed, sidebarActivity, onSidebarActivityChange, toggleSidebar],
+  );
   const [rightPanelWidth, setRightPanelWidth] = useState<number>(() => {
     if (globalThis.window === undefined) return 420;
     const stored = globalThis.window.localStorage.getItem(
@@ -74,10 +97,6 @@ export default function IDELayout({
       String(clampedRightPanelWidth),
     );
   }, [clampedRightPanelWidth]);
-
-  useEffect(() => {
-    if (sidebarCollapsed) onSidebarActivityChange("explorer");
-  }, [sidebarCollapsed, onSidebarActivityChange]);
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -112,7 +131,9 @@ export default function IDELayout({
         <ActivityBar
           active={sidebarActivity}
           assistantOpen={!!rightPanelOpen}
-          onChange={onSidebarActivityChange}
+          sidebarCollapsed={sidebarCollapsed}
+          onChange={handleActivityClick}
+          onToggleSidebar={toggleSidebar}
         />
 
         {/* Sidebar panel */}

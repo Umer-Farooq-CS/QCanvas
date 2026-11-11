@@ -13,12 +13,16 @@ import CirqAssistantSidebar from "@/components/ide/CirqAssistantSidebar";
 import type { ActivityView } from "@/components/ide/ActivityBar";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { hasValidAuth, useAuthStore } from "@/lib/authStore";
+import {
+  handleSessionExpired,
+  hasValidAuth,
+  useAuthStore,
+} from "@/lib/authStore";
+import { refreshSession, useSessionKeepAlive } from "@/lib/session";
 import { useExecutionActions } from "@/components/ide/useExecutionActions";
 
 export default function AppPage() {
   const router = useRouter();
-  const token = useAuthStore((s) => s.token);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [resultsHeight, setResultsHeight] = useState(320); // Default height
@@ -86,42 +90,79 @@ export default function AppPage() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Auto-collapse sidebar on mobile
+  // Auto-collapse the sidebar when the window gets narrow, and bring it back
+  // when the window is wide again (previously it stayed hidden until a hard reload).
+  const autoCollapsedRef = useRef(false);
   useEffect(() => {
-    if (isMobile && !sidebarCollapsed) {
-      toggleSidebar();
+    const { sidebarCollapsed: collapsed, toggleSidebar: toggle } =
+      useFileStore.getState();
+    if (isMobile && !collapsed) {
+      autoCollapsedRef.current = true;
+      toggle();
+    } else if (!isMobile && collapsed && autoCollapsedRef.current) {
+      autoCollapsedRef.current = false;
+      toggle();
     }
-  }, [isMobile]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isMobile]);
 
-  // Authentication check
+  // If the user toggles the sidebar manually, respect that choice.
   useEffect(() => {
+    if (!sidebarCollapsed) autoCollapsedRef.current = false;
+  }, [sidebarCollapsed]);
+
+  // Authentication check: validate the stored session with the backend and
+  // refresh the token BEFORE loading any user data. A stale/expired token used
+  // to leave the IDE looking logged in but with no files or projects.
+  useEffect(() => {
+    let cancelled = false;
     const persistedAuth = localStorage.getItem("qcanvas-auth");
 
-    if (!persistedAuth) {
+    let locallyValid = false;
+    try {
+      const parsed = persistedAuth ? JSON.parse(persistedAuth) : null;
+      locallyValid = hasValidAuth(parsed?.state ?? parsed);
+    } catch {
+      locallyValid = false;
+    }
+
+    if (!locallyValid) {
+      // Expired or missing token: clear leftovers and go to login with a message.
+      handleSessionExpired();
       setIsAuthenticated(false);
       return;
     }
 
-    try {
-      const parsed = JSON.parse(persistedAuth);
-      const persistedState = parsed?.state ?? parsed;
-      setIsAuthenticated(hasValidAuth(persistedState));
-    } catch {
-      setIsAuthenticated(false);
-    }
+    refreshSession(true).then((status) => {
+      if (cancelled) return;
+      setIsAuthenticated(status !== "expired");
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // Load projects + explorer tree on component mount
+  // Keep the session alive while the IDE is open (hourly + on tab focus).
+  useSessionKeepAlive(isAuthenticated === true);
+
+  // Redirect to login if we know the user isn't authenticated.
+  useEffect(() => {
+    if (isAuthenticated === false) router.replace("/login");
+  }, [isAuthenticated, router]);
+
+  // Load projects + explorer tree once the session is confirmed.
+  // Reads the token from the store so a background token refresh doesn't
+  // trigger a full re-fetch of the explorer.
   useEffect(() => {
     if (!isAuthenticated) return;
-
-    if (!token) return;
+    const currentToken = useAuthStore.getState().token;
+    if (!currentToken) return;
 
     const { fetchProjects, fetchExplorerTree } = useFileStore.getState();
 
-    fetchProjects(token);
-    fetchExplorerTree(null, token);
-  }, [isAuthenticated, token]);
+    fetchProjects(currentToken);
+    fetchExplorerTree(null, currentToken);
+  }, [isAuthenticated]);
 
   // In Basic mode, auto-fill framework/backend from the active code.
   useEffect(() => {
@@ -175,7 +216,7 @@ export default function AppPage() {
 
   // Handle examples passed via sessionStorage (from Examples page or Homepage)
   useEffect(() => {
-    if (!isAuthenticated || !token) return;
+    if (!isAuthenticated) return;
 
     const pendingJson = sessionStorage.getItem("pending-example");
     if (pendingJson) {
@@ -193,52 +234,13 @@ export default function AppPage() {
         sessionStorage.removeItem("pending-example");
       }
     }
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated]);
 
-  // Handle global save event
+  // Handle global save event. (Saving used to also force-download an SVG of the
+  // circuit on every Ctrl+S; that side effect has been removed.)
   useEffect(() => {
     const handleSave = () => {
-      const store = useFileStore.getState();
-      store.saveActiveFile();
-
-      // Also download SVG to computer if available
-      const activeFile = store.files.find(
-        (f: any) => f.id === store.activeFileId,
-      );
-      if (activeFile) {
-        // Try to capture and save the circuit visualization if it exists in the DOM
-        const svgElement = document.querySelector(
-          "svg.min-w-full",
-        ) as SVGSVGElement | null;
-        if (svgElement) {
-          try {
-            const serializer = new XMLSerializer();
-            let source = serializer.serializeToString(svgElement);
-            if (
-              !source.match(
-                /^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/,
-              )
-            ) {
-              source = source.replace(
-                /^<svg/,
-                '<svg xmlns="http://www.w3.org/2000/svg"',
-              );
-            }
-            source = '<?xml version="1.0" standalone="no"?>\r\n' + source;
-            const svgUrl =
-              "data:image/svg+xml;charset=utf-8," + encodeURIComponent(source);
-            const svgLink = document.createElement("a");
-            svgLink.href = svgUrl;
-            svgLink.download =
-              activeFile.name.replace(/\.[^/.]+$/, "") + "_circuit.svg";
-            document.body.appendChild(svgLink);
-            svgLink.click();
-            document.body.removeChild(svgLink);
-          } catch (e) {
-            console.error("Failed to save SVG", e);
-          }
-        }
-      }
+      useFileStore.getState().saveActiveFile();
     };
 
     window.addEventListener("save-file", handleSave);
@@ -369,9 +371,8 @@ export default function AppPage() {
     );
   }
 
-  // Not authenticated - redirect to login
+  // Not authenticated - redirect happens in the effect above
   if (!isAuthenticated) {
-    router.replace("/login");
     return (
       <div className="flex items-center justify-center h-screen bg-editor-bg px-4">
         <div className="max-w-md mx-auto p-8 quantum-glass-dark rounded-lg text-center">

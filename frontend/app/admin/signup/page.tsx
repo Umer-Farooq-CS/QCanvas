@@ -16,14 +16,15 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 
-import { useAuthStore } from "@/lib/authStore";
+import { hasValidAuth, useAuthStore } from "@/lib/authStore";
 import { useFileStore } from "@/lib/store";
 import { authApi } from "@/lib/api";
 
 export default function AdminSignupPage() {
   const router = useRouter();
   const { theme, toggleTheme } = useFileStore();
-  const { isAuthenticated, setLoading } = useAuthStore();
+  const { isAuthenticated, token, setLoading } = useAuthStore();
+  const canAccessApp = hasValidAuth({ isAuthenticated, token });
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -39,10 +40,10 @@ export default function AdminSignupPage() {
   const [isLogoHovered, setIsLogoHovered] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (canAccessApp) {
       router.push("/app");
     }
-  }, [isAuthenticated, router]);
+  }, [canAccessApp, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

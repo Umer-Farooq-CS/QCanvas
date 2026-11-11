@@ -1,4 +1,5 @@
 import { File, ApiResponse, CreateFileRequest, UpdateFileRequest, ExplorerTree } from '@/types'
+import { handleSessionExpired } from './authStore'
 
 // =============================================================================
 // API BASE CONFIGURATION
@@ -133,6 +134,18 @@ export async function getApiBase(): Promise<string> {
 // return railwayUrl
 // }
 
+function hasBearerToken(headers: HeadersInit | undefined): boolean {
+  if (!headers) return false
+  if (headers instanceof Headers) {
+    return (headers.get('Authorization') ?? '').startsWith('Bearer ')
+  }
+  if (Array.isArray(headers)) {
+    return headers.some(([k, v]) => k.toLowerCase() === 'authorization' && v.startsWith('Bearer '))
+  }
+  const value = (headers as Record<string, string>)['Authorization'] ?? (headers as Record<string, string>)['authorization']
+  return typeof value === 'string' && value.startsWith('Bearer ')
+}
+
 // Generic API helper
 async function apiRequest<T>(
   endpoint: string,
@@ -181,6 +194,13 @@ async function apiRequest<T>(
       } else {
         data = undefined
       }
+    }
+
+    // A 401 on a request that carried our bearer token means the session is dead
+    // (expired, or invalidated by a password reset). Clear it and send the user to
+    // login instead of leaving the IDE half-loaded with empty files/projects.
+    if (response.status === 401 && hasBearerToken(options.headers)) {
+      handleSessionExpired()
     }
 
     // If response is not ok, check if we have error details in the body
@@ -714,6 +734,15 @@ export const authApi = {
 
   async getCurrentUser(token: string): Promise<ApiResponse<AuthResponse['user']>> {
     return apiRequest<AuthResponse['user']>('/api/auth/me', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+  },
+
+  async refreshToken(token: string): Promise<ApiResponse<AuthResponse>> {
+    return apiRequest<AuthResponse>('/api/auth/refresh', {
+      method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
       },

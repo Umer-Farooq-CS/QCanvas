@@ -10,7 +10,10 @@ from app.config.settings import settings
 
 # JWT Configuration
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+# Session lifetime comes from settings (env: ACCESS_TOKEN_EXPIRE_MINUTES).
+# The frontend refreshes the token while the user is active (POST /api/auth/refresh),
+# so this is effectively the maximum idle time before a user must sign in again.
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:

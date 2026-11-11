@@ -153,8 +153,9 @@ def get_current_user(
         )
     token = credentials.credentials
     payload = verify_token(token)
-    user_id = payload.get("sub") if payload else None
-    
+    # Purpose-specific tokens (e.g. admin approval links) must never act as login sessions.
+    user_id = payload.get("sub") if payload and not payload.get("intent") else None
+
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -201,8 +202,8 @@ def get_optional_user(
     try:
         token = credentials.credentials
         payload = verify_token(token)
-        user_id = payload.get("sub") if payload else None
-        
+        user_id = payload.get("sub") if payload and not payload.get("intent") else None
+
         if not user_id:
             return None
         
@@ -644,6 +645,29 @@ def get_current_user_info(current_user: User = Depends(get_current_user)):
     Returns user details without sensitive information.
     """
     return _to_user_response(current_user)
+
+
+@router.post(
+    "/refresh",
+    response_model=TokenResponse,
+    responses={401: {"model": ErrorResponse, "description": "Invalid or expired token"}},
+)
+def refresh_access_token(current_user: User = Depends(get_current_user)):
+    """
+    Exchange a still-valid access token for a fresh one (sliding session).
+
+    The frontend calls this on IDE load and periodically while the tab is open,
+    so active users are never logged out mid-session. Tokens are still revocable:
+    bumping `token_version` (password reset) invalidates every issued token.
+    """
+    access_token = create_access_token(
+        data={"sub": str(current_user.id), "tv": current_user.token_version or 0}
+    )
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=_to_user_response(current_user),
+    )
 
 
 @router.post("/logout", status_code=status.HTTP_200_OK)

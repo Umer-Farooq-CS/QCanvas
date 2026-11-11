@@ -342,3 +342,5 @@ tmp/
 backend/app/cache/
 backend/app/temp/
 frontend/.next/
+# Local workshop venv
+.venv*/

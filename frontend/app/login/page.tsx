@@ -6,14 +6,15 @@ import { Book, Play, Moon, Sun, CodeSquareIcon } from "@/components/Icons";
 import { Eye, EyeOff, Github } from "lucide-react";
 import toast from "react-hot-toast";
 import { useFileStore } from "@/lib/store";
-import { useAuthStore } from "@/lib/authStore";
+import { hasValidAuth, useAuthStore } from "@/lib/authStore";
 import { authApi } from "@/lib/api";
 import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
   const { theme, toggleTheme } = useFileStore();
-  const { isAuthenticated, setAuth, setLoading } = useAuthStore();
+  const { isAuthenticated, token, setAuth, setLoading } = useAuthStore();
+  const canAccessApp = hasValidAuth({ isAuthenticated, token });
 
   const [formData, setFormData] = useState({
     email: "",
@@ -23,12 +24,31 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isLogoHovered, setIsLogoHovered] = useState(false);
 
-  // Check if already authenticated
+  // Where to go after login: honour ?next= (same-origin paths only).
+  const getNextPath = () => {
+    if (typeof window === "undefined") return "/app";
+    const next = new URLSearchParams(window.location.search).get("next");
+    return next && next.startsWith("/") && !next.startsWith("//") ? next : "/app";
+  };
+
+  // Check if already authenticated (expiry-aware, so a stale token can't
+  // bounce the user between /login and /app).
   useEffect(() => {
-    if (isAuthenticated) {
-      router.push("/app");
+    if (canAccessApp) {
+      router.replace(getNextPath() as Parameters<typeof router.replace>[0]);
     }
-  }, [isAuthenticated, router]);
+  }, [canAccessApp, router]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Explain why the user landed here (e.g. session expired).
+  useEffect(() => {
+    try {
+      const msg = sessionStorage.getItem("qcanvas-auth-message");
+      if (msg) {
+        sessionStorage.removeItem("qcanvas-auth-message");
+        toast(msg, { icon: "🔒", id: "auth-message" });
+      }
+    } catch {}
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,7 +91,7 @@ export default function LoginPage() {
       toast.success(`Welcome back, ${user.full_name}!`);
 
       // Navigate to app
-      router.push("/app");
+      router.push(getNextPath() as Parameters<typeof router.push>[0]);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Login failed");
     } finally {
@@ -103,7 +123,7 @@ export default function LoginPage() {
       toast.success("Logged in as Demo User!");
       toast("Demo data will be cleared on logout", { icon: "ℹ️" });
 
-      router.push("/app");
+      router.push(getNextPath() as Parameters<typeof router.push>[0]);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Demo login failed");
     } finally {
