@@ -10,28 +10,14 @@ interface AchievementToastProps {
     onClose: () => void;
 }
 
-const RARITY_GRADIENTS: Record<string, string> = {
-    common: "from-gray-600/90 to-gray-800/90",
-    uncommon: "from-green-600/90 to-green-900/90",
-    rare: "from-blue-600/90 to-blue-900/90",
-    epic: "from-purple-600/90 to-purple-900/90",
-    legendary: "from-yellow-500/90 via-orange-500/90 to-red-600/90",
-};
-
-const RARITY_BORDERS: Record<string, string> = {
-    common: "border-gray-400/50",
-    uncommon: "border-green-400/50",
-    rare: "border-blue-400/50",
-    epic: "border-purple-400/50",
-    legendary: "border-yellow-400/60 shadow-[0_0_30px_rgba(234,179,8,0.3)]",
-};
-
-const RARITY_ICON_BG: Record<string, string> = {
-    common: "bg-gray-500/30",
-    uncommon: "bg-green-500/30",
-    rare: "bg-blue-500/30",
-    epic: "bg-purple-500/30",
-    legendary: "bg-yellow-500/30",
+// Rarity is shown as a small coloured dot and label rather than a full
+// gradient card, so the toast stays calm next to the editor.
+const RARITY_DOT: Record<string, string> = {
+    common: "bg-qc-subtle",
+    uncommon: "bg-qc-success",
+    rare: "bg-qc-accent",
+    epic: "bg-qc-pennylane",
+    legendary: "bg-qc-warning",
 };
 
 const RARITY_LABELS: Record<string, string> = {
@@ -82,121 +68,79 @@ export default function AchievementToast({ achievement, onClose }: AchievementTo
     if (!achievement || !isVisible) return null;
 
     const rarity = achievement.rarity?.toLowerCase() || "common";
-    const gradient = RARITY_GRADIENTS[rarity] || RARITY_GRADIENTS.common;
-    const border = RARITY_BORDERS[rarity] || RARITY_BORDERS.common;
-    const iconBg = RARITY_ICON_BG[rarity] || RARITY_ICON_BG.common;
+    const dot = RARITY_DOT[rarity] || RARITY_DOT.common;
     const rarityLabel = RARITY_LABELS[rarity] || "Common";
     const Icon = getIcon(achievement.icon_name);
 
     return (
         <div
-            className={`
-        fixed top-6 right-6 z-[9999] w-[360px] max-w-[calc(100vw-2rem)]
-        transition-all duration-400
-        ${isExiting
-                    ? "translate-x-[120%] opacity-0 scale-95"
-                    : "translate-x-0 opacity-100 scale-100"
-                }
-      `}
-            style={{
-                animation: !isExiting ? "slideInRight 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)" : undefined,
-            }}
+            role="status"
+            aria-live="polite"
+            className={`fixed right-6 top-6 z-[9999] w-[340px] max-w-[calc(100vw-2rem)] transition-[opacity,transform] duration-200 ease-out-quick ${
+                isExiting ? "translate-x-4 opacity-0" : "achievement-toast-in"
+            }`}
         >
-            {/* Glow effect for epic/legendary */}
-            {(rarity === "epic" || rarity === "legendary") && (
-                <div
-                    className={`absolute -inset-1 rounded-2xl bg-gradient-to-r ${gradient} blur-lg opacity-40 animate-pulse pointer-events-none`}
-                />
-            )}
+            <div className="overflow-hidden rounded-lg border border-qc-line bg-qc-surface-2 shadow-qc">
+                <div className="flex items-start gap-3 p-4">
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-qc-warning/15 text-qc-warning">
+                        <Icon className="h-5 w-5" />
+                    </div>
 
-            <div
-                className={`
-          relative overflow-hidden rounded-xl border-2 ${border}
-          bg-gradient-to-r ${gradient}
-          backdrop-blur-xl
-          shadow-2xl
-        `}
-            >
-                {/* Shimmer animation */}
-                <div
-                    className="absolute inset-0 pointer-events-none"
-                    style={{
-                        background: "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.08) 45%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.08) 55%, transparent 60%)",
-                        animation: "shimmer 2.5s ease-in-out infinite",
-                    }}
-                />
+                    <div className="min-w-0 flex-1">
+                        <p className="text-xs text-qc-subtle">Achievement unlocked</p>
+                        <h4 className="truncate text-sm font-semibold text-qc-fg">{achievement.name}</h4>
+                        <p className="line-clamp-2 text-xs leading-relaxed text-qc-muted">
+                            {achievement.description}
+                        </p>
+                        <div className="mt-2 flex items-center gap-3 text-xs">
+                            <span className="inline-flex items-center gap-1.5 text-qc-muted">
+                                <span className={`h-1.5 w-1.5 rounded-full ${dot}`} aria-hidden="true" />
+                                {rarityLabel}
+                            </span>
+                            <span className="font-mono tabular-nums text-qc-fg">+{achievement.xp_reward} XP</span>
+                        </div>
+                    </div>
 
-                {/* Header badge */}
-                <div className="flex items-center gap-2 px-4 pt-3 pb-1">
-                    <Trophy className="w-4 h-4 text-yellow-300" />
-                    <span className="text-yellow-300 text-xs font-bold uppercase tracking-widest">
-                        Achievement Unlocked!
-                    </span>
-                    <div className="flex-1" />
                     <button
+                        type="button"
                         onClick={handleClose}
-                        className="text-white/50 hover:text-white transition-colors p-0.5 rounded"
+                        className="qc-focus -m-1 grid h-7 w-7 place-items-center rounded-md text-qc-subtle transition-colors duration-150 hover:bg-qc-surface-3 hover:text-qc-fg"
+                        aria-label="Dismiss"
                     >
-                        <X className="w-4 h-4" />
+                        <X className="h-4 w-4" />
                     </button>
                 </div>
 
-                {/* Content */}
-                <div className="flex items-center gap-4 px-4 pb-4 pt-2">
-                    {/* Icon */}
-                    <div className={`w-14 h-14 rounded-xl ${iconBg} flex items-center justify-center shrink-0 border border-white/10`}>
-                        <Icon className="w-7 h-7 text-white" />
-                    </div>
-
-                    {/* Text */}
-                    <div className="flex-1 min-w-0">
-                        <h4 className="text-white font-bold text-base truncate">
-                            {achievement.name}
-                        </h4>
-                        <p className="text-white/70 text-sm line-clamp-1">
-                            {achievement.description}
-                        </p>
-                        <div className="flex items-center gap-3 mt-1.5">
-                            <span className="text-xs font-bold uppercase tracking-wider text-white/60 border border-white/20 px-2 py-0.5 rounded">
-                                {rarityLabel}
-                            </span>
-                            <span className="text-yellow-300 text-xs font-bold">
-                                +{achievement.xp_reward} XP
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Progress bar animation at bottom */}
-                <div className="h-1 bg-black/20">
-                    <div
-                        className="h-full bg-white/40 rounded-r"
-                        style={{
-                            animation: "shrinkWidth 6s linear forwards",
-                        }}
-                    />
+                {/* Time remaining before auto-dismiss */}
+                <div className="h-0.5 bg-qc-surface-3">
+                    <div className="achievement-toast-timer h-full origin-left bg-qc-subtle" />
                 </div>
             </div>
 
             <style jsx>{`
-        @keyframes slideInRight {
+        .achievement-toast-in {
+          animation: achievementIn 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+        }
+        .achievement-toast-timer {
+          animation: achievementTimer 6s linear forwards;
+        }
+        @keyframes achievementIn {
           from {
-            transform: translateX(120%) scale(0.9);
+            transform: translateX(16px);
             opacity: 0;
           }
           to {
-            transform: translateX(0) scale(1);
+            transform: none;
             opacity: 1;
           }
         }
-        @keyframes shimmer {
-          0% { transform: translateX(-200%); }
-          50% { transform: translateX(200%); }
-          100% { transform: translateX(200%); }
-        }
-        @keyframes shrinkWidth {
-          from { width: 100%; }
-          to { width: 0%; }
+        @keyframes achievementTimer {
+          from {
+            transform: scaleX(1);
+          }
+          to {
+            transform: scaleX(0);
+          }
         }
       `}</style>
         </div>

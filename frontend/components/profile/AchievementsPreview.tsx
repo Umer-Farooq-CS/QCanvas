@@ -67,14 +67,14 @@ export default function AchievementsPreview({ expanded = false }: { expanded?: b
     // Fallback if not signed in
     if (displayItems.length === 0 && !token) {
         return (
-            <div className="bg-quantum-glass-dark border border-white/10 rounded-xl p-6">
+            <div className="bg-qc-surface border border-qc-line rounded-xl p-6">
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold text-lg text-white flex items-center gap-2">
-                        <Trophy className="w-5 h-5 text-yellow-400" />
+                    <h3 className="font-bold text-lg text-qc-fg flex items-center gap-2">
+                        <Trophy className="w-5 h-5 text-qc-warning" />
                         Achievements
                     </h3>
                 </div>
-                <p className="text-black dark:text-gray-500 text-sm">Sign in to track your achievements.</p>
+                <p className="text-qc-subtle text-sm">Sign in to track your achievements.</p>
             </div>
         );
     }
@@ -83,7 +83,7 @@ export default function AchievementsPreview({ expanded = false }: { expanded?: b
         return (
             <div className="space-y-3">
                 {displayItems.length === 0 ? (
-                    <p className="text-black dark:text-gray-500 text-sm text-center py-8">No achievements yet — start using QCanvas!</p>
+                    <p className="text-qc-subtle text-sm text-center py-8">No achievements yet — run a circuit to earn one.</p>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {displayItems.map((achievement) => (
@@ -96,20 +96,20 @@ export default function AchievementsPreview({ expanded = false }: { expanded?: b
     }
 
     return (
-        <div className="bg-quantum-glass-dark border border-white/10 rounded-xl p-6">
+        <div className="bg-qc-surface border border-qc-line rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-lg text-white flex items-center gap-2">
-                    <Trophy className="w-5 h-5 text-yellow-400" />
+                <h3 className="font-bold text-lg text-qc-fg flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-qc-warning" />
                     Achievements
                     {achievements.length > 0 && (
-                        <span className="text-xs text-black dark:text-gray-500 font-normal">
+                        <span className="text-xs text-qc-subtle font-normal">
                             {mapped.filter((a) => a.isUnlocked).length}/{mapped.length}
                         </span>
                     )}
                 </h3>
                 <Link
                     href="/achievements"
-                    className="text-xs text-quantum-blue-light hover:text-white flex items-center gap-1 transition-colors"
+                    className="text-xs text-qc-accent hover:text-qc-fg flex items-center gap-1 transition-colors"
                 >
                     View All <ChevronRight className="w-3 h-3" />
                 </Link>
@@ -122,8 +122,8 @@ export default function AchievementsPreview({ expanded = false }: { expanded?: b
             </div>
 
             {displayItems.length === 0 && (
-                <p className="text-black dark:text-gray-500 text-sm text-center py-4">
-                    Start using QCanvas to earn your first achievements!
+                <p className="text-qc-subtle text-sm text-center py-4">
+                    Run a circuit in the editor to earn your first achievement.
                 </p>
             )}
         </div>

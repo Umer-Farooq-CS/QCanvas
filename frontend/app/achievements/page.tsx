@@ -67,7 +67,7 @@ export default function AchievementsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#0a0a1a] text-white">
+        <div className="qc-page">
             <SimpleTopBar />
 
             {/* Spacer to prevent topbar overlap */}
@@ -78,17 +78,17 @@ export default function AchievementsPage() {
                     {/* Header */}
                     <header className="mb-10 flex items-end justify-between">
                         <div>
-                            <h1 className="text-4xl font-bold quantum-gradient bg-clip-text text-transparent mb-2">
+                            <h1 className="font-display text-display-2 font-semibold text-qc-fg mb-2">
                                 Achievements
                             </h1>
-                            <p className="text-black dark:text-gray-400">
-                                Track your progress and mastery of quantum computing. All achievements are tracked automatically — just use QCanvas!
+                            <p className="text-qc-muted">
+                                Track your progress and mastery of quantum computing. Achievements unlock automatically as you write and run circuits.
                             </p>
                         </div>
                         <button
                             onClick={handleRefresh}
                             disabled={achievementsLoading}
-                            className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm text-black dark:text-gray-300 hover:text-white transition-all disabled:opacity-50"
+                            className="flex items-center gap-2 px-4 py-2 bg-qc-surface-2 hover:bg-qc-surface-3 border border-qc-line rounded-lg text-sm text-qc-muted hover:text-qc-fg transition-all disabled:opacity-50"
                         >
                             <RefreshCw className={`w-4 h-4 ${achievementsLoading ? 'animate-spin' : ''}`} />
                             Refresh
@@ -99,14 +99,14 @@ export default function AchievementsPage() {
                     <StatsOverview achievements={mapped} />
 
                     {/* Category Filter */}
-                    <div className="flex gap-2 overflow-x-auto pb-4 mb-6 border-b border-white/10">
+                    <div className="flex gap-2 overflow-x-auto pb-4 mb-6 border-b border-qc-line">
                         {categories.map(category => (
                             <button
                                 key={category}
                                 onClick={() => setActiveCategory(category)}
                                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeCategory === category
-                                    ? "bg-quantum-blue-light text-white shadow-lg shadow-quantum-blue-light/20"
-                                    : "bg-white/5 text-black dark:text-gray-400 hover:bg-white/10 hover:text-white"
+                                    ? "bg-qc-accent-solid text-qc-on-accent"
+                                    : "bg-qc-surface-2 text-qc-muted hover:bg-qc-surface-3 hover:text-qc-fg"
                                     }`}
                             >
                                 {category}
@@ -117,18 +117,18 @@ export default function AchievementsPage() {
                     {/* Loading State */}
                     {achievementsLoading && achievements.length === 0 && (
                         <div className="flex flex-col items-center justify-center py-20 gap-4">
-                            <div className="w-10 h-10 border-2 border-quantum-blue-light border-t-transparent rounded-full animate-spin" />
-                            <p className="text-black dark:text-gray-500 text-sm">Loading achievements...</p>
+                            <div className="w-10 h-10 border-2 border-qc-accent border-t-transparent rounded-full animate-spin" />
+                            <p className="text-qc-subtle text-sm">Loading achievements...</p>
                         </div>
                     )}
 
                     {/* ✅ Completed Section */}
                     {completed.length > 0 && (
                         <div className="mb-8">
-                            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                                <Trophy className="w-5 h-5 text-yellow-400" />
+                            <h2 className="text-lg font-semibold text-qc-fg mb-4 flex items-center gap-2">
+                                <Trophy className="w-5 h-5 text-qc-warning" />
                                 Completed
-                                <span className="text-sm font-normal text-black dark:text-gray-500">({completed.length})</span>
+                                <span className="text-sm font-normal text-qc-subtle">({completed.length})</span>
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {completed.map(achievement => (
@@ -141,10 +141,10 @@ export default function AchievementsPage() {
                     {/* 🔄 In Progress Section */}
                     {inProgress.length > 0 && (
                         <div className="mb-8">
-                            <h2 className="text-lg font-semibold text-blue-400 mb-4 flex items-center gap-2">
-                                <Filter className="w-5 h-5 text-blue-500" />
+                            <h2 className="text-lg font-semibold text-qc-fg mb-4 flex items-center gap-2">
+                                <Filter className="w-5 h-5 text-qc-subtle" />
                                 In Progress
-                                <span className="text-sm font-normal text-black dark:text-gray-500">({inProgress.length})</span>
+                                <span className="text-sm font-normal text-qc-subtle">({inProgress.length})</span>
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {inProgress.map(achievement => (
@@ -157,10 +157,10 @@ export default function AchievementsPage() {
                     {/* 🔒 Not Started Section */}
                     {notStarted.length > 0 && (
                         <div>
-                            <h2 className="text-lg font-semibold text-black dark:text-gray-500 mb-4 flex items-center gap-2">
-                                <Lock className="w-5 h-5 text-black dark:text-gray-600" />
+                            <h2 className="text-lg font-semibold text-qc-subtle mb-4 flex items-center gap-2">
+                                <Lock className="w-5 h-5 text-qc-subtle" />
                                 Not Started
-                                <span className="text-sm font-normal text-black dark:text-gray-600">({notStarted.length})</span>
+                                <span className="text-sm font-normal text-qc-subtle">({notStarted.length})</span>
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {notStarted.map(achievement => (
@@ -173,8 +173,8 @@ export default function AchievementsPage() {
                     {/* Empty State */}
                     {!achievementsLoading && filtered.length === 0 && (
                         <div className="text-center py-20">
-                            <Trophy className="w-12 h-12 text-black dark:text-gray-600 mx-auto mb-4" />
-                            <p className="text-black dark:text-gray-500">
+                            <Trophy className="w-12 h-12 text-qc-subtle mx-auto mb-4" />
+                            <p className="text-qc-subtle">
                                 {achievements.length === 0
                                     ? "No achievements available yet. Please sign in to view your achievements."
                                     : "No achievements found in this category."

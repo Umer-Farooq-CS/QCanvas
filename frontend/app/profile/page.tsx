@@ -42,20 +42,20 @@ function StatCard({
 }) {
   return (
     <div
-      className={`bg-quantum-glass-dark border border-white/10 rounded-xl p-4 flex flex-col gap-2 hover:border-${accent}/30 transition-all group`}
+      className={`bg-qc-surface border border-qc-line rounded-xl p-4 flex flex-col gap-2 hover:border-qc-line-strong transition-colors`}
     >
       <div
-        className={`w-9 h-9 rounded-lg bg-${accent}/10 flex items-center justify-center group-hover:scale-110 transition-transform`}
+        className={`w-9 h-9 rounded-lg bg-qc-surface-2 flex items-center justify-center`}
       >
-        <Icon className={`w-5 h-5 text-${accent}`} />
+        <Icon className="w-5 h-5 text-qc-muted" />
       </div>
       <div>
-        <p className="text-2xl font-bold text-white leading-tight">{value}</p>
-        <p className="text-[11px] text-black dark:text-gray-400 font-medium uppercase tracking-wide mt-0.5">
+        <p className="text-2xl font-bold text-qc-fg leading-tight">{value}</p>
+        <p className="text-[11px] text-qc-muted font-medium uppercase tracking-wide mt-0.5">
           {label}
         </p>
         {sub && (
-          <p className="text-[10px] text-black dark:text-gray-600 mt-0.5">
+          <p className="text-[10px] text-qc-subtle mt-0.5">
             {sub}
           </p>
         )}
@@ -76,10 +76,10 @@ function SectionHeader({
 }) {
   return (
     <div className="flex items-center gap-2 mb-4">
-      <Icon className="w-5 h-5 text-quantum-blue-light" />
-      <h2 className="text-lg font-bold text-white">{title}</h2>
+      <Icon className="w-5 h-5 text-qc-accent" />
+      <h2 className="text-lg font-bold text-qc-fg">{title}</h2>
       {badge && (
-        <span className="text-xs text-black dark:text-gray-500 bg-white/5 px-2 py-0.5 rounded-full">
+        <span className="text-xs text-qc-subtle bg-qc-surface-2 px-2 py-0.5 rounded-full">
           {badge}
         </span>
       )}
@@ -91,13 +91,13 @@ function SectionHeader({
 function ProfileSkeleton() {
   return (
     <div className="animate-pulse space-y-6">
-      <div className="h-48 bg-white/5 rounded-xl" />
+      <div className="h-48 bg-qc-surface-2 rounded-xl" />
       <div className="grid grid-cols-3 gap-3">
         {[...Array(3)].map((_, i) => (
-          <div key={i} className="h-24 bg-white/5 rounded-xl" />
+          <div key={i} className="h-24 bg-qc-surface-2 rounded-xl" />
         ))}
       </div>
-      <div className="h-32 bg-white/5 rounded-xl" />
+      <div className="h-32 bg-qc-surface-2 rounded-xl" />
     </div>
   );
 }
@@ -121,7 +121,7 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a1a]">
+      <div className="qc-page">
         <SimpleTopBar />
         <div className="h-20" />
         <div className="p-4 md:p-8 max-w-6xl mx-auto">
@@ -152,14 +152,12 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="min-h-screen dark:bg-[#0a0a1a] bg-gray-50 text-gray-900 dark:text-white transition-colors duration-300">
+    <div className="qc-page">
       <SimpleTopBar />
 
       {/* Spacer below topbar */}
       <div className="h-14" />
 
-      {/* Subtle top gradient accent */}
-      <div className="fixed top-14 left-0 right-0 h-px bg-gradient-to-r from-transparent via-quantum-blue/30 to-transparent pointer-events-none z-40" />
 
       <div className="p-4 md:p-8">
         <div className="max-w-6xl mx-auto">
@@ -195,7 +193,7 @@ export default function ProfilePage() {
               </div>
 
               {/* Progress card */}
-              <div className="bg-quantum-glass-dark border border-white/10 rounded-xl p-5">
+              <div className="bg-qc-surface border border-qc-line rounded-xl p-5">
                 <SectionHeader icon={Target} title="Progress" />
                 <div className="space-y-4">
                   {/* Level */}
@@ -203,7 +201,7 @@ export default function ProfilePage() {
                     title={`${stats?.xp_to_next_level.toLocaleString()} XP remaining to Level ${level + 1}`}
                     className="group/xp cursor-help"
                   >
-                    <div className="flex justify-between text-xs text-black dark:text-gray-500 mb-1.5 transition-colors group-hover/xp:text-quantum-blue-light">
+                    <div className="flex justify-between text-xs text-qc-subtle mb-1.5 transition-colors group-hover/xp:text-qc-accent">
                       <span className="font-medium">
                         Level {level} — {getLevelBadge(level)}
                       </span>
@@ -211,12 +209,12 @@ export default function ProfilePage() {
                         {Math.round(stats?.progress_percentage || 0)}%
                       </span>
                     </div>
-                    <div className="h-3 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden border border-black/5 dark:border-white/5 relative">
+                    <div className="h-2 bg-qc-surface-3 rounded-full overflow-hidden relative">
                       <div
-                        className="h-full rounded-full transition-all duration-1000 ease-out"
+                        className="h-full rounded-full transition-[width] duration-500 ease-out-quick"
                         style={{
                           backgroundImage:
-                            "linear-gradient(to right, #2563eb, #6366f1, #9333ea)",
+                            "linear-gradient(rgb(var(--qc-accent)), rgb(var(--qc-accent)))",
                           width: `${Math.min(stats?.progress_percentage || 0, 100)}%`,
                         }}
                       />
@@ -225,20 +223,20 @@ export default function ProfilePage() {
 
                   {/* Achievements completion */}
                   <div className="group/ach hover:opacity-90 transition-opacity">
-                    <div className="flex justify-between text-xs text-black dark:text-gray-500 mb-1.5">
+                    <div className="flex justify-between text-xs text-qc-subtle mb-1.5">
                       <span className="font-medium">
                         Achievements ({unlockedCount}/{totalAchievements})
                       </span>
-                      <span className="text-yellow-500 font-bold">
+                      <span className="text-qc-warning font-bold">
                         {completionPct}%
                       </span>
                     </div>
-                    <div className="h-3 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden border border-black/5 dark:border-white/5 relative">
+                    <div className="h-2 bg-qc-surface-3 rounded-full overflow-hidden relative">
                       <div
-                        className="h-full rounded-full transition-all duration-1000 ease-out"
+                        className="h-full rounded-full transition-[width] duration-500 ease-out-quick"
                         style={{
                           backgroundImage:
-                            "linear-gradient(to right, #eab308, #f97316)",
+                            "linear-gradient(rgb(var(--qc-warning)), rgb(var(--qc-warning)))",
                           width: `${completionPct}%`,
                         }}
                       />
@@ -258,14 +256,14 @@ export default function ProfilePage() {
                   ].map(({ label, value, icon: Ic }) => (
                     <div
                       key={label}
-                      className="bg-white/[0.03] border border-white/5 rounded-lg p-3 flex items-center gap-3"
+                      className="bg-qc-surface-2 border border-qc-line rounded-lg p-3 flex items-center gap-3"
                     >
-                      <Ic className="w-4 h-4 text-black dark:text-gray-500 shrink-0" />
+                      <Ic className="w-4 h-4 text-qc-subtle shrink-0" />
                       <div>
-                        <p className="text-base font-bold text-white">
+                        <p className="text-base font-bold text-qc-fg">
                           {value}
                         </p>
-                        <p className="text-[10px] text-black dark:text-gray-500">
+                        <p className="text-[10px] text-qc-subtle">
                           {label}
                         </p>
                       </div>
@@ -278,7 +276,7 @@ export default function ProfilePage() {
             {/* ─ Right Column ────────────────────────────────────── */}
             <div className="lg:col-span-2 space-y-5">
               {/* Tab bar */}
-              <div className="bg-quantum-glass-dark border border-white/10 rounded-xl p-1.5 flex gap-1">
+              <div className="bg-qc-surface border border-qc-line rounded-xl p-1.5 flex gap-1">
                 {tabs.map(({ id, label, icon: TIcon }) => (
                   <button
                     key={id}
@@ -286,8 +284,8 @@ export default function ProfilePage() {
                     onClick={() => setActiveTab(id)}
                     className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                       activeTab === id
-                        ? "bg-gray-200 dark:bg-gray-900 dark:bg-quantum-blue/20 text-white border border-quantum-blue/30 shadow-inner"
-                        : "text-black dark:text-gray-500 hover:text-gray-900 hover:bg-white/5"
+                        ? "bg-qc-surface-3 text-qc-fg "
+                        : "text-qc-subtle hover:text-gray-900 hover:bg-qc-surface-2"
                     }`}
                   >
                     <TIcon className="w-4 h-4 shrink-0" />
@@ -300,13 +298,13 @@ export default function ProfilePage() {
               {activeTab === "overview" && (
                 <div className="space-y-5">
                   {/* XP Chart */}
-                  <div className="bg-quantum-glass-dark border border-white/10 rounded-xl p-5">
+                  <div className="bg-qc-surface border border-qc-line rounded-xl p-5">
                     <SectionHeader icon={TrendingUp} title="Weekly XP" />
                     <XPHistoryChart />
                   </div>
 
                   {/* Recent Activity (preview) */}
-                  <div className="bg-quantum-glass-dark border border-white/10 rounded-xl p-5">
+                  <div className="bg-qc-surface border border-qc-line rounded-xl p-5">
                     <SectionHeader
                       icon={Activity}
                       title="Recent Activity"
@@ -318,7 +316,7 @@ export default function ProfilePage() {
               )}
 
               {activeTab === "achievements" && (
-                <div className="bg-quantum-glass-dark border border-white/10 rounded-xl p-5">
+                <div className="bg-qc-surface border border-qc-line rounded-xl p-5">
                   <SectionHeader
                     icon={Trophy}
                     title="Achievements"
@@ -329,7 +327,7 @@ export default function ProfilePage() {
               )}
 
               {activeTab === "activity" && (
-                <div className="bg-quantum-glass-dark border border-white/10 rounded-xl p-5">
+                <div className="bg-qc-surface border border-qc-line rounded-xl p-5">
                   <SectionHeader icon={Activity} title="All Activity" />
                   <RecentActivityList />
                 </div>
