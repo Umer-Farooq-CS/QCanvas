@@ -164,7 +164,7 @@ export default function TemplatesPicker({
                   disabled={!!creating}
                   onClick={() => void pick(t)}
                   style={{ animationDelay: `${Math.min(i, 8) * 25}ms` }}
-                  className="qc-fade-in group relative flex flex-col overflow-hidden rounded-xl border border-editor-border bg-editor-bg/60 p-4 pl-5 text-left transition-[border-color,transform,background-color] duration-150 hover:-translate-y-px hover:border-white/20 hover:bg-editor-bg active:translate-y-0 active:scale-[0.99] disabled:cursor-wait disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+                  className="qc-fade-in group relative flex flex-col overflow-hidden rounded-xl border border-editor-border bg-editor-bg p-4 pl-5 text-left transition-[border-color,transform,background-color] duration-150 hover:-translate-y-px hover:border-white/20 hover:bg-editor-bg active:translate-y-0 active:scale-[0.99] disabled:cursor-wait disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
                 >
                   <span className={`absolute inset-y-0 left-0 w-[3px] ${FRAMEWORK_STYLE[fw].bar} opacity-70 transition-opacity group-hover:opacity-100`} aria-hidden="true" />
                   <span className="flex items-center justify-between gap-3">

@@ -115,7 +115,7 @@ export default function Navbar() {
                 key={item.path}
                 href={item.path}
                 aria-current={isActive(item.path) ? "page" : undefined}
-                className={`qc-focus rounded-md px-2 py-3 text-[15px] ${
+                className={`qc-focus rounded-md px-2 py-3 text-[0.9375rem] ${
                   isActive(item.path) ? "text-qc-fg" : "text-qc-muted"
                 }`}
               >

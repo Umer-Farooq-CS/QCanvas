@@ -12,6 +12,7 @@ import { useAuthStore } from "@/lib/authStore";
 import ProfileDropdown from "@/components/ProfileDropdown";
 import BrandLogo from "@/components/BrandLogo";
 import TemplatesPicker from "./TemplatesPicker";
+import { requestNewFile } from "./ExplorerView";
 import ShareModal from "@/components/ShareModal";
 import AddNewLanguage from "@/components/AddNewLanguage";
 import { FILE_TEMPLATES_PRESETS } from "@/lib/fileTemplates";
@@ -34,25 +35,13 @@ interface MenuItem {
 }
 
 /**
- * "New File" flow shared by the menu item and the keyboard shortcut.
+ * "New File" flow shared by the menu item and the keyboard shortcut: opens the
+ * explorer's inline name field (no native browser prompt).
  */
 function promptAndCreateFile() {
-  const entered = globalThis.window?.prompt("Enter new file name", "new.py");
-  const fileName = entered?.trim();
-  if (!fileName) return;
-
-  const { token } = useAuthStore.getState();
   const store = useFileStore.getState();
-  if (token) {
-    void store.createFile(
-      fileName,
-      undefined,
-      store.activeProjectId ?? undefined,
-      false,
-    );
-  } else {
-    store.addFile(fileName, undefined);
-  }
+  if (store.sidebarCollapsed) store.toggleSidebar();
+  requestNewFile();
 }
 
 /**
