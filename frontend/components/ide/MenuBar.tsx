@@ -6,15 +6,15 @@ import {
   useFileStore,
   useHasActiveFile,
 } from "@/lib/store";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/authStore";
 import ProfileDropdown from "@/components/ProfileDropdown";
+import BrandLogo from "@/components/BrandLogo";
+import TemplatesPicker from "./TemplatesPicker";
 import ShareModal from "@/components/ShareModal";
 import AddNewLanguage from "@/components/AddNewLanguage";
 import { FILE_TEMPLATES_PRESETS } from "@/lib/fileTemplates";
-import { Code, FileText } from "@/components/Icons";
 import { Check, X } from "lucide-react";
 
 type MenuId =
@@ -140,6 +140,14 @@ function MenuBar({
   );
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showTemplatesPicker, setShowTemplatesPicker] = useState(false);
+  const closeTemplatesPicker = useCallback(() => setShowTemplatesPicker(false), []);
+
+  // Lets other parts of the IDE (e.g. the empty editor) open the templates picker.
+  useEffect(() => {
+    const open = () => setShowTemplatesPicker(true);
+    window.addEventListener("qcanvas:open-templates", open);
+    return () => window.removeEventListener("qcanvas:open-templates", open);
+  }, []);
   const [showAddLanguage, setShowAddLanguage] = useState(false);
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
@@ -329,36 +337,6 @@ function MenuBar({
     { id: "help", label: "Help" },
   ];
 
-  const getTemplateMeta = (
-    template: (typeof FILE_TEMPLATES_PRESETS)[number],
-  ) => {
-    const filename = template.filename.toLowerCase();
-    const name = template.name.toLowerCase();
-
-    if (name.includes("qiskit") || filename.includes("qiskit")) {
-      return {
-        language: "python",
-        icon: <Code className="w-4 h-4 text-blue-400" />,
-      };
-    }
-    if (name.includes("cirq") || filename.includes("cirq")) {
-      return {
-        language: "python",
-        icon: <Code className="w-4 h-4 text-purple-400" />,
-      };
-    }
-    if (name.includes("pennylane") || filename.includes("pennylane")) {
-      return {
-        language: "python",
-        icon: <Code className="w-4 h-4 text-green-400" />,
-      };
-    }
-
-    return {
-      language: filename.endsWith(".py") ? "python" : "template",
-      icon: <FileText className="w-4 h-4 text-editor-text" />,
-    };
-  };
 
   return (
     <>
@@ -366,28 +344,14 @@ function MenuBar({
         ref={barRef}
         className="h-12 bg-editor-sidebar flex items-center px-3 select-none"
       >
-        <Link href="/" className="flex items-center gap-2 pr-3">
-          <div className="flex items-center justify-center w-6 h-6">
-            <Image
-              src="/QCanvas-logo-Black.svg"
-              alt="QCanvas"
-              width={24}
-              height={24}
-              className="object-contain block dark:hidden"
-              priority
-            />
-            <Image
-              src="/QCanvas-logo-White.svg"
-              alt="QCanvas"
-              width={24}
-              height={24}
-              className="object-contain hidden dark:block"
-              priority
-            />
-          </div>
-          <span className="text-lg font-bold quantum-gradient bg-clip-text text-transparent hidden sm:block">
-            QCanvas
-          </span>
+        <Link
+          href="/"
+          className="qc-focus mr-2 rounded-md px-1 py-1"
+          aria-label="QCanvas home"
+          title="QCanvas home"
+        >
+          <BrandLogo size="sm" wordmark={false} className="sm:hidden" />
+          <BrandLogo size="sm" className="hidden sm:inline-flex" />
         </Link>
 
         <div className="flex items-center gap-1">
@@ -407,16 +371,16 @@ function MenuBar({
               </button>
 
               {openMenu === m.id && (
-                <div className="absolute left-0 top-full mt-1.5 w-56 bg-editor-bg border border-editor-border rounded-md z-50 overflow-hidden">
+                <div className="qc-menu-in absolute left-0 top-full z-50 mt-1.5 w-60 origin-top-left overflow-hidden rounded-lg border border-editor-border bg-editor-bg p-1 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.55)]">
                   {menus[m.id].map((item, idx) => (
                     <button
                       key={`${m.id}-${idx}`}
                       type="button"
                       disabled={item.disabled}
-                      className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left ${
+                      className={`w-full flex items-center justify-between rounded-md px-2.5 py-1.5 text-xs text-left transition-colors duration-100 ${
                         item.disabled
                           ? "opacity-50 cursor-not-allowed text-editor-text"
-                          : "text-editor-text hover:border hover:rounded-md hover:bg-editor-panelHigh/10 hover:text-white"
+                          : "text-editor-text hover:bg-indigo-500/15 hover:text-white focus-visible:bg-indigo-500/15 focus-visible:outline-none"
                       }`}
                       onClick={() => {
                         item.onSelect();
@@ -565,93 +529,21 @@ function MenuBar({
         onClose={() => setShowAddLanguage(false)}
       />
 
-      {showTemplatesPicker && (
-        <>
-          <button
-            type="button"
-            className="fixed inset-0 bg-black/50 z-[55] cursor-default"
-            onClick={() => setShowTemplatesPicker(false)}
-            aria-label="Close templates picker"
-          />
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <div className="quantum-glass-dark rounded-2xl p-6 max-w-3xl w-full border border-editor-border shadow-[0_24px_48px_rgba(0,0,0,0.5)] max-h-[80vh] overflow-hidden">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-white">File Templates</h3>
-                <button
-                  type="button"
-                  className="btn-ghost p-1 hover:bg-editor-border"
-                  onClick={() => setShowTemplatesPicker(false)}
-                  aria-label="Close"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="mb-4 flex items-center justify-between rounded-lg border border-editor-border bg-editor-bg/10 px-3 py-2">
-                <p className="text-xs text-editor-text">
-                  Start quickly with ready-made templates.
-                </p>
-                <button
-                  type="button"
-                  className="text-xs text-quantum-blue-light hover:underline"
-                  onClick={() => {
-                    setShowTemplatesPicker(false);
-                    router.push("/examples");
-                  }}
-                >
-                  View more example templates
-                </button>
-              </div>
-
-              <div className="overflow-y-auto max-h-[65vh] pr-1 grid md:grid-cols-2 gap-4">
-                {FILE_TEMPLATES_PRESETS.map((t) => (
-                  <button
-                    key={t.filename}
-                    type="button"
-                    className="quantum-glass-dark rounded-lg p-4 border border-editor-border hover:border-framework-qiskit/60 transition-all duration-200 cursor-pointer"
-                    onClick={async () => {
-                      setOpenMenu(null);
-                      await useFileStore
-                        .getState()
-                        .createFile(
-                          t.filename,
-                          t.content,
-                          activeProjectId ?? undefined,
-                          false,
-                        );
-                      setShowTemplatesPicker(false);
-                    }}
-                  >
-                    <div className="flex items-center space-x-3 mb-2">
-                      {getTemplateMeta(t).icon}
-                      <h4 className="font-medium text-white">{t.name}</h4>
-                    </div>
-                    <p className="text-sm text-editor-text mb-3">
-                      {t.description}
-                    </p>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-black dark:text-gray-400">
-                        {getTemplateMeta(t).language}
-                      </span>
-                      {/* Visual label only: the whole card is the button
-                          (a nested <button> is invalid HTML). */}
-                      <span
-                        aria-hidden="true"
-                        className="text-xs text-quantum-blue-light"
-                      >
-                        Use Template
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-black dark:text-gray-500 mt-1 font-mono">
-                      {t.filename}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </>
-      )}
+      <TemplatesPicker
+        open={showTemplatesPicker}
+        onClose={closeTemplatesPicker}
+        onPick={async (t) => {
+          setOpenMenu(null);
+          await useFileStore
+            .getState()
+            .createFile(t.filename, t.content, activeProjectId ?? undefined, false);
+          setShowTemplatesPicker(false);
+        }}
+        onBrowseExamples={() => {
+          setShowTemplatesPicker(false);
+          router.push("/examples");
+        }}
+      />
 
       {showShortcuts && (
         <>

@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 
-type Lang = "python" | "qasm";
+export type Lang = "python" | "qasm";
 
 const KEYWORDS: Record<Lang, Set<string>> = {
   python: new Set([
@@ -42,7 +42,7 @@ const TOKEN =
   /(#[^\n]*|\/\/[^\n]*)|("[^"\n]*"|'[^'\n]*')|(@[\w.]+)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_]\w*)|([\s\S])/g;
 
 /** Tiny build-time highlighter for static samples (no client JS). */
-function highlight(code: string, lang: Lang) {
+export function highlight(code: string, lang: Lang) {
   const out: React.ReactNode[] = [];
   let plain = "";
   const flush = () => {

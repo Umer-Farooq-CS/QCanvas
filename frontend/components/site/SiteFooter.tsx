@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { config } from "@/lib/config";
+import BrandLogo from "@/components/BrandLogo";
 
 const columns: {
   title: string;
@@ -44,12 +45,10 @@ export default function SiteFooter() {
         <div className="max-w-xs">
           <Link
             href="/"
-            className="qc-focus inline-flex items-center gap-2 rounded-md text-qc-fg"
+            className="qc-focus inline-flex rounded-md"
+            aria-label="QCanvas home"
           >
-            <span className="qc-logo h-6 w-6" aria-hidden="true" />
-            <span className="font-display text-base font-semibold tracking-tight">
-              QCanvas
-            </span>
+            <BrandLogo size="sm" />
           </Link>
           <p className="mt-3 text-sm leading-relaxed text-qc-muted">
             A browser IDE for writing, compiling and simulating quantum
@@ -89,7 +88,7 @@ export default function SiteFooter() {
       </div>
       <div className="qc-container flex flex-col gap-2 border-t border-qc-line py-6 text-xs text-qc-subtle sm:flex-row sm:items-center sm:justify-between">
         <p>© {year} QCanvas</p>
-        <p>Version {config.project.version}</p>
+        <p>{config.initiative.name}</p>
       </div>
     </footer>
   );
