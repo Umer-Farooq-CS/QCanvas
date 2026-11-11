@@ -27,6 +27,27 @@ import {
 import { refreshSession, useSessionKeepAlive } from "@/lib/session";
 import { useExecutionActions } from "@/components/ide/useExecutionActions";
 
+/** Open an example handed over via sessionStorage (homepage / examples page). */
+function openPendingExample() {
+  let pendingJson: string | null = null;
+  try {
+    pendingJson = sessionStorage.getItem("pending-example");
+    // Clear immediately so a refresh (or StrictMode re-run) can't create it twice.
+    sessionStorage.removeItem("pending-example");
+  } catch {
+    return;
+  }
+  if (!pendingJson) return;
+  try {
+    const example = JSON.parse(pendingJson);
+    if (example?.name && example?.content) {
+      void useFileStore.getState().createFile(example.name, example.content);
+    }
+  } catch (e) {
+    console.error("Failed to parse pending example", e);
+  }
+}
+
 export default function AppPage() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -173,7 +194,12 @@ export default function AppPage() {
     const { fetchProjects, fetchExplorerTree } = useFileStore.getState();
 
     fetchProjects(currentToken);
-    fetchExplorerTree(null, currentToken);
+    // Load the explorer FIRST, then open any example handed over from the
+    // homepage/examples page. Doing both at once raced: the tree response
+    // could drop the new file or list it twice.
+    void fetchExplorerTree(null, currentToken).finally(() => {
+      openPendingExample();
+    });
   }, [isAuthenticated]);
 
   // In Basic mode, auto-fill framework/backend from the active code.
@@ -227,27 +253,7 @@ export default function AppPage() {
     };
   }, [isAuthenticated]);
 
-  // Handle examples passed via sessionStorage (from Examples page or Homepage)
-  useEffect(() => {
-    if (!isAuthenticated) return;
 
-    const pendingJson = sessionStorage.getItem("pending-example");
-    if (pendingJson) {
-      try {
-        const example = JSON.parse(pendingJson);
-        if (example && example.name && example.content) {
-          // Use createFile to persist the example
-          useFileStore.getState().createFile(example.name, example.content);
-          toast.success(`Example loaded: ${example.name}`);
-        }
-      } catch (e) {
-        console.error("Failed to parse pending example", e);
-      } finally {
-        // Clear immediately to prevent re-creation on refresh
-        sessionStorage.removeItem("pending-example");
-      }
-    }
-  }, [isAuthenticated]);
 
   // Handle global save event. (Saving used to also force-download an SVG of the
   // circuit on every Ctrl+S; that side effect has been removed.)

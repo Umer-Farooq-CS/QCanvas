@@ -938,9 +938,12 @@ export const useFileStore = create<FileStore>()(
             set((state) => {
               const templates = SHOW_TEMPLATE_FILES ? initialFiles : []
               const filesToShow = projectId ? fetchedFiles : [...templates, ...fetchedFiles]
+              // Never show the same file twice.
+              const seen = new Set<string>()
+              const unique = filesToShow.filter((f) => (seen.has(f.id) ? false : (seen.add(f.id), true)))
               return {
                 folders,
-                files: filesToShow,
+                files: unique,
                 activeProjectId: projectId,
               }
             }, false, 'fetchExplorerTree')
@@ -1294,7 +1297,9 @@ export const useFileStore = create<FileStore>()(
             }
             set(
               (state) => ({
-                files: [...state.files, newFile],
+                // Replace rather than append: a concurrent explorer refresh may
+                // already contain this file (that produced duplicate rows).
+                files: [...state.files.filter((f) => f.id !== newFile.id), newFile],
                 // Open the new file as a tab too, otherwise it is active but tab-less.
                 openFileIds: state.openFileIds.includes(newFile.id)
                   ? state.openFileIds

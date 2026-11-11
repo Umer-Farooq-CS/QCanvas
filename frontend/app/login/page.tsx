@@ -23,6 +23,12 @@ export default function LoginPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [guestStarting, setGuestStarting] = useState(false);
+
+  // Warm the editor route so the hand-off after sign-in is instant.
+  useEffect(() => {
+    router.prefetch("/app");
+  }, [router]);
 
   // Where to go after login: honour ?next= (same-origin paths only).
   const getNextPath = () => {
@@ -119,6 +125,7 @@ export default function LoginPage() {
   const handleDemoLogin = async () => {
     setIsLoading(true);
     setLoading(true);
+    setGuestStarting(true);
 
     try {
       // Each visitor gets a private, temporary guest workspace (previously
@@ -139,14 +146,16 @@ export default function LoginPage() {
       );
 
       router.push(getNextPath() as Parameters<typeof router.push>[0]);
+      // Stay in the busy state until the editor route takes over.
+      return;
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Could not start a demo session",
       );
-    } finally {
-      setIsLoading(false);
-      setLoading(false);
     }
+    setIsLoading(false);
+    setLoading(false);
+    setGuestStarting(false);
   };
 
   return (
@@ -248,9 +257,10 @@ export default function LoginPage() {
         type="button"
         onClick={handleDemoLogin}
         disabled={isLoading}
+        aria-busy={guestStarting}
         className="qc-btn qc-btn-secondary qc-btn-lg w-full"
       >
-        Try it without an account
+        {guestStarting ? "Opening the editor…" : "Try it without an account"}
       </button>
       <p className="mt-3 text-center text-xs leading-relaxed text-qc-subtle">
         You get a private guest workspace. It&apos;s deleted when you log out or after 3 days.
