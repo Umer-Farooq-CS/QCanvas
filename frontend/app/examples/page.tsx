@@ -768,42 +768,41 @@ print(f"Expectation values: {result}")`,
     code: `import pennylane as qml
 import numpy as np
 
-def create_quantum_neural_network(n_qubits=2, n_layers=2):
-    dev = qml.device("default.qubit", wires=n_qubits)
-    
-    @qml.qnode(dev)
-    def quantum_neural_network(inputs, weights):
-        # Encode input data
+n_qubits = 2
+n_layers = 2
+dev = qml.device("default.qubit", wires=n_qubits)
+
+# Fixed example parameters (swap in np.random / a training loop to explore)
+inputs = np.array([0.5, -0.3])
+weights = np.array([
+    [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]],
+    [[0.7, 0.8, 0.9], [1.0, 1.1, 1.2]],
+])
+
+@qml.qnode(dev)
+def quantum_neural_network():
+    # Encode input data
+    for i in range(n_qubits):
+        qml.RX(inputs[i], wires=i)
+        qml.RY(inputs[i], wires=i)
+
+    # Process through layers
+    for layer in range(n_layers):
+        # Entangling layer
+        for i in range(n_qubits - 1):
+            qml.CNOT(wires=[i, i + 1])
+
+        # Rotation layer
         for i in range(n_qubits):
-            qml.RX(inputs[i], wires=i)
-            qml.RY(inputs[i], wires=i)
-        
-        # Process through layers
-        for layer in range(n_layers):
-            # Entangling layer
-            for i in range(n_qubits - 1):
-                qml.CNOT(wires=[i, i + 1])
-            
-            # Rotation layer
-            for i in range(n_qubits):
-                qml.RX(weights[layer, i, 0], wires=i)
-                qml.RY(weights[layer, i, 1], wires=i)
-                qml.RZ(weights[layer, i, 2], wires=i)
-        
-        # Measure in computational basis
-        return [qml.expval(qml.PauliZ(i)) for i in range(n_qubits)]
-    
-    return quantum_neural_network
+            qml.RX(weights[layer, i, 0], wires=i)
+            qml.RY(weights[layer, i, 1], wires=i)
+            qml.RZ(weights[layer, i, 2], wires=i)
 
-# Create quantum neural network
-qnn = create_quantum_neural_network(2, 2)
-
-# Initialize parameters
-inputs = np.random.randn(2)
-weights = np.random.randn(2, 2, 3)
+    # Measure in computational basis
+    return [qml.expval(qml.PauliZ(i)) for i in range(n_qubits)]
 
 # Execute circuit
-result = qnn(inputs, weights)
+result = quantum_neural_network()
 print("Quantum Neural Network:")
 print(f"Input: {inputs}")
 print(f"Weights shape: {weights.shape}")

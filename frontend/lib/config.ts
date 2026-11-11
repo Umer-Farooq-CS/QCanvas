@@ -188,7 +188,8 @@ export const supervisors = [
   {
     name: 'Dr. Muhammad Nouman Noor',
     role: 'Co-Supervisor',
-    email: 'abdullah.mehmood@nu.edu.pk',
+    // TODO: add Dr. Nouman's real address (this previously held a student's email).
+    email: '',
     github: 'https://github.com/noumannoor',
     linkedin: 'https://www.linkedin.com/in/muhammad-nouman-noor-phd-266644a2/'
   }

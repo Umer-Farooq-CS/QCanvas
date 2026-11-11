@@ -268,13 +268,16 @@ dev = qml.device('default.qubit', wires=2)
 params = np.array([0.3, -0.7, 0.2, 1.1])
 
 @qml.qnode(dev)
-def variational_circuit(theta):
-    qml.RY(theta[0], wires=0)
-    qml.RY(theta[1], wires=1)
+def variational_circuit():
+    qml.RY(params[0], wires=0)
+    qml.RY(params[1], wires=1)
     qml.CNOT(wires=[0, 1])
-    qml.RZ(theta[2], wires=0)
-    qml.RZ(theta[3], wires=1)
+    qml.RZ(params[2], wires=0)
+    qml.RZ(params[3], wires=1)
     return qml.expval(qml.PauliZ(0))
+
+result = variational_circuit()
+print("<Z0> =", result)
 `,
   },
   {

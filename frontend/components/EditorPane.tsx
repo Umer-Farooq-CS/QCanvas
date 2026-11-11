@@ -646,8 +646,10 @@ function EditorPane({
 
               // Directives / version
               [
-                /(OPENQASM)(\s+)(\d+(\.\d+)?)(\s*;)/,
-                ["keyword", "", "number", "number", "delimiter"],
+                // Non-capturing inner group: Monaco requires every capture
+                // group to be matched consecutively (a nested group threw).
+                /(OPENQASM)(\s+)(\d+(?:\.\d+)?)(\s*;)/,
+                ["keyword", "", "number", "delimiter"],
               ],
 
               // Identifiers and keywords
