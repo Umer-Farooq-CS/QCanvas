@@ -11,21 +11,44 @@ import { InputLanguage } from '@/types'
 
 type SimulationBackend = 'cirq' | 'qiskit' | 'pennylane' | ''
 
+/**
+ * Turn a backend error into something a student can act on. Compile errors
+ * are shown as-is (minus internal wrapper text) so the cause and line number
+ * survive; only transport failures are replaced with friendly text.
+ * (Previously any message over 100 chars, or containing "Error:", became the
+ * useless "Run failed".)
+ */
 function formatErrorMessage(error: string | undefined | null): string {
   if (!error) return 'Run failed'
+  const raw = String(error).trim()
+  const lower = raw.toLowerCase()
 
-  const errorLower = error.toLowerCase()
+  // Transport-level failures (not about the user's code).
+  if (/failed to fetch|network ?error|networkerror/.test(lower)) return 'Run failed: cannot reach the server. Check your connection and try again.'
+  if (/timed? ?out/.test(lower) && !/line \d+/.test(lower)) return 'Run failed: the request timed out. Try again, or reduce the circuit size.'
+  const status = raw.match(/^HTTP error! status: (\d{3})/i) || raw.match(/status[: ]+(\d{3})/i)
+  if (status) {
+    const code = Number(status[1])
+    if (code === 401 || code === 403) return 'Run failed: your session has expired. Sign in again.'
+    if (code === 429) return 'Run failed: too many runs in a short time. Wait a moment and try again.'
+    if (code === 503) return 'Run failed: the server is busy. Try again in a few seconds.'
+    if (code >= 500) return 'Run failed: server error. Try again.'
+  }
 
-  if (errorLower.includes('http error') || errorLower.includes('status:')) return 'Run failed'
-  if (errorLower.includes('network error') || errorLower.includes('fetch')) return 'Run failed: Network connection issue'
-  if (errorLower.includes('timeout')) return 'Run failed: Request timed out'
-  if (errorLower.includes('500') || errorLower.includes('502') || errorLower.includes('503')) return 'Run failed: Server error occurred'
-  if (errorLower.includes('400')) return 'Run failed: Invalid request'
-  if (errorLower.includes('401') || errorLower.includes('403')) return 'Run failed: Authentication error'
-  if (errorLower.includes('404')) return 'Run failed: Resource not found'
-  if (error.length > 100 || error.includes('Error:') || error.includes('Exception:')) return 'Run failed'
-
-  return error
+  // Strip internal wrapper prefixes, keep the actual cause.
+  let msg = raw
+  for (const prefix of [
+    /^conversion error:\s*/i,
+    /^failed to convert \w+ (source )?code( to openqasm 3\.0)?:\s*/i,
+    /^failed to execute \w+ source code:\s*/i,
+    /^failed to execute get_circuit\(\) function:\s*/i,
+    /^simulation failed:\s*/i,
+  ]) {
+    msg = msg.replace(prefix, '')
+  }
+  // "(<qiskit_source>, line 6)" -> "(line 6)"
+  msg = msg.replace(/\(<[^>]+>,\s*line (\d+)\)/g, '(line $1)')
+  return msg.length > 400 ? msg.slice(0, 400) + '…' : msg
 }
 
 function formatHybridError(errorType: string | null | undefined, error: string | null | undefined, errorLine: number | null | undefined): string {

@@ -374,9 +374,10 @@ function ResultsPane() {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       severity,
       message,
-      line: 0,
+      // Pull the line number out of messages like "... (line 6)".
+      line: Number((details || message).match(/line (\d+)/i)?.[1] ?? 0),
       column: 0,
-      file: "circuit",
+      file: useFileStore.getState().getActiveFile()?.name ?? "current file",
       code: details || message,
       suggestion:
         severity === "error"
