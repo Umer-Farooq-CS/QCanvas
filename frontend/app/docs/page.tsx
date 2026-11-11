@@ -149,7 +149,7 @@ export default function DocsPage() {
             <h2 className="font-display text-display-2 font-semibold text-qc-fg">
               Overview
             </h2>
-            <p className="text-xl text-qc-muted mt-3 leading-relaxed">
+            <p className="text-lg text-qc-muted mt-3 leading-relaxed max-w-[65ch]">
               {config.project.description}
             </p>
           </div>
@@ -590,7 +590,7 @@ print(qc)`}
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-qc-success flex-shrink-0" />
                   <span className="text-qc-muted text-sm">
-                    Configurable shot counts (1-10,000)
+                    Configurable shot counts (up to 100,000)
                   </span>
                 </div>
               </div>
@@ -753,7 +753,7 @@ print(qc)`}
               <pre className="qc-code qc-code--plain overflow-x-auto text-xs">
                 {`Frontend (Next.js)          Backend (FastAPI)          Quantum Processing
 ├── React Components     ├── REST API Layer       ├── Quantum Converters
-├── Code Editor          ├── WebSocket Manager    ├── Quantum Simulator
+├── Code Editor          ├── Rate Limits & Queues ├── Quantum Simulator
 ├── Visualization        ├── Service Layer        └── Circuit Optimizers
 └── Real-time Updates    └── Database Layer`}
               </pre>
@@ -788,7 +788,7 @@ print(qc)`}
                 <div className="flex items-center space-x-3">
                   <CheckCircle className="w-4 h-4 text-qc-success flex-shrink-0" />
                   <span className="text-qc-muted text-sm">
-                    Real-time WebSocket updates
+                    Live results in the editor
                   </span>
                 </div>
               </div>
@@ -1031,7 +1031,7 @@ print(qc)`}
                     <span className="text-qc-muted">
                       Shots:
                     </span>
-                    <span className="text-qc-fg">1 - 10,000</span>
+                    <span className="text-qc-fg">1 - 100,000</span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-qc-muted">
@@ -1060,7 +1060,7 @@ print(qc)`}
                     <span className="text-qc-muted">
                       Shots:
                     </span>
-                    <span className="text-qc-fg">1 - 10,000</span>
+                    <span className="text-qc-fg">1 - 100,000</span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-qc-muted">
@@ -1088,7 +1088,7 @@ print(qc)`}
                     <span className="text-qc-muted">
                       Shots:
                     </span>
-                    <span className="text-qc-fg">1 - 10,000</span>
+                    <span className="text-qc-fg">1 - 100,000</span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-qc-muted">
@@ -1101,27 +1101,6 @@ print(qc)`}
             </div>
           </div>
 
-          <div className="bg-qc-surface border border-qc-line rounded-xl p-8">
-            <h3 className="text-2xl font-bold text-qc-fg mb-6">
-              WebSocket API
-            </h3>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="bg-qc-surface-2 rounded-lg p-4 border border-qc-line">
-                <h4 className="text-qc-fg font-medium mb-2">Connection</h4>
-                <pre className="qc-code overflow-x-auto rounded-md p-3 text-xs">
-                  ws://localhost:8000/ws
-                </pre>
-              </div>
-              <div className="bg-qc-surface-2 rounded-lg p-4 border border-qc-line">
-                <h4 className="text-qc-fg font-medium mb-2">
-                  Real-time Updates
-                </h4>
-                <p className="text-qc-muted text-sm">
-                  Live progress updates for long-running operations
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
       ),
     },

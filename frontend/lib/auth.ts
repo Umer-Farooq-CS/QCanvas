@@ -1,37 +1,33 @@
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { handleSessionExpired, hasValidAuth, useAuthStore } from './authStore';
 
-/** True once the persisted auth state has been read from localStorage. */
-function useAuthHydrated(): boolean {
-    const [hydrated, setHydrated] = useState(() => useAuthStore.persist?.hasHydrated?.() ?? true);
-    useEffect(() => {
-        if (hydrated) return;
-        const unsub = useAuthStore.persist?.onFinishHydration?.(() => setHydrated(true));
-        // Covers hydration that finished between render and this effect.
-        if (useAuthStore.persist?.hasHydrated?.()) setHydrated(true);
-        return () => unsub?.();
-    }, [hydrated]);
-    return hydrated;
-}
-
+/**
+ * Protect a page. Decides from the LIVE store, not the render snapshot: during
+ * Next.js hydration Zustand renders the server snapshot (no token), and
+ * deciding from that bounced signed-in users from /profile to /login.
+ */
 export function useRequireAuth(redirectUrl = '/login') {
     const { isAuthenticated, isLoading, token } = useAuthStore();
     const router = useRouter();
-    const hydrated = useAuthHydrated();
-    const valid = hasValidAuth({ isAuthenticated, token });
+    const pathname = usePathname();
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
+
+    const valid = mounted && hasValidAuth({ isAuthenticated, token });
 
     useEffect(() => {
-        // Don't decide before the stored session has loaded; deciding early
-        // bounced signed-in users from /profile to /login.
-        if (!hydrated || isLoading || valid) return;
-        if (token) {
+        if (!mounted) return;
+        const live = useAuthStore.getState();
+        if (live.isLoading || hasValidAuth(live)) return;
+        if (live.token) {
             // Stored token has expired: clear it and explain why.
             handleSessionExpired();
-        } else {
-            router.push(redirectUrl as Parameters<typeof router.push>[0]);
+            return;
         }
-    }, [hydrated, valid, isLoading, token, router, redirectUrl]);
+        const next = pathname ? `?next=${encodeURIComponent(pathname)}` : '';
+        router.push(`${redirectUrl}${next}` as Parameters<typeof router.push>[0]);
+    }, [mounted, isAuthenticated, token, isLoading, router, redirectUrl, pathname]);
 
-    return { isAuthenticated: valid, loading: isLoading || !hydrated };
+    return { isAuthenticated: valid, loading: isLoading || !mounted };
 }

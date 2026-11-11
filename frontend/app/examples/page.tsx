@@ -276,7 +276,7 @@ circuit.append(cirq.measure(q1, key='c1'))`,
     framework: 'qiskit',
     difficulty: 'beginner',
     category: 'Basic Circuits',
-    code: `from qiskit import QuantumCircuit, execute, Aer
+    code: `from qiskit import QuantumCircuit
 
 # Number of random bits to generate
 n_bits = 8

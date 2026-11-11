@@ -97,7 +97,7 @@ function MemberCard({ member }: { member: TeamMember }) {
 
   return (
     <li className="qc-card flex gap-4 overflow-hidden p-4 sm:flex-col sm:gap-0 sm:p-0">
-      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-qc-surface-2 sm:aspect-[4/3] sm:h-auto sm:w-full sm:rounded-none">
+      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-qc-surface-2 sm:h-56 sm:w-full sm:rounded-none">
         <Image
           src={member.image}
           alt={`Portrait of ${member.name}`}

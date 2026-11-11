@@ -63,7 +63,7 @@ export default function HomePage() {
 
       <main id="main">
         {/* Hero */}
-        <section className="qc-container grid items-center gap-12 pb-20 pt-28 sm:pt-32 lg:grid-cols-[1fr_1.12fr] lg:gap-14 lg:pb-28">
+        <section className="qc-container grid items-center gap-12 pb-14 pt-24 sm:pt-28 lg:grid-cols-[1fr_1.12fr] lg:gap-14 lg:pb-20">
           <div>
             <p className="qc-eyebrow">Open Quantum Workbench, FAST University</p>
             <h1 className="mt-4 font-display text-display-1 font-semibold text-qc-fg [text-wrap:balance]">
@@ -92,7 +92,7 @@ export default function HomePage() {
 
         {/* How it works */}
         <section className="border-t border-qc-line" aria-labelledby="how-heading">
-          <div className="qc-container py-20 lg:py-24">
+          <div className="qc-container py-14 lg:py-16">
             <div className="max-w-2xl">
               <h2 id="how-heading" className="font-display text-display-2 font-semibold text-qc-fg">
                 From Python to counts in three steps
@@ -124,7 +124,7 @@ export default function HomePage() {
 
         {/* Starter examples */}
         <section className="border-t border-qc-line bg-qc-surface/40" aria-labelledby="examples-heading">
-          <div className="qc-container py-20 lg:py-24">
+          <div className="qc-container py-14 lg:py-16">
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div className="max-w-2xl">
                 <h2 id="examples-heading" className="font-display text-display-2 font-semibold text-qc-fg">
@@ -169,7 +169,7 @@ export default function HomePage() {
 
         {/* Project */}
         <section className="border-t border-qc-line" aria-labelledby="project-heading">
-          <div className="qc-container grid gap-8 py-20 lg:grid-cols-2 lg:items-end lg:py-24">
+          <div className="qc-container grid gap-8 py-14 lg:grid-cols-2 lg:items-end lg:py-16">
             <div>
               <h2 id="project-heading" className="font-display text-display-2 font-semibold text-qc-fg">
                 Built at FAST University for teaching

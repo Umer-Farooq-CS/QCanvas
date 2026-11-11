@@ -74,7 +74,7 @@ export default function AchievementsPage() {
             <div className="h-20"></div>
 
             <div className="p-6 md:p-10">
-                <div className="max-w-6xl mx-auto">
+                <div className="mx-auto max-w-[96rem] lg:px-4">
                     {/* Header */}
                     <header className="mb-10 flex items-end justify-between">
                         <div>
