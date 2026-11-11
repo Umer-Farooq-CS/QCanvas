@@ -95,6 +95,29 @@ const config: Config = {
           'bg-light': '#f7f9fc',
           'border-light': 'rgba(65, 71, 85, 0.22)'
         },
+        // Site tokens: theme-aware via CSS variables in app/globals.css.
+        // The IDE can adopt these later (see design-audit/AUDIT.md §4.0).
+        qc: {
+          bg: 'rgb(var(--qc-bg) / <alpha-value>)',
+          surface: 'rgb(var(--qc-surface) / <alpha-value>)',
+          'surface-2': 'rgb(var(--qc-surface-2) / <alpha-value>)',
+          'surface-3': 'rgb(var(--qc-surface-3) / <alpha-value>)',
+          line: 'rgb(var(--qc-line) / <alpha-value>)',
+          'line-strong': 'rgb(var(--qc-line-strong) / <alpha-value>)',
+          fg: 'rgb(var(--qc-fg) / <alpha-value>)',
+          muted: 'rgb(var(--qc-fg-muted) / <alpha-value>)',
+          subtle: 'rgb(var(--qc-fg-subtle) / <alpha-value>)',
+          accent: 'rgb(var(--qc-accent) / <alpha-value>)',
+          'accent-solid': 'rgb(var(--qc-accent-solid) / <alpha-value>)',
+          'on-accent': 'rgb(var(--qc-on-accent) / <alpha-value>)',
+          success: 'rgb(var(--qc-success) / <alpha-value>)',
+          warning: 'rgb(var(--qc-warning) / <alpha-value>)',
+          danger: 'rgb(var(--qc-danger) / <alpha-value>)',
+          qiskit: 'rgb(var(--qc-qiskit) / <alpha-value>)',
+          cirq: 'rgb(var(--qc-cirq) / <alpha-value>)',
+          pennylane: 'rgb(var(--qc-pennylane) / <alpha-value>)',
+          code: 'rgb(var(--qc-code-bg) / <alpha-value>)',
+        },
         framework: {
           qiskit: '#a7c8ff',
           cirq: '#46eaed',
@@ -119,9 +142,16 @@ const config: Config = {
         },
       },
       fontFamily: {
-        headline: ['var(--font-space-grotesk)', 'Space Grotesk', 'system-ui', 'sans-serif'],
+        headline: ['var(--font-display)', 'Instrument Sans', 'system-ui', 'sans-serif'],
+        display: ['var(--font-display)', 'Instrument Sans', 'system-ui', 'sans-serif'],
         sans: ['var(--font-inter)', 'Inter', 'system-ui', 'sans-serif'],
         mono: ['var(--font-jetbrains-mono)', 'JetBrains Mono', 'Fira Code', 'Monaco', 'Consolas', 'monospace'],
+      },
+      // Site type scale (display sizes; body uses Tailwind defaults)
+      fontSize: {
+        'display-1': ['clamp(2.25rem, 1.7rem + 2.2vw, 3.25rem)', { lineHeight: '1.06', letterSpacing: '-0.025em' }],
+        'display-2': ['clamp(1.75rem, 1.4rem + 1.5vw, 2.5rem)', { lineHeight: '1.1', letterSpacing: '-0.02em' }],
+        'title': ['1.25rem', { lineHeight: '1.35', letterSpacing: '-0.01em' }],
       },
       animation: {
         'pulse-glow': 'pulse-glow 2s infinite',
@@ -168,6 +198,7 @@ const config: Config = {
         xs: '2px',
       },
       boxShadow: {
+        'qc': 'var(--qc-shadow)',
         'quantum': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
         'quantum-lg': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
         'quantum-xl': '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
@@ -192,6 +223,7 @@ const config: Config = {
       transitionTimingFunction: {
         'bounce': 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
         'smooth': 'cubic-bezier(0.4, 0, 0.2, 1)',
+        'out-quick': 'cubic-bezier(0.2, 0.8, 0.2, 1)',
       },
       transitionDuration: {
         '2000': '2000ms',

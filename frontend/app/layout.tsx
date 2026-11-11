@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter, JetBrains_Mono, Space_Grotesk } from 'next/font/google'
+import { Inter, JetBrains_Mono, Instrument_Sans } from 'next/font/google'
 import Script from 'next/script'
 import { Toaster } from 'react-hot-toast'
 import './globals.css'
@@ -17,14 +17,18 @@ const jetbrainsMono = JetBrains_Mono({
   display: 'swap',
 })
 
-const spaceGrotesk = Space_Grotesk({
+// Display face for headings on site pages (font-display / font-headline).
+const instrumentSans = Instrument_Sans({
   subsets: ['latin'],
-  variable: '--font-space-grotesk',
+  variable: '--font-display',
   display: 'swap',
 })
 
 export const metadata: Metadata = {
-  title: 'QCanvas: The Quantum Unified Simulator',
+  title: {
+    default: 'QCanvas: The Quantum Unified Simulator',
+    template: '%s · QCanvas',
+  },
   description:
     'QCanvas is a Quantum Unified Simulator for Cirq, Qiskit, and PennyLane. Convert circuits via RAG architecture with real-time OpenQASM 3.0 simulation support.',
   keywords: [
@@ -86,7 +90,10 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#1e3c72',
+  themeColor: [
+    { media: '(prefers-color-scheme: dark)', color: '#0e1014' },
+    { media: '(prefers-color-scheme: light)', color: '#f6f7f9' },
+  ],
 }
 
 export default function RootLayout({
@@ -120,18 +127,19 @@ export default function RootLayout({
       'Web-based quantum circuit IDE',
       'Cross-framework quantum circuit validation',
     ],
-    aggregateRating: {
-      '@type': 'AggregateRating',
-      ratingValue: '5',
-      ratingCount: '1',
-      bestRating: '5',
-      worstRating: '1',
-    },
   }
 
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <head>
+        {/* Apply the saved theme before first paint so light-theme users
+            don't see a dark flash. Mirrors ThemeWatcher's logic. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var t=localStorage.getItem('qcanvas-theme')==='light'?'light':'dark';var c=document.documentElement.classList;c.remove('light','dark');c.add(t);}catch(e){}",
+          }}
+        />
         {/* Google tag (gtag.js) */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-M23EZDEG9W"
@@ -150,7 +158,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className={`${inter.variable} ${jetbrainsMono.variable} ${spaceGrotesk.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} ${jetbrainsMono.variable} ${instrumentSans.variable} font-sans antialiased`}>
         {/* Theme watcher mounts on client to sync html class based on store/localStorage */}
         <ThemeWatcher />
         <div className="app-layout">
@@ -158,14 +166,10 @@ export default function RootLayout({
         </div>
         <Toaster
           position="top-right"
+          gutter={8}
           toastOptions={{
             duration: 3000,
             className: 'toast-custom',
-            style: {
-              background: '#252526',
-              color: '#d4d4d4',
-              border: '1px solid #3e3e42',
-            },
           }}
         />
       </body>
