@@ -21,34 +21,34 @@ export default function StatsOverview({ achievements }: StatsOverviewProps) {
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             {/* Total XP Card */}
-            <div className="bg-gradient-to-br from-quantum-blue/20 to-purple-900/20 border border-white/10 rounded-xl p-5 relative overflow-hidden group hover:border-quantum-blue-light/30 transition-colors">
+            <div className="bg-qc-surface border border-qc-line rounded-xl p-5 relative overflow-hidden group hover:border-qc-line-strong transition-colors">
                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <Zap className="w-16 h-16 text-quantum-blue-light" />
+                    <Zap className="w-16 h-16 text-qc-accent" />
                 </div>
                 <div className="relative z-10">
-                    <p className="text-black dark:text-gray-400 text-sm font-medium mb-1">Total XP Earned</p>
+                    <p className="text-qc-muted text-sm font-medium mb-1">Total XP Earned</p>
                     <div className="flex items-baseline gap-2">
-                        <h3 className="text-3xl font-bold text-white tracking-tight">{totalXP.toLocaleString()}</h3>
-                        <span className="text-xs text-quantum-blue-light font-bold">XP</span>
+                        <h3 className="text-3xl font-bold text-qc-fg tracking-tight">{totalXP.toLocaleString()}</h3>
+                        <span className="text-xs text-qc-accent font-bold">XP</span>
                     </div>
-                    <div className="mt-2 text-xs text-black dark:text-gray-500">From achievements only</div>
+                    <div className="mt-2 text-xs text-qc-subtle">From achievements only</div>
                 </div>
             </div>
 
             {/* Completion Rate Card */}
-            <div className="bg-gradient-to-br from-green-900/20 to-emerald-900/20 border border-white/10 rounded-xl p-5 relative overflow-hidden group hover:border-green-500/30 transition-colors">
+            <div className="bg-qc-surface border border-qc-line rounded-xl p-5 relative overflow-hidden group hover:border-qc-line-strong transition-colors">
                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <Trophy className="w-16 h-16 text-green-400" />
+                    <Trophy className="w-16 h-16 text-qc-success" />
                 </div>
                 <div className="relative z-10">
-                    <p className="text-black dark:text-gray-400 text-sm font-medium mb-1">Badges Unlocked</p>
+                    <p className="text-qc-muted text-sm font-medium mb-1">Badges Unlocked</p>
                     <div className="flex items-baseline gap-2">
-                        <h3 className="text-3xl font-bold text-white tracking-tight">{totalUnlocked}</h3>
-                        <span className="text-black dark:text-gray-500 text-lg">/ {achievements.length}</span>
+                        <h3 className="text-3xl font-bold text-qc-fg tracking-tight">{totalUnlocked}</h3>
+                        <span className="text-qc-subtle text-lg">/ {achievements.length}</span>
                     </div>
                     <div className="mt-2 w-full bg-black/30 h-1.5 rounded-full overflow-hidden">
                         <div
-                            className="h-full bg-green-500 transition-all duration-1000"
+                            className="h-full bg-qc-success transition-[width] duration-500"
                             style={{ width: `${completionRate}%` }}
                         />
                     </div>
@@ -56,23 +56,23 @@ export default function StatsOverview({ achievements }: StatsOverviewProps) {
             </div>
 
             {/* Rarest Badge Card */}
-            <div className="bg-gradient-to-br from-yellow-900/20 to-orange-900/20 border border-white/10 rounded-xl p-5 relative overflow-hidden group hover:border-yellow-500/30 transition-colors">
+            <div className="bg-qc-surface border border-qc-line rounded-xl p-5 relative overflow-hidden group hover:border-qc-line-strong transition-colors">
                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <Star className="w-16 h-16 text-yellow-400" />
+                    <Star className="w-16 h-16 text-qc-warning" />
                 </div>
                 <div className="relative z-10">
-                    <p className="text-black dark:text-gray-400 text-sm font-medium mb-1">Rarest Unlock</p>
+                    <p className="text-qc-muted text-sm font-medium mb-1">Rarest Unlock</p>
                     {rarestUnlocked ? (
                         <div>
-                            <h3 className="text-lg font-bold text-white truncate max-w-[180px]" title={rarestUnlocked.name}>
+                            <h3 className="text-lg font-bold text-qc-fg truncate max-w-[180px]" title={rarestUnlocked.name}>
                                 {rarestUnlocked.name}
                             </h3>
-                            <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border border-current text-yellow-400 border-yellow-500/30`}>
+                            <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border border-current text-qc-warning border-yellow-500/30`}>
                                 {rarestUnlocked.rarity}
                             </span>
                         </div>
                     ) : (
-                        <div className="text-black dark:text-gray-500 text-sm italic py-2">No badges yet</div>
+                        <div className="text-qc-subtle text-sm italic py-2">No badges yet</div>
                     )}
                 </div>
             </div>

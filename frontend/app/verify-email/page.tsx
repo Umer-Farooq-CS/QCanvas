@@ -6,6 +6,8 @@ import toast from "react-hot-toast";
 
 import { authApi } from "@/lib/api";
 import { useAuthStore } from "@/lib/authStore";
+import Link from "next/link";
+import AuthShell, { ButtonSpinner } from "@/components/site/AuthShell";
 
 function VerifyEmailContent() {
   const router = useRouter();
@@ -91,69 +93,76 @@ function VerifyEmailContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a1a] flex items-center justify-center p-4">
-      <div className="w-full max-w-md quantum-glass-dark rounded-2xl p-8 border border-indigo-500/20">
-        <h1 className="text-2xl font-bold text-white mb-2">Verify Email</h1>
-        <p className="text-sm text-gray-300 mb-6">
-          Enter the 6-digit code sent to your email.
+    <AuthShell
+      title="Verify your email"
+      subtitle="Enter the 6-digit code we sent you. Check your spam folder if it hasn’t arrived after a minute."
+      footer={
+        <p>
+          Wrong email?{" "}
+          <Link href="/signup" className="qc-link font-medium">
+            Sign up again
+          </Link>
         </p>
+      }
+    >
+      <form onSubmit={handleVerify} className="space-y-5">
+        <div>
+          <label htmlFor="email" className="qc-label">
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="qc-input"
+            required
+          />
+        </div>
 
-        <form onSubmit={handleVerify} className="space-y-4">
-          <div>
-            <label className="block text-sm text-gray-300 mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm text-gray-300 mb-1">OTP Code</label>
-            <input
-              inputMode="numeric"
-              maxLength={6}
-              value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-              className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white tracking-[0.4em]"
-              placeholder="123456"
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full btn-quantum disabled:opacity-50"
-          >
-            {isLoading ? "Verifying..." : "Verify Email"}
-          </button>
-        </form>
+        <div>
+          <label htmlFor="otp" className="qc-label">
+            Code
+          </label>
+          <input
+            id="otp"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            value={otp}
+            onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+            className="qc-input font-mono text-lg tracking-[0.4em]"
+            placeholder="000000"
+            required
+          />
+        </div>
 
         <button
-          onClick={handleResend}
-          disabled={isLoading || resendSeconds > 0}
-          className="w-full mt-3 btn-ghost disabled:opacity-50"
+          type="submit"
+          disabled={isLoading}
+          className="qc-btn qc-btn-primary qc-btn-lg w-full"
         >
-          {resendSeconds > 0 ? `Resend in ${resendSeconds}s` : "Resend Code"}
+          {isLoading && <ButtonSpinner />}
+          {isLoading ? "Verifying…" : "Verify email"}
         </button>
+      </form>
 
-        <p className="text-xs text-gray-400 mt-4 text-center">
-          Wrong email?{" "}
-          <a href="/signup" className="text-indigo-400">
-            Create account again
-          </a>
-        </p>
-      </div>
-    </div>
+      <button
+        type="button"
+        onClick={handleResend}
+        disabled={isLoading || resendSeconds > 0}
+        className="qc-btn qc-btn-quiet mt-3 w-full"
+      >
+        {resendSeconds > 0 ? `Resend code in ${resendSeconds}s` : "Resend code"}
+      </button>
+    </AuthShell>
   );
 }
 
 export default function VerifyEmailPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#0a0a1a]" />}>
+    <Suspense fallback={<div className="qc-page" />}>
       <VerifyEmailContent />
     </Suspense>
   );

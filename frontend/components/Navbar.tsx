@@ -1,233 +1,164 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { Moon, Sun } from "@/components/Icons";
-import { Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { Menu, X, Sun, Moon } from "lucide-react";
 import { useFileStore } from "@/lib/store";
 import { hasValidAuth, useAuthStore } from "@/lib/authStore";
-import { config } from "@/lib/config";
 
-interface NavbarProps {
-  /** If provided, a "Features" button is rendered that scrolls to this section ID on the current page. */
-  scrollToFeatures?: (sectionId: string) => void;
-}
+const NAV_LINKS = [
+  { name: "Examples", path: "/examples" },
+  { name: "Docs", path: "/docs" },
+  { name: "About", path: "/about" },
+] as const;
 
-export default function Navbar({ scrollToFeatures }: NavbarProps) {
+export default function Navbar() {
   const pathname = usePathname();
   const { theme, toggleTheme } = useFileStore();
   const { isAuthenticated, token } = useAuthStore();
   const canAccessApp = hasValidAuth({ isAuthenticated, token });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [scrollY, setScrollY] = useState(0);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => setScrollY(window.scrollY);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const navLinks = [
-    ...(scrollToFeatures
-      ? [{ name: "Features", path: "#features", isScrollButton: true }]
-      : [{ name: "Home", path: "/", isScrollButton: false }]),
-    { name: "Examples", path: "/examples", isScrollButton: false },
-    { name: "Documentation", path: "/docs", isScrollButton: false },
-    { name: "About", path: "/about", isScrollButton: false },
-  ];
+  // Close the mobile menu on navigation and on Escape.
+  useEffect(() => setIsMenuOpen(false), [pathname]);
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setIsMenuOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isMenuOpen]);
 
-  const isActive = (path: string) => {
-    if (path.startsWith("#")) return false;
-    return pathname === path;
-  };
+  const isActive = (path: string) => pathname === path || pathname?.startsWith(path + "/");
+  const ThemeIcon = theme === "dark" ? Sun : Moon;
+  const themeLabel = theme === "dark" ? "Switch to light theme" : "Switch to dark theme";
 
   return (
-    <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrollY > 50 ? "dark:bg-black/80 bg-white/90 backdrop-blur-lg border-b dark:border-white/10 border-gray-200 shadow-sm" : "dark:bg-black/60 bg-white/70 backdrop-blur-md border-b dark:border-white/5 border-gray-200"}`}
+    <header
+      className={`fixed inset-x-0 top-0 z-50 border-b transition-colors duration-200 ${
+        scrolled || isMenuOpen
+          ? "border-qc-line bg-qc-bg/95"
+          : "border-transparent bg-qc-bg/0"
+      }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center py-4">
-          <Link href="/" className="flex items-center space-x-2.5 group">
-            <div className="relative logo-glow">
-              <Image
-                src="/QCanvas-logo-Black.svg"
-                alt="QCanvas Logo"
-                width={44}
-                height={44}
-                className="object-contain block dark:hidden transition-all duration-300 group-hover:scale-110"
-                priority
-              />
-              <Image
-                src="/QCanvas-logo-White.svg"
-                alt="QCanvas Logo"
-                width={44}
-                height={44}
-                className="object-contain hidden dark:block transition-all duration-300 group-hover:scale-110"
-                priority
-              />
-            </div>
-            <span className="text-2xl font-bold quantum-gradient bg-clip-text text-transparent">
-              QCanvas
-            </span>
-          </Link>
+      <nav className="qc-container flex h-14 items-center justify-between gap-4" aria-label="Main">
+        <Link
+          href="/"
+          className="qc-focus -ml-1 flex items-center gap-2 rounded-md px-1 py-1 text-qc-fg"
+          aria-label="QCanvas home"
+        >
+          <span className="qc-logo h-7 w-7" aria-hidden="true" />
+          <span className="font-display text-[17px] font-semibold tracking-tight">QCanvas</span>
+        </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
-            {navLinks.map((item) =>
-              item.isScrollButton ? (
-                <button
-                  key={item.name}
-                  onClick={() => scrollToFeatures?.("features")}
-                  className={
-                    pathname === "/"
-                      ? "text-white font-medium text-sm relative after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-[2px] after:bg-gradient-to-r after:from-indigo-500 after:to-cyan-500 after:rounded-full"
-                      : "text-black dark:text-gray-400 hover:text-white transition-colors duration-200 hover-underline text-sm font-medium"
-                  }
-                >
-                  {item.name}
-                </button>
-              ) : (
-                <Link
-                  key={item.path}
-                  href={item.path as any}
-                  className={
-                    isActive(item.path)
-                      ? "text-white font-medium text-sm relative after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-[2px] after:bg-gradient-to-r after:from-indigo-500 after:to-cyan-500 after:rounded-full"
-                      : "text-black dark:text-gray-400 hover:text-white transition-colors duration-200 hover-underline text-sm font-medium"
-                  }
-                >
-                  {item.name}
-                </Link>
-              ),
-            )}
-
-            {/* Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-xl bg-white/5 border border-white/10 hover:border-indigo-500/40 hover:bg-white/10 transition-all duration-300"
-              title="Toggle theme"
+        <div className="hidden items-center gap-1 md:flex">
+          {NAV_LINKS.map((item) => (
+            <Link
+              key={item.path}
+              href={item.path}
+              aria-current={isActive(item.path) ? "page" : undefined}
+              className={`qc-focus rounded-md px-3 py-1.5 text-sm transition-colors duration-150 ${
+                isActive(item.path)
+                  ? "text-qc-fg"
+                  : "text-qc-muted hover:text-qc-fg"
+              }`}
             >
-              {theme === "dark" ? (
-                <Sun className="w-4 h-4 text-black dark:text-gray-400" />
-              ) : (
-                <Moon className="w-4 h-4 text-black dark:text-gray-400" />
-              )}
-            </button>
-
-            {/* Auth Buttons */}
-            <div className="flex items-center space-x-3">
-              {canAccessApp ? (
-                <Link href="/app" className="btn-quantum text-sm px-5 py-2.5">
-                  Go to App
-                </Link>
-              ) : (
-                <>
-                  <Link
-                    href="/login"
-                    className="text-black dark:text-gray-400 hover:text-white transition-colors duration-200 font-medium text-sm"
-                  >
-                    Sign In
-                  </Link>
-                  <Link
-                    href="/login"
-                    className="btn-quantum text-sm px-5 py-2.5"
-                  >
-                    Get Started
-                  </Link>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="md:hidden p-2 rounded-xl bg-white/5 border border-white/10"
-          >
-            {isMenuOpen ? (
-              <X className="w-5 h-5" />
-            ) : (
-              <Menu className="w-5 h-5" />
-            )}
-          </button>
+              {item.name}
+            </Link>
+          ))}
         </div>
 
-        {/* Mobile Menu */}
-        {isMenuOpen && (
-          <div className="md:hidden bg-[#0a0a1a]/95 backdrop-blur-xl border-t border-white/5 rounded-b-2xl">
-            <div className="px-4 py-4 space-y-4">
-              {navLinks.map((item) =>
-                item.isScrollButton ? (
-                  <button
-                    key={item.name}
-                    onClick={() => {
-                      scrollToFeatures?.("features");
-                      setIsMenuOpen(false);
-                    }}
-                    className="block w-full text-left text-black dark:text-gray-400 hover:text-white transition-colors duration-200"
-                  >
-                    {item.name}
-                  </button>
-                ) : (
-                  <Link
-                    key={item.path}
-                    href={item.path as any}
-                    className={
-                      isActive(item.path)
-                        ? "block text-white font-medium"
-                        : "block text-black dark:text-gray-400 hover:text-white transition-colors duration-200"
-                    }
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    {item.name}
-                  </Link>
-                ),
-              )}
+        <div className="hidden items-center gap-2 md:flex">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="qc-focus grid h-9 w-9 place-items-center rounded-md text-qc-muted transition-colors duration-150 hover:bg-qc-surface-2 hover:text-qc-fg"
+            aria-label={themeLabel}
+            title={themeLabel}
+          >
+            <ThemeIcon className="h-4 w-4" aria-hidden="true" />
+          </button>
+          {canAccessApp ? (
+            <Link href="/app" className="qc-btn qc-btn-primary qc-btn-sm">
+              Open editor
+            </Link>
+          ) : (
+            <>
+              <Link href="/login" className="qc-btn qc-btn-quiet qc-btn-sm">
+                Sign in
+              </Link>
+              <Link href="/signup" className="qc-btn qc-btn-primary qc-btn-sm">
+                Create account
+              </Link>
+            </>
+          )}
+        </div>
 
-              <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                <button
-                  onClick={toggleTheme}
-                  className="flex items-center space-x-2 text-black dark:text-gray-400 hover:text-white transition-colors duration-200"
-                >
-                  {theme === "dark" ? (
-                    <Sun className="w-4 h-4" />
-                  ) : (
-                    <Moon className="w-4 h-4" />
-                  )}
-                  <span>Theme</span>
-                </button>
-                <div className="flex space-x-3">
-                  {canAccessApp ? (
-                    <Link
-                      href="/app"
-                      className="btn-quantum text-sm px-3 py-1.5"
-                    >
-                      Go to App
+        <button
+          type="button"
+          onClick={() => setIsMenuOpen((open) => !open)}
+          className="qc-focus -mr-1 grid h-10 w-10 place-items-center rounded-md text-qc-fg md:hidden"
+          aria-expanded={isMenuOpen}
+          aria-controls="mobile-nav"
+          aria-label={isMenuOpen ? "Close menu" : "Open menu"}
+        >
+          {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
+      </nav>
+
+      {isMenuOpen && (
+        <div id="mobile-nav" className="qc-fade-in border-t border-qc-line bg-qc-bg md:hidden">
+          <div className="qc-container flex flex-col py-3">
+            {NAV_LINKS.map((item) => (
+              <Link
+                key={item.path}
+                href={item.path}
+                aria-current={isActive(item.path) ? "page" : undefined}
+                className={`qc-focus rounded-md px-2 py-3 text-[15px] ${
+                  isActive(item.path) ? "text-qc-fg" : "text-qc-muted"
+                }`}
+              >
+                {item.name}
+              </Link>
+            ))}
+            <div className="mt-2 flex items-center gap-2 border-t border-qc-line pt-4">
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="qc-btn qc-btn-secondary qc-btn-sm"
+                aria-label={themeLabel}
+              >
+                <ThemeIcon className="h-4 w-4" aria-hidden="true" />
+                {theme === "dark" ? "Light" : "Dark"}
+              </button>
+              <div className="ml-auto flex items-center gap-2">
+                {canAccessApp ? (
+                  <Link href="/app" className="qc-btn qc-btn-primary qc-btn-sm">
+                    Open editor
+                  </Link>
+                ) : (
+                  <>
+                    <Link href="/login" className="qc-btn qc-btn-quiet qc-btn-sm">
+                      Sign in
                     </Link>
-                  ) : (
-                    <>
-                      <Link
-                        href="/login"
-                        className="text-black dark:text-gray-400 hover:text-white transition-colors duration-200"
-                      >
-                        Sign In
-                      </Link>
-                      <Link
-                        href="/login"
-                        className="btn-quantum text-sm px-3 py-1.5"
-                      >
-                        Get Started
-                      </Link>
-                    </>
-                  )}
-                </div>
+                    <Link href="/signup" className="qc-btn qc-btn-primary qc-btn-sm">
+                      Create account
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </div>
-        )}
-      </div>
-    </nav>
+        </div>
+      )}
+    </header>
   );
 }

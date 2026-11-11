@@ -72,7 +72,7 @@ export default function RecentActivityList({
     // Stripped version — no outer card (parent provides it)
     if (displayActivities.length === 0) {
       return (
-        <p className="text-black dark:text-gray-500 text-sm text-center py-6">
+        <p className="text-qc-subtle text-sm text-center py-6">
           No recent activity yet
         </p>
       );
@@ -87,23 +87,23 @@ export default function RecentActivityList({
           return (
             <div
               key={activity.id}
-              className={`flex items-center gap-3 p-3 rounded-lg transition-all hover:bg-white/5 border ${isFirstTime ? "border-purple-500/30 bg-purple-500/5" : "border-white/5 bg-white/[0.02]"}`}
+              className={`flex items-center gap-3 p-3 rounded-lg transition-all hover:bg-qc-surface-2 border ${isFirstTime ? "border-qc-accent/30 bg-qc-accent/5" : "border-qc-line bg-qc-surface-2"}`}
             >
               <div
-                className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isFirstTime ? "bg-gradient-to-br from-purple-500 to-blue-500" : "bg-gradient-to-br from-blue-500 to-cyan-500"}`}
+                className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isFirstTime ? "bg-qc-accent/15 text-qc-accent" : "bg-qc-surface-3 text-qc-muted"}`}
               >
-                <Icon className="w-4 h-4 text-gray-200" />
+                <Icon className="w-4 h-4" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">
+                <p className="text-sm font-medium text-qc-fg truncate">
                   {displayName}
                 </p>
-                <p className="text-xs text-black dark:text-gray-500">
+                <p className="text-xs text-qc-subtle">
                   {formatTime(activity.created_at)}
                 </p>
               </div>
               <div
-                className={`px-2 py-0.5 rounded text-xs font-bold ${isFirstTime ? "bg-purple-500/20 text-purple-300" : "bg-blue-500/20 text-blue-300"}`}
+                className={`px-2 py-0.5 rounded text-xs font-bold ${isFirstTime ? "bg-qc-accent/15 text-qc-accent" : "bg-qc-surface-3 text-qc-fg"}`}
               >
                 +{activity.xp_awarded} XP
               </div>
@@ -115,27 +115,27 @@ export default function RecentActivityList({
   }
 
   return (
-    <div className="bg-quantum-glass-dark border border-white/10 rounded-xl p-6">
+    <div className="bg-qc-surface border border-qc-line rounded-xl p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <Zap className="w-5 h-5 text-yellow-400" />
+        <h2 className="text-xl font-bold text-qc-fg flex items-center gap-2">
+          <Zap className="w-5 h-5 text-qc-warning" />
           Recent Activity
         </h2>
-        <span className="text-xs text-black dark:text-gray-500">
+        <span className="text-xs text-qc-subtle">
           {recentActivities.length} activities
         </span>
       </div>
 
       {displayActivities.length === 0 ? (
         <div className="text-center py-12">
-          <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-3">
-            <Zap className="w-8 h-8 text-black dark:text-gray-600" />
+          <div className="w-16 h-16 rounded-full bg-qc-surface-2 flex items-center justify-center mx-auto mb-3">
+            <Zap className="w-8 h-8 text-qc-subtle" />
           </div>
-          <p className="text-black dark:text-gray-500 text-sm">
+          <p className="text-qc-subtle text-sm">
             No recent activity yet
           </p>
-          <p className="text-black dark:text-gray-600 text-xs mt-1">
-            Start simulating circuits to earn XP!
+          <p className="text-qc-subtle text-xs mt-1">
+            Run a circuit to start earning XP.
           </p>
         </div>
       ) : (
@@ -149,46 +149,46 @@ export default function RecentActivityList({
             return (
               <div
                 key={activity.id}
-                className={`flex items-center gap-3 p-3 rounded-lg transition-all hover:bg-white/5 border ${
+                className={`flex items-center gap-3 p-3 rounded-lg transition-all hover:bg-qc-surface-2 border ${
                   isFirstTime
-                    ? "border-purple-500/30 bg-purple-500/5"
-                    : "border-white/5 bg-white/[0.02]"
+                    ? "border-qc-accent/30 bg-qc-accent/5"
+                    : "border-qc-line bg-qc-surface-2"
                 }`}
               >
                 {/* Icon */}
                 <div
                   className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
                     isFirstTime
-                      ? "bg-gradient-to-br from-purple-500 to-blue-500"
-                      : "bg-gradient-to-br from-blue-500 to-cyan-500"
+                      ? "bg-qc-accent/15 text-qc-accent"
+                      : "bg-qc-surface-3 text-qc-muted"
                   }`}
                 >
-                  <Icon className="w-5 h-5 text-white" />
+                  <Icon className="w-5 h-5" />
                 </div>
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-white truncate">
+                    <p className="text-sm font-medium text-qc-fg truncate">
                       {displayName}
                     </p>
                     {isFirstTime && (
-                      <span className="text-[10px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded-full font-medium">
-                        FIRST!
+                      <span className="text-[10px] bg-qc-accent/15 text-qc-accent px-1.5 py-0.5 rounded font-medium">
+                        First time
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-black dark:text-gray-500">
+                  <p className="text-xs text-qc-subtle">
                     {formatTime(activity.created_at)}
                   </p>
                 </div>
 
                 {/* XP Badge */}
                 <div
-                  className={`px-2.5 py-1 rounded-lg font-bold text-xs ${
+                  className={`px-2 py-0.5 rounded font-mono font-medium text-xs tabular-nums ${
                     isFirstTime
-                      ? "bg-purple-500/20 text-purple-300"
-                      : "bg-blue-500/20 text-blue-300"
+                      ? "bg-qc-accent/15 text-qc-accent"
+                      : "bg-qc-surface-3 text-qc-fg"
                   }`}
                 >
                   +{activity.xp_awarded} XP

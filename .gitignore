@@ -345,3 +345,6 @@ frontend/.next/
 .venv*/
 .claude/worktrees/
 .playwright-mcp/
+
+# Design audit screenshots (local only)
+design-audit/*.png

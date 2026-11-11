@@ -51,7 +51,7 @@ export default function XPHistoryChart({
           >
             <div className="w-full relative flex items-end justify-center h-full">
               {/* Tooltip */}
-              <div className="absolute -top-8 bg-gray-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 border border-white/10 pointer-events-none">
+              <div className="absolute -top-8 bg-gray-800 text-qc-fg text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 border border-qc-line pointer-events-none">
                 {item.xp > 0 ? `${item.xp} XP` : "No activity"}
               </div>
 
@@ -63,8 +63,8 @@ export default function XPHistoryChart({
                   <div
                     className={`absolute bottom-0 w-full rounded-t-sm transition-all duration-500 ${
                       isToday
-                        ? "bg-gradient-to-t from-purple-600 to-purple-400 hover:from-purple-500"
-                        : "bg-gradient-to-t from-blue-600 to-blue-400 hover:from-blue-500"
+                        ? "bg-qc-accent"
+                        : "bg-qc-accent/45 hover:bg-qc-accent/70"
                     }`}
                     style={{ height: `${heightPercent}%` }}
                   />
@@ -72,7 +72,7 @@ export default function XPHistoryChart({
               </div>
             </div>
             <span
-              className={`text-[10px] font-medium uppercase ${isToday ? "text-purple-400" : "text-black dark:text-gray-500"}`}
+              className={`text-[10px] font-medium uppercase ${isToday ? "text-qc-accent" : "text-qc-subtle"}`}
             >
               {item.day}
             </span>
@@ -84,14 +84,14 @@ export default function XPHistoryChart({
 
   if (standalone) {
     return (
-      <div className="bg-quantum-glass-dark border border-white/10 rounded-xl p-6">
+      <div className="bg-qc-surface border border-qc-line rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-lg text-white flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-quantum-blue-light" />
+          <h3 className="font-bold text-lg text-qc-fg flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-qc-accent" />
             Weekly Activity
           </h3>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-black dark:text-gray-400 bg-white/5 px-2 py-1 rounded">
+            <span className="text-xs text-qc-muted bg-qc-surface-2 px-2 py-1 rounded">
               {totalWeeklyXP > 0
                 ? `+${totalWeeklyXP} XP this week`
                 : "Last 7 Days"}
@@ -108,10 +108,10 @@ export default function XPHistoryChart({
     <div className="space-y-4">
       {totalWeeklyXP > 0 && (
         <div className="flex flex-col -mt-2">
-          <span className="text-2xl font-bold quantum-gradient bg-clip-text text-transparent">
+          <span className="text-2xl font-semibold tabular-nums text-qc-fg">
             +{totalWeeklyXP} XP
           </span>
-          <span className="text-[10px] uppercase tracking-wider text-black dark:text-gray-500 font-semibold opacity-80">
+          <span className="text-[10px] uppercase tracking-wider text-qc-subtle font-semibold opacity-80">
             This Week&apos;s Gains
           </span>
         </div>
