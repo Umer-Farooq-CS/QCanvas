@@ -89,7 +89,7 @@ def test_refresh_issues_new_token_and_preserves_auth_time():
     original_auth_time = int(time.time()) - 3600
     old = create_access_token({"sub": user.id, "tv": 0, "auth_time": original_auth_time})
 
-    resp = auth_routes.refresh_access_token(credentials=_creds(old), current_user=user)
+    resp = auth_routes.refresh_access_token(credentials=_creds(old), current_user=user, db=_FakeDB(user))
 
     new_payload = verify_token(resp.access_token)
     assert new_payload["sub"] == user.id
@@ -104,7 +104,7 @@ def test_refresh_refused_after_absolute_session_cap():
     token = create_access_token({"sub": user.id, "tv": 0, "auth_time": too_old})
 
     with pytest.raises(HTTPException) as exc:
-        auth_routes.refresh_access_token(credentials=_creds(token), current_user=user)
+        auth_routes.refresh_access_token(credentials=_creds(token), current_user=user, db=_FakeDB(user))
     assert exc.value.status_code == 401
 
 
@@ -300,3 +300,36 @@ def test_guest_creation_refused_when_global_cap_reached(monkeypatch):
     with pytest.raises(HTTPException) as exc:
         raw(request=None, db=_GuestDB())
     assert exc.value.status_code == 503
+
+
+def test_at_capacity_idle_guests_are_evicted_before_refusing(monkeypatch):
+    calls = {"idle_purges": [], "count": 0}
+
+    def fake_count(db):
+        calls["count"] += 1
+        # Full until a large idle purge has run, then there is room.
+        return settings.GUEST_MAX_ACTIVE if not any(l >= 100 for l in calls["idle_purges"]) else 10
+
+    def fake_purge_idle(db, limit=10):
+        calls["idle_purges"].append(limit)
+        return limit
+
+    monkeypatch.setattr(guest_service, "active_guest_count", fake_count)
+    monkeypatch.setattr(guest_service, "purge_idle_guests", fake_purge_idle)
+    raw = getattr(auth_routes.create_guest_session, "__wrapped__", auth_routes.create_guest_session)
+
+    resp = raw(request=None, db=_GuestDB())
+    assert resp.user.role == "demo"
+    assert max(calls["idle_purges"]) >= 100
+
+
+def test_refresh_records_guest_activity():
+    guest = _user(role=UserRole.DEMO)
+    guest.created_at = datetime.utcnow() - timedelta(hours=1)
+    guest.last_login_at = datetime.utcnow() - timedelta(hours=1)
+    db = _GuestDB(guest)
+    token = create_access_token({"sub": guest.id, "tv": 0})
+
+    auth_routes.refresh_access_token(credentials=_creds(token), current_user=guest, db=db)
+
+    assert datetime.utcnow() - guest.last_login_at < timedelta(seconds=5)

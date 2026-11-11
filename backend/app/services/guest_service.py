@@ -116,6 +116,49 @@ def purge_guest(db: Session, user: User) -> None:
     user.token_version = (user.token_version or 0) + 1
 
 
+def touch_guest(db: Session, user: User) -> None:
+    """Record guest activity (called on token refresh, i.e. hourly while the IDE is open)."""
+    if user.role == UserRole.DEMO:
+        user.last_login_at = datetime.utcnow()
+        db.commit()
+
+
+def purge_idle_guests(db: Session, limit: int = 10) -> int:
+    """
+    Evict guests that look abandoned: no saved files AND not seen for
+    GUEST_IDLE_TTL_HOURS. Oldest first. Guests with the IDE open refresh their
+    token hourly (see touch_guest), so they are never considered idle.
+    Never raises.
+    """
+    from sqlalchemy import exists
+
+    cutoff = datetime.utcnow() - timedelta(hours=settings.GUEST_IDLE_TTL_HOURS)
+    purged = 0
+    try:
+        idle = (
+            db.query(User)
+            .filter(
+                User.role == UserRole.DEMO,
+                User.deleted_at == None,  # noqa: E711
+                User.email != LEGACY_SHARED_DEMO_EMAIL,
+                User.last_login_at < cutoff,
+                ~exists().where(File.user_id == User.id),
+            )
+            .order_by(User.last_login_at.asc())
+            .limit(limit)
+            .all()
+        )
+        for user in idle:
+            purge_guest(db, user)
+            purged += 1
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("Idle guest purge failed")
+        return 0
+    return purged
+
+
 def purge_expired_guests(db: Session, limit: int = 25) -> int:
     """Purge up to `limit` expired guest accounts. Never raises."""
     cutoff = datetime.utcnow() - timedelta(hours=settings.GUEST_ACCOUNT_TTL_HOURS)

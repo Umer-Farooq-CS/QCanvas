@@ -51,7 +51,11 @@ class Settings(BaseSettings):
     # within a few minutes, while bounding abuse.
     GUEST_CREATE_RATE_LIMIT: str = "60/minute;400/hour;1500/day"
     # Global cap on live guest accounts; beyond it /guest returns 503.
-    GUEST_MAX_ACTIVE: int = 2000
+    # Well above any single IP's allowance; at the cap, abandoned guests are
+    # evicted first (see guest_service.purge_idle_guests).
+    GUEST_MAX_ACTIVE: int = 5000
+    # A guest with no saved files and no activity for this long is "abandoned".
+    GUEST_IDLE_TTL_HOURS: int = 3
     AUTH_EMAIL_OTP_ENABLED: bool = False
     OTP_EXPIRE_MINUTES: int = 5
     OTP_MAX_ATTEMPTS: int = 5

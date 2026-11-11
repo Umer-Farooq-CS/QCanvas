@@ -684,6 +684,7 @@ def get_current_user_info(current_user: User = Depends(get_current_user)):
 def refresh_access_token(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """
     Exchange a still-valid access token for a fresh one (sliding session).
@@ -702,6 +703,8 @@ def refresh_access_token(
             detail="Session has expired, please login again",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    guest_service.touch_guest(db, current_user)
 
     access_token = create_access_token(
         data={
@@ -758,6 +761,12 @@ def create_guest_session(request: Request, db: Session = Depends(get_db)):
     # Housekeeping first, isolated from the guest creation transaction.
     guest_service.purge_expired_guests(db)
 
+    guest_service.purge_idle_guests(db, limit=10)
+
+    # At capacity: evict abandoned guests (oldest first) before refusing, so a
+    # burst of throwaway guests from one source can't lock everyone else out.
+    if guest_service.active_guest_count(db) >= settings.GUEST_MAX_ACTIVE:
+        guest_service.purge_idle_guests(db, limit=200)
     if guest_service.active_guest_count(db) >= settings.GUEST_MAX_ACTIVE:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
