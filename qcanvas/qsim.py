@@ -37,6 +37,74 @@ except ImportError as e:
 _simulation_results: list = []
 
 
+# ---------------------------------------------------------------------------
+# FastQSim online-mode resolution (cached)
+# ---------------------------------------------------------------------------
+# Previously every qsim.run() created a boto3 client and called AWS SSM, which
+# added ~1-2 s per call (credential discovery + network) and failed noisily
+# outside AWS.  The decision is now cached per process for
+# FASTQSIM_ONLINE_MODE_CACHE_SECONDS (default 30, same knob as
+# SimulationService).  The API process resolves it once and passes the answer
+# to each isolated hybrid run via set_online_mode_override(), so the short-lived
+# child processes never talk to SSM themselves.
+import threading as _threading
+import time as _time
+
+_online_mode_lock = _threading.Lock()
+_online_mode_cache: Optional[tuple] = None  # (value, expires_at_monotonic)
+_online_mode_override: Optional[bool] = None
+
+
+def _online_mode_ttl() -> float:
+    try:
+        return max(0.0, float(os.getenv("FASTQSIM_ONLINE_MODE_CACHE_SECONDS", "30")))
+    except ValueError:
+        return 30.0
+
+
+def _lookup_online_mode_ssm() -> bool:
+    ssm_param = os.getenv("SSM_FASTQSIM_ONLINE_MODE_PARAM", "/qcanvas/production/fastqsim_online_mode")
+    try:
+        import boto3
+        config = boto3.session.Config(connect_timeout=1, read_timeout=1, retries={'max_attempts': 1})
+        ssm = boto3.client('ssm', config=config)
+        resp = ssm.get_parameter(Name=ssm_param, WithDecryption=False)
+        return resp['Parameter']['Value'].strip().lower() in ("true", "1", "yes")
+    except Exception:
+        return False
+
+
+def set_online_mode_override(value: Optional[bool]) -> None:
+    """Force online mode on/off for this process (None = resolve normally)."""
+    global _online_mode_override
+    _online_mode_override = value
+
+
+def resolve_online_mode(force_refresh: bool = False) -> bool:
+    """Should qsim.run() forward to FastQSim cloud?
+
+    Order: explicit override -> FASTQSIM_ONLINE_MODE env var (any non-empty
+    value short-circuits, like SimulationService) -> cached SSM lookup.
+    """
+    if _online_mode_override is not None:
+        return _online_mode_override
+
+    val = os.getenv("FASTQSIM_ONLINE_MODE")
+    if val:
+        return val.strip().lower() in ("true", "1", "yes")
+
+    global _online_mode_cache
+    ttl = _online_mode_ttl()
+    with _online_mode_lock:
+        now = _time.monotonic()
+        if not force_refresh and ttl > 0 and _online_mode_cache is not None and _online_mode_cache[1] > now:
+            return _online_mode_cache[0]
+        value = _lookup_online_mode_ssm()
+        if ttl > 0:
+            _online_mode_cache = (value, _time.monotonic() + ttl)
+        return value
+
+
 def get_simulation_results() -> list:
     """Get all simulation results from this execution."""
     return _simulation_results.copy()
@@ -102,23 +170,11 @@ def run(
         raise ValueError(f"Shots must be non-negative, got: {shots}")
     
     try:
-        # Check if online mode is enabled for cloud forwarding
-        online_mode = False
+        # Check if online mode is enabled for cloud forwarding (cached)
         try:
-            import os
-            val = os.getenv("FASTQSIM_ONLINE_MODE", "false").lower()
-            if val in ("true", "1", "yes"):
-                online_mode = True
-            else:
-                ssm_param = os.getenv("SSM_FASTQSIM_ONLINE_MODE_PARAM", "/qcanvas/production/fastqsim_online_mode")
-                import boto3
-                config = boto3.session.Config(connect_timeout=1, read_timeout=1, retries={'max_attempts': 1})
-                ssm = boto3.client('ssm', config=config)
-                resp = ssm.get_parameter(Name=ssm_param, WithDecryption=False)
-                if resp['Parameter']['Value'].strip().lower() in ("true", "1", "yes"):
-                    online_mode = True
+            online_mode = resolve_online_mode()
         except Exception:
-            pass
+            online_mode = False
 
         if online_mode:
             print(f"🚀 [QSim Wrapper] Forwarding simulation to FastQSim Online Cloud on backend '{backend}'...")

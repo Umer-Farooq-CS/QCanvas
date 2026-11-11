@@ -9,8 +9,12 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
+import asyncio
+import logging
 import sys
 import os
+
+logger = logging.getLogger(__name__)
 
 # Add the project root directory to Python path
 current_file = os.path.abspath(__file__)
@@ -26,8 +30,9 @@ if project_root not in sys.path:
 
 # Import sandbox execution
 try:
-    from qcanvas.sandbox import execute_sandboxed, validate_code
+    from qcanvas.sandbox import execute_sandboxed, execute_sandboxed_job, validate_code
     from qcanvas.result import HybridExecutionResult
+    from qcanvas import qsim as qsim_wrapper
     SANDBOX_AVAILABLE = True
     print("✓ Sandbox module imported successfully")
 except ImportError as e:
@@ -36,7 +41,25 @@ except ImportError as e:
     traceback.print_exc()
     SANDBOX_AVAILABLE = False
     execute_sandboxed = None
+    execute_sandboxed_job = None
     validate_code = None
+    qsim_wrapper = None
+
+# User code never runs in this process: every run gets its own child process.
+from app.services.isolated_exec import (
+    UserCodeBusyError,
+    get_stats as get_isolation_stats,
+    prestart as prestart_isolated_runner,
+    run_isolated_async,
+)
+
+# Start the clean fork server now (Linux), while the app is still importing
+# and no request threads exist yet.  No-op on Windows/macOS.
+prestart_isolated_runner()
+
+# Variables FastQSim's SDK needs inside the child.  They are only passed when
+# the run actually needs FastQSim (online mode or `import fastqsim`).
+_FASTQSIM_CHILD_ENV = ("FASTQUBIT_SESSION_TOKEN", "FASTQUBIT_ENDPOINT", "FASTQSIM_EXECUTION_MODE")
 
 # Check if QSim is available (needed for sandbox execution)
 try:
@@ -146,6 +169,29 @@ class HybridStatusResponse(BaseModel):
     allowed_modules: List[str]
 
 
+def effective_timeout(requested: Optional[int]) -> int:
+    """Clients may ask for a shorter timeout, never a longer one."""
+    cap = max(1, int(HYBRID_MAX_EXECUTION_TIME))
+    if requested is None:
+        return cap
+    try:
+        requested = int(requested)
+    except (TypeError, ValueError):
+        return cap
+    return max(1, min(requested, cap))
+
+
+def _ensure_fastqsim_session() -> None:
+    """Blocking: make sure a FastQSim session token exists in os.environ."""
+    try:
+        from app.services.simulation_service import SimulationService
+        ok, err = SimulationService()._ensure_fastqsim_session()
+        if not ok:
+            logger.warning("FastQSim session pre-provisioning warning: %s", err)
+    except Exception as e:
+        logger.warning("Failed to pre-provision FastQSim session: %s", e)
+
+
 @router.post("/execute", response_model=HybridExecuteResponse)
 async def execute_hybrid(request: HybridExecuteRequest):
     """
@@ -159,7 +205,12 @@ async def execute_hybrid(request: HybridExecuteRequest):
     - Safe modules: numpy, math, etc.
     
     Security restrictions are applied based on config settings.
-    
+
+    The code runs in a separate, resource-limited child process that is killed
+    after min(request.timeout, HYBRID_MAX_EXECUTION_TIME) seconds.  When all
+    execution slots stay busy for USER_CODE_QUEUE_TIMEOUT seconds the endpoint
+    answers HTTP 503 with a "server busy, try again" message.
+
     Returns:
         HybridExecuteResponse with stdout, simulation results, and errors
     """
@@ -186,58 +237,83 @@ async def execute_hybrid(request: HybridExecuteRequest):
         )
     
     try:
-        # Pre-provision FastQSim session if the code uses fastqsim
-        if "fastqsim" in request.code:
+        exec_timeout = effective_timeout(request.timeout)
+
+        # Resolve FastQSim online mode once here (cached; may hit AWS SSM) so
+        # the child process never has to, and provision a session only when
+        # the run will actually talk to FastQSim.  Both are blocking network
+        # calls, so they run off the event loop.
+        online_mode = False
+        if qsim_wrapper is not None:
             try:
-                from app.services.simulation_service import SimulationService
-                sim_service = SimulationService()
-                ok, err = sim_service._ensure_fastqsim_session()
-                if not ok:
-                    print(f"⚠️ FastQSim session pre-provisioning warning: {err}")
+                online_mode = await asyncio.to_thread(qsim_wrapper.resolve_online_mode)
             except Exception as e:
-                print(f"⚠️ Failed to pre-provision FastQSim session: {e}")
+                logger.warning("Could not resolve FastQSim online mode: %s", e)
+        uses_fastqsim = online_mode or ("fastqsim" in request.code)
+        child_env: Dict[str, str] = {}
+        if uses_fastqsim:
+            await asyncio.to_thread(_ensure_fastqsim_session)
+            child_env = {k: os.environ[k] for k in _FASTQSIM_CHILD_ENV if os.environ.get(k)}
 
-        # Use the larger of request.timeout or HYBRID_MAX_EXECUTION_TIME to honor server-side increases
-        exec_timeout = request.timeout
-        if exec_timeout is None or exec_timeout < HYBRID_MAX_EXECUTION_TIME:
-            exec_timeout = HYBRID_MAX_EXECUTION_TIME
-
-        # Execute in sandbox
-        result = execute_sandboxed(
-            code=request.code,
+        outcome = await run_isolated_async(
+            execute_sandboxed_job,
+            kwargs={
+                "code": request.code,
+                "framework_hint": request.framework,
+                "online_mode": online_mode,
+            },
             timeout=exec_timeout,
-            framework_hint=request.framework
+            env=child_env,
+            label="hybrid",
         )
-        
-        # Print captured simulation results to terminal
-        if result.simulation_results:
-            print("\n" + "="*70)
-            print("📊 [API] RETURNING CAPTURED SIMULATION RESULTS TO FRONTEND")
-            print("="*70)
-            for idx, sim in enumerate(result.simulation_results):
-                print(f"Simulation #{idx+1}:")
-                print(f"  Backend: {sim.get('backend')}")
-                print(f"  Shots: {sim.get('shots')}")
-                print(f"  Qubits: {sim.get('n_qubits')}")
-                print(f"  Execution Time: {sim.get('execution_time')}")
-                print(f"  Counts: {sim.get('counts')}")
-            print("="*70 + "\n")
+
+        if outcome.ok and isinstance(outcome.value, dict):
+            data = outcome.value
         else:
-            print("\nℹ️ [API] No sandboxed simulation results were captured from this execution.\n")
+            # The child was killed (timeout / memory) or crashed.
+            data = {
+                "success": False,
+                "error": outcome.error or "Execution failed.",
+                "error_type": outcome.error_type or "ExecutionError",
+                "stderr": "",
+            }
+        data.setdefault("execution_time", f"{outcome.duration * 1000:.2f}ms")
+
+        sims = data.get("simulation_results") or []
+        logger.info(
+            "hybrid run: success=%s error_type=%s sims=%d duration=%.2fs",
+            data.get("success"), data.get("error_type"), len(sims), outcome.duration,
+        )
 
         # Convert to response model
         return HybridExecuteResponse(
-            success=result.success,
-            stdout=result.stdout,
-            stderr=result.stderr,
-            qasm_generated=result.qasm_generated,
-            simulation_results=result.simulation_results,
-            execution_time=result.execution_time,
-            error=result.error,
-            error_line=result.error_line,
-            error_type=result.error_type,
+            success=bool(data.get("success")),
+            stdout=data.get("stdout") or "",
+            stderr=data.get("stderr") or "",
+            qasm_generated=data.get("qasm_generated"),
+            simulation_results=sims,
+            execution_time=data.get("execution_time") or "",
+            error=data.get("error"),
+            error_line=data.get("error_line"),
+            error_type=data.get("error_type"),
         )
-        
+
+    except UserCodeBusyError as e:
+        return JSONResponse(
+            status_code=503,
+            headers={"Retry-After": str(e.retry_after)},
+            content={
+                "detail": e.message,
+                "success": False,
+                "stdout": "",
+                "stderr": "",
+                "simulation_results": [],
+                "execution_time": "",
+                "error": e.message,
+                "error_type": "ServerBusy",
+            },
+        )
+
     except Exception as e:
         import traceback
         error_trace = traceback.format_exc()
@@ -307,8 +383,10 @@ async def get_hybrid_status():
         },
         limits={
             "max_execution_time": HYBRID_MAX_EXECUTION_TIME,
-            "max_memory_mb": HYBRID_MAX_MEMORY_MB,
+            "max_memory_mb": get_isolation_stats().get("memory_limit_mb"),
             "max_simulation_runs": HYBRID_MAX_SIMULATION_RUNS,
+            "max_concurrent_runs": get_isolation_stats().get("max_concurrency"),
+            "queue_timeout": get_isolation_stats().get("queue_timeout"),
         },
         allowed_modules=list(HYBRID_ALLOWED_MODULES),
     )
@@ -332,6 +410,7 @@ async def hybrid_health():
         "sandbox_available": SANDBOX_AVAILABLE,
         "qsim_available": QSIM_AVAILABLE,
         "hybrid_enabled": HYBRID_EXECUTION_ENABLED,
+        "isolation": get_isolation_stats(),
         "issues": issues if issues else None,
     }
 

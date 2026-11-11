@@ -81,6 +81,41 @@ except ImportError as e:
     print(f"CircuitAST import error: {e}")
 
 
+def _env_number(name: str, default: float) -> float:
+    try:
+        return max(0.0, float(os.getenv(name, "") or default))
+    except ValueError:
+        return float(default)
+
+
+# Wall-clock budget for one isolated conversion (static parse + exec fallback).
+CONVERT_TIMEOUT_SECONDS: float = _env_number("USER_CODE_CONVERT_TIMEOUT", 20)
+# Limits for expanding `for` loops when building the /parse gate list.  The
+# AST parser keeps loops symbolic; expanding `range(10**9)` here used to hang
+# the API process.
+PARSE_MAX_GATES: int = int(_env_number("USER_CODE_PARSE_MAX_GATES", 5000))
+PARSE_MAX_LOOP_ITERATIONS: int = int(_env_number("USER_CODE_PARSE_MAX_LOOP_ITERATIONS", 100000))
+
+
+class _ParseBudgetExceeded(Exception):
+    """Raised internally when loop expansion for visualisation gets too big."""
+
+
+def _convert_in_child(code: str, framework: str, style: str) -> Dict[str, Any]:
+    """Child-process entry point for isolated conversions (module-level for pickling).
+
+    The process boundary (isolated_exec) is what makes the converters' exec()
+    fallback safe; the import blocklist is applied as well, as defence in
+    depth, to code the converters compile from the user's source.
+    """
+    try:
+        from qcanvas.sandbox import restricted_imports
+    except Exception:  # pragma: no cover - sandbox module missing
+        return ConversionService().convert_to_qasm(code, framework, style)
+    with restricted_imports():
+        return ConversionService().convert_to_qasm(code, framework, style)
+
+
 class ConversionService:
     """Service for converting quantum circuit code between different frameworks and OpenQASM"""
     
@@ -124,6 +159,39 @@ class ConversionService:
 
         except Exception as e:
             return self._create_error_response(f"Conversion failed: {str(e)}", framework)
+
+    async def convert_to_qasm_isolated(self, code: str, framework: str, style: str = "classic",
+                                       timeout: Optional[float] = None) -> Dict[str, Any]:
+        """Same contract as :meth:`convert_to_qasm`, but safe to call from an async route.
+
+        The converters may fall back to ``exec()`` of the user's source, so the
+        whole conversion runs in a hardened, killable child process (see
+        ``app.services.isolated_exec``) and the event loop is never blocked.
+
+        Raises ``UserCodeBusyError`` (an ``HTTPException`` with status 503 and
+        a friendly "server busy, try again" detail) when every execution slot
+        stays busy for ``USER_CODE_QUEUE_TIMEOUT`` seconds.
+        """
+        if not self._validate_framework(framework):
+            return self._create_error_response(f"Unsupported framework: {framework}", framework)
+
+        from app.services.isolated_exec import run_isolated_async
+
+        budget = float(timeout) if timeout else CONVERT_TIMEOUT_SECONDS
+        outcome = await run_isolated_async(
+            _convert_in_child,
+            args=(code, framework, style),
+            timeout=budget,
+            label="convert",
+        )
+        if outcome.ok and isinstance(outcome.value, dict):
+            return outcome.value
+        if outcome.timed_out:
+            message = (f"Conversion timed out after {budget:g} seconds and was stopped. "
+                       "Check your code for infinite loops or very long computations.")
+        else:
+            message = f"Conversion failed: {outcome.error or 'unknown error'}"
+        return self._create_error_response(message, framework)
 
     def _initialize_conversion_request(self, framework: str) -> None:
         """Initialize logging and verbose output for conversion request."""
@@ -681,31 +749,48 @@ def get_circuit():
         """
         Convert CircuitAST operations to a list of gate dictionaries
         suitable for frontend visualization.
+
+        Loop expansion is bounded (PARSE_MAX_GATES gates and
+        PARSE_MAX_LOOP_ITERATIONS loop iterations); past that the gate list is
+        truncated instead of hanging the server on e.g. ``range(10**9)``.
         """
         gates = []
-        self._process_operations(circuit_ast.operations, gates, {})
-        return gates
-    
-    def _process_operations(self, operations: list, gates: list, var_context: dict) -> None:
+        budget = {"iterations": 0}
+        try:
+            self._process_operations(circuit_ast.operations, gates, {}, budget)
+        except _ParseBudgetExceeded:
+            pass
+        return gates[:PARSE_MAX_GATES]
+
+    def _process_operations(self, operations: list, gates: list, var_context: dict,
+                            budget: Optional[dict] = None) -> None:
         """
         Recursively process operations, expanding loops and handling variable substitution.
-        
+
         Args:
             operations: List of AST operation nodes
             gates: Output list to append gate dictionaries to
             var_context: Dictionary mapping variable names to their current values
+            budget: Shared counters used to stop runaway loop expansion
         """
+        if budget is None:
+            budget = {"iterations": 0}
         for op in operations:
+            if len(gates) >= PARSE_MAX_GATES:
+                raise _ParseBudgetExceeded()
             if ForLoopNode and isinstance(op, ForLoopNode):
                 # Expand for loop by iterating through range
                 loop_var = op.variable
                 for i in range(op.range_start, op.range_end):
+                    budget["iterations"] += 1
+                    if budget["iterations"] > PARSE_MAX_LOOP_ITERATIONS or len(gates) >= PARSE_MAX_GATES:
+                        raise _ParseBudgetExceeded()
                     # Create new context with loop variable value
                     new_context = var_context.copy()
                     new_context[loop_var] = i
                     # Recursively process body with updated context
-                    self._process_operations(op.body, gates, new_context)
-            
+                    self._process_operations(op.body, gates, new_context, budget)
+
             elif GateNode and isinstance(op, GateNode):
                 gate_dict = self._gate_node_to_dict(op, var_context)
                 if gate_dict:

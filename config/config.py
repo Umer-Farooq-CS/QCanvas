@@ -54,14 +54,20 @@ from typing import Any
 # Ensure logs directory and a per-run log file exist
 _PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 LOG_ROOT_DIR = os.path.join(_PROJECT_ROOT, "logs")
-os.makedirs(LOG_ROOT_DIR, exist_ok=True)
+try:
+    os.makedirs(LOG_ROOT_DIR, exist_ok=True)
+except OSError:
+    pass
 
 def _month_dir_for(dt: datetime) -> str:
     """Return directory path logs/YYYY/Mon for the given datetime, creating it if needed."""
     year = dt.strftime("%Y")
     month_abbr = dt.strftime("%b")  # Jan, Feb, ...
     month_dir = os.path.join(LOG_ROOT_DIR, year, month_abbr)
-    os.makedirs(month_dir, exist_ok=True)
+    try:
+        os.makedirs(month_dir, exist_ok=True)
+    except OSError:
+        pass
     return month_dir
 
 _RUN_DT = datetime.now()
@@ -81,8 +87,12 @@ def _emit_log_header() -> None:
         "=" * 80,
         "",
     ]
-    with open(LOG_FILE, "a", encoding="utf-8") as f:
-        f.write("\n".join(header_lines))
+    try:
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write("\n".join(header_lines))
+    except OSError:
+        # Never break the app (or a sandboxed, unprivileged child) over logging.
+        pass
 
 if not os.path.exists(LOG_FILE):
     _emit_log_header()
@@ -152,15 +162,36 @@ def vprint(*args: Any, **kwargs: Any) -> None:
 DISABLE_REMOTE_API_FALLBACK: bool = True
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    return raw.strip().lower() in ("1", "true", "yes", "on")
+
+
+def _env_int(name: str, default: int, minimum: int = 0) -> int:
+    raw = os.getenv(name)
+    try:
+        value = int(raw) if raw is not None and raw.strip() != "" else default
+    except ValueError:
+        value = default
+    return max(minimum, value)
+
+
 # =============================================================================
 # HYBRID EXECUTION SECURITY SETTINGS
 # =============================================================================
 # These settings control security restrictions for hybrid CPU-QPU execution.
 # By default, all restrictions are ENABLED (True = blocked/restricted).
 # Set to False to disable specific restrictions (use with caution!).
+#
+# NOTE: the real security boundary is the per-run child process
+# (backend/app/services/isolated_exec.py: separate process, scrubbed env,
+# rlimits, privilege drop, hard wall-clock kill). Everything below is
+# defence in depth inside that child.
 
 # Block dangerous imports (os, subprocess, sys, socket, shutil, pickle, etc.)
-HYBRID_BLOCK_DANGEROUS_IMPORTS: bool = False
+HYBRID_BLOCK_DANGEROUS_IMPORTS: bool = _env_bool("HYBRID_BLOCK_DANGEROUS_IMPORTS", True)
 
 # Block file system access (open(), pathlib, io, tempfile, glob)
 HYBRID_BLOCK_FILE_ACCESS: bool = True
@@ -180,8 +211,10 @@ HYBRID_BLOCK_CODE_EXECUTION: bool = True
 # =============================================================================
 # HYBRID EXECUTION LIMITS
 # =============================================================================
-# Maximum execution time in seconds (0 = no limit)
-HYBRID_MAX_EXECUTION_TIME: int = 180
+# Maximum wall-clock execution time in seconds for one hybrid run. This is a
+# hard server-side cap: a client may ask for less, never for more. The run is
+# killed (child process terminated) when it is exceeded.
+HYBRID_MAX_EXECUTION_TIME: int = _env_int("HYBRID_MAX_EXECUTION_TIME", 60, minimum=1)
 
 # Maximum memory usage in MB (0 = no limit)
 HYBRID_MAX_MEMORY_MB: int = 512
@@ -229,15 +262,44 @@ HYBRID_ALLOWED_MODULES: list = [
 HYBRID_BLOCKED_MODULES: list = [
     # OS / process / low-level system
     'os',
+    'posix',
+    'nt',
+    'posixpath',
+    'ntpath',
+    'sys',
     'subprocess',
+    '_posixsubprocess',
+    '_winapi',
+    'msvcrt',
+    'winreg',
     'socket',
+    '_socket',
+    'select',
+    'selectors',
+    'ssl',
     'shutil',
     'pickle',
+    '_pickle',
+    'copyreg',
+    'shelve',
+    'dill',
+    'cloudpickle',
+    'joblib',
     'marshal',
     'ctypes',
+    '_ctypes',
+    'cffi',
+    'mmap',
     'multiprocessing',
+    '_multiprocessing',
+    'concurrent',
+    'asyncio',
     'threading',
+    '_thread',
     'signal',
+    '_signal',
+    'faulthandler',
+    'atexit',
     'resource',
     'pty',
     'tty',
@@ -246,6 +308,42 @@ HYBRID_BLOCKED_MODULES: list = [
     'pwd',
     'grp',
     'crypt',
+    'platform',
+    'sysconfig',
+    'site',
+    # Import machinery / interpreter introspection ("builtins tricks")
+    'builtins',
+    'importlib',
+    'imp',
+    '_imp',
+    'zipimport',
+    'pkgutil',
+    'runpy',
+    'code',
+    'codeop',
+    'gc',
+    'inspect',
+    'types',
+    'string',   # string.Formatter().get_field() is a getattr() bypass
+    'traceback',
+    'linecache',
+    'tracemalloc',
+    'pdb',
+    'bdb',
+    'trace',
+    'timeit',   # timeit.timeit("<any code>") compiles and runs strings
+    'cProfile',
+    'profile',
+    'webbrowser',
+    'logging',  # FileHandler writes arbitrary files
+    # Archives / databases (file access)
+    'zipfile',
+    'tarfile',
+    'dbm',
+    'sqlite3',
+    'fileinput',
+    'filecmp',
+    '_io',
     # File system helpers (additional to HYBRID_BLOCK_FILE_ACCESS)
     'tempfile',
     'glob',
