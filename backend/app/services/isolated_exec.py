@@ -479,6 +479,10 @@ def _harden_child(opts: Mapping[str, Any]) -> None:
             os.setuid(uid)
             if os.getuid() != uid or os.geteuid() != uid:
                 raise RuntimeError("privilege drop failed")
+        elif os.geteuid() != uid:
+            # Configured to run as another account but we can't switch
+            # (not root): fail closed instead of running as the API's uid.
+            raise RuntimeError("privilege drop not possible (API is not root)")
 
     if _IS_LINUX:
         # Other processes running as the same uid (e.g. another student's
@@ -992,7 +996,11 @@ async def run_isolated_async(func: Callable[..., Any], args: Sequence[Any] = (),
 # /proc/<pid>/environ. Refuse unless explicitly allowed (dev) or the deploy
 # says it's development. Windows/macOS spawn is development-only by design.
 def _same_uid_refused() -> bool:
-    if not _IS_POSIX or RUN_AS is not None:
+    if not _IS_POSIX:
+        return False
+    # A configured RUN_AS only isolates us if we can actually switch to it
+    # (i.e. we're root) and it's a different account from the API's own.
+    if RUN_AS is not None and os.geteuid() == 0 and RUN_AS[0] != 0:  # type: ignore[attr-defined]
         return False
     if (os.getenv("USER_CODE_ALLOW_SAME_UID") or "").strip().lower() in ("1", "true", "yes", "on"):
         return False
