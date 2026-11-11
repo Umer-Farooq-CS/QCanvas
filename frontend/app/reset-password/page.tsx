@@ -4,7 +4,9 @@ import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 
+import Link from "next/link";
 import { authApi } from "@/lib/api";
+import AuthShell, { ButtonSpinner } from "@/components/site/AuthShell";
 
 function ResetPasswordContent() {
   const router = useRouter();
@@ -58,48 +60,63 @@ function ResetPasswordContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a1a] flex items-center justify-center p-4">
-      <div className="w-full max-w-md quantum-glass-dark rounded-2xl p-8 border border-indigo-500/20">
-        <h1 className="text-2xl font-bold text-white mb-2">Set New Password</h1>
-        <p className="text-sm text-gray-300 mb-6">
-          Choose a new password for your account.
+    <AuthShell
+      title="Choose a new password"
+      subtitle="Use at least 8 characters. You’ll sign in again afterwards."
+      footer={
+        <p>
+          Link expired?{" "}
+          <Link href="/forgot-password" className="qc-link font-medium">
+            Request a new code
+          </Link>
         </p>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div>
+          <label htmlFor="new-password" className="qc-label">
+            New password
+          </label>
           <input
+            id="new-password"
             type="password"
+            autoComplete="new-password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white"
-            placeholder="New password"
+            className="qc-input"
             required
           />
-
+        </div>
+        <div>
+          <label htmlFor="confirm-password" className="qc-label">
+            Confirm password
+          </label>
           <input
+            id="confirm-password"
             type="password"
+            autoComplete="new-password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white"
-            placeholder="Confirm password"
+            className="qc-input"
             required
           />
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full btn-quantum disabled:opacity-50"
-          >
-            {isLoading ? "Updating..." : "Update Password"}
-          </button>
-        </form>
-      </div>
-    </div>
+        </div>
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="qc-btn qc-btn-primary qc-btn-lg w-full"
+        >
+          {isLoading && <ButtonSpinner />}
+          {isLoading ? "Updating…" : "Update password"}
+        </button>
+      </form>
+    </AuthShell>
   );
 }
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#0a0a1a]" />}>
+    <Suspense fallback={<div className="qc-page" />}>
       <ResetPasswordContent />
     </Suspense>
   );

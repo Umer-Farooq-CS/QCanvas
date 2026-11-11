@@ -4,14 +4,42 @@ type Lang = "python" | "qasm";
 
 const KEYWORDS: Record<Lang, Set<string>> = {
   python: new Set([
-    "import", "from", "as", "def", "return", "for", "in", "if", "else",
-    "elif", "while", "with", "class", "None", "True", "False", "and", "or", "not",
+    "import",
+    "from",
+    "as",
+    "def",
+    "return",
+    "for",
+    "in",
+    "if",
+    "else",
+    "elif",
+    "while",
+    "with",
+    "class",
+    "None",
+    "True",
+    "False",
+    "and",
+    "or",
+    "not",
   ]),
-  qasm: new Set(["OPENQASM", "include", "qubit", "bit", "measure", "reset", "gate", "if", "for"]),
+  qasm: new Set([
+    "OPENQASM",
+    "include",
+    "qubit",
+    "bit",
+    "measure",
+    "reset",
+    "gate",
+    "if",
+    "for",
+  ]),
 };
 
 // comment | string | decorator | number | identifier | anything else
-const TOKEN = /(#[^\n]*|\/\/[^\n]*)|("[^"\n]*"|'[^'\n]*')|(@[\w.]+)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_]\w*)|([\s\S])/g;
+const TOKEN =
+  /(#[^\n]*|\/\/[^\n]*)|("[^"\n]*"|'[^'\n]*')|(@[\w.]+)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_]\w*)|([\s\S])/g;
 
 /** Tiny build-time highlighter for static samples (no client JS). */
 function highlight(code: string, lang: Lang) {

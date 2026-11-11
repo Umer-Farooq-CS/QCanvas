@@ -32,7 +32,12 @@ export default function OpenExampleButton({
   };
 
   return (
-    <button type="button" onClick={open} className={className} aria-label={rest["aria-label"]}>
+    <button
+      type="button"
+      onClick={open}
+      className={className}
+      aria-label={rest["aria-label"]}
+    >
       {children}
     </button>
   );

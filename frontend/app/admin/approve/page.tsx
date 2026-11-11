@@ -2,12 +2,12 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import AuthShell from "@/components/site/AuthShell";
 import { useSearchParams } from "next/navigation";
 import {
   CheckCircle2,
   CircleAlert,
   LoaderCircle,
-  ShieldCheck,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -54,73 +54,64 @@ function AdminApproveContent() {
   }, [token]);
 
   return (
-    <div className="min-h-screen bg-[#0a0a1a] px-4 py-10 flex items-center justify-center relative overflow-hidden">
-      <div className="absolute inset-0 bg-grid-pattern opacity-60" />
-      <div className="absolute inset-0 hero-spotlight" />
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-32 -right-32 h-[500px] w-[500px] rounded-full bg-emerald-500/10 blur-[120px]" />
-        <div className="absolute -bottom-32 -left-32 h-[500px] w-[500px] rounded-full bg-cyan-500/10 blur-[120px]" />
-      </div>
-
-      <div className="relative z-10 w-full max-w-xl quantum-glass-dark rounded-3xl border border-white/10 p-8 shadow-[0_0_50px_rgba(15,23,42,0.35)]">
-        <div className="mb-6 flex items-center gap-3">
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-cyan-300">
-            <ShieldCheck className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-white">Admin Approval</h1>
-            <p className="text-sm text-gray-300">
-              Master admin verification portal
-            </p>
-          </div>
-        </div>
-
-        <div
-          className={`rounded-2xl border p-5 ${status === "success" ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-100" : status === "error" ? "border-red-500/20 bg-red-500/10 text-red-100" : "border-white/10 bg-white/5 text-gray-100"}`}
-        >
-          <div className="flex items-start gap-3">
-            {status === "loading" ? (
-              <LoaderCircle className="mt-0.5 h-5 w-5 animate-spin text-cyan-300" />
-            ) : status === "success" ? (
-              <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-300" />
-            ) : (
-              <CircleAlert className="mt-0.5 h-5 w-5 text-red-300" />
-            )}
-            <div>
-              <p className="font-medium">{message}</p>
-              <p className="mt-2 text-sm opacity-80">
-                {status === "success"
-                  ? "The admin can now log in with the approved account."
-                  : status === "error"
-                    ? "If this link expired, ask the admin applicant to submit a new request."
-                    : "Please wait while we verify the approval token."}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <Link
-            href="/login"
-            className="inline-flex flex-1 items-center justify-center rounded-xl bg-indigo-500 px-4 py-3 font-medium text-white transition-colors hover:bg-indigo-600"
-          >
-            Go to Login
-          </Link>
-          <Link
-            href="/signup"
-            className="inline-flex flex-1 items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-3 font-medium text-white transition-colors hover:bg-white/10"
-          >
-            Regular Sign Up
-          </Link>
+    <AuthShell
+      wide
+      title="Admin approval"
+      subtitle="Confirming an admin access request."
+    >
+      <div
+        className={`flex items-start gap-3 rounded-lg border p-4 ${
+          status === "success"
+            ? "border-qc-success/30 bg-qc-success/10"
+            : status === "error"
+              ? "border-qc-danger/30 bg-qc-danger/10"
+              : "border-qc-line bg-qc-surface-2"
+        }`}
+        role="status"
+      >
+        {status === "loading" ? (
+          <LoaderCircle
+            className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-qc-accent"
+            aria-hidden="true"
+          />
+        ) : status === "success" ? (
+          <CheckCircle2
+            className="mt-0.5 h-5 w-5 shrink-0 text-qc-success"
+            aria-hidden="true"
+          />
+        ) : (
+          <CircleAlert
+            className="mt-0.5 h-5 w-5 shrink-0 text-qc-danger"
+            aria-hidden="true"
+          />
+        )}
+        <div>
+          <p className="font-medium text-qc-fg">{message}</p>
+          <p className="mt-1 text-sm text-qc-muted">
+            {status === "success"
+              ? "The admin can now sign in with the approved account."
+              : status === "error"
+                ? "If this link expired, ask the applicant to submit a new request."
+                : "Checking the approval token…"}
+          </p>
         </div>
       </div>
-    </div>
+
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+        <Link href="/login" className="qc-btn qc-btn-primary flex-1">
+          Go to sign in
+        </Link>
+        <Link href="/signup" className="qc-btn qc-btn-secondary flex-1">
+          Regular sign up
+        </Link>
+      </div>
+    </AuthShell>
   );
 }
 
 export default function AdminApprovePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#0a0a1a]" />}>
+    <Suspense fallback={<div className="qc-page" />}>
       <AdminApproveContent />
     </Suspense>
   );
