@@ -633,24 +633,14 @@ function MenuBar({
                       <span className="text-xs text-black dark:text-gray-400">
                         {getTemplateMeta(t).language}
                       </span>
-                      <button
-                        type="button"
-                        className="text-xs text-quantum-blue-light hover:underline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void useFileStore
-                            .getState()
-                            .createFile(
-                              t.filename,
-                              t.content,
-                              activeProjectId ?? undefined,
-                              false,
-                            )
-                            .then(() => setShowTemplatesPicker(false));
-                        }}
+                      {/* Visual label only: the whole card is the button
+                          (a nested <button> is invalid HTML). */}
+                      <span
+                        aria-hidden="true"
+                        className="text-xs text-quantum-blue-light"
                       >
                         Use Template
-                      </button>
+                      </span>
                     </div>
                     <div className="text-[11px] text-black dark:text-gray-500 mt-1 font-mono">
                       {t.filename}
