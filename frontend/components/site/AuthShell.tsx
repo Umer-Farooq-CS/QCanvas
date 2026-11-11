@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Sun, Moon } from "lucide-react";
 import { useFileStore } from "@/lib/store";
+import BrandLogo from "@/components/BrandLogo";
 
 interface AuthShellProps {
   title: string;
@@ -32,13 +33,10 @@ export default function AuthShell({
       <header className="qc-container flex h-14 items-center justify-between">
         <Link
           href="/"
-          className="qc-focus -ml-1 flex items-center gap-2 rounded-md px-1 py-1 text-qc-fg"
+          className="qc-focus -ml-1 rounded-md px-1 py-1"
           aria-label="QCanvas home"
         >
-          <span className="qc-logo h-7 w-7" aria-hidden="true" />
-          <span className="font-display text-[17px] font-semibold tracking-tight">
-            QCanvas
-          </span>
+          <BrandLogo />
         </Link>
         <button
           type="button"

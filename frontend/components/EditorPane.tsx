@@ -1,9 +1,10 @@
 "use client";
 
+import { FILE_TEMPLATES_PRESETS } from "@/lib/fileTemplates";
+
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Play, ChevronDown } from "lucide-react";
-import { File as FileIcon } from "@/components/Icons";
 import { EDITOR_FLUSH_EVENT, useActiveFile, useFileStore } from "@/lib/store";
 import { debounce } from "@/lib/utils";
 import {
@@ -1265,21 +1266,7 @@ function EditorPane({
   };
 
   if (!activeFile) {
-    return (
-      <div className="editor-pane">
-        <div className="flex-1 flex items-center justify-center bg-editor-bg">
-          <div className="text-center">
-            <FileIcon className="w-16 h-16 mx-auto mb-4 text-black dark:text-gray-500 opacity-50" />
-            <h3 className="text-lg font-medium text-editor-text mb-2">
-              No File Selected
-            </h3>
-            <p className="text-black dark:text-gray-500 text-sm">
-              Select a file from the sidebar to start editing
-            </p>
-          </div>
-        </div>
-      </div>
-    );
+    return <EmptyEditor />;
   }
 
   return (
@@ -1311,7 +1298,7 @@ function EditorPane({
                 }
                 className={`px-2.5 py-1 text-xs rounded-md border transition-all duration-200 ${
                   showCircuitVisualization
-                    ? "bg-quantum-blue-light/20 border-quantum-blue-light/50 text-quantum-blue-light shadow-[0_0_0_1px_rgba(59,130,246,0.2)]"
+                    ? "bg-quantum-blue-light/20 border-quantum-blue-light/50 text-quantum-blue-light shadow-[0_0_0_1px_rgba(99,102,241,0.2)]"
                     : "bg-editor-bg border-editor-border text-editor-text hover:bg-editor-border/70 hover:border-editor-border/90"
                 }`}
                 title="Toggle Circuit View"
@@ -1403,7 +1390,7 @@ function EditorPane({
                       onClick={() => setExecutionMode(m)}
                       className={`px-2.5 py-2 text-xs rounded-md border capitalize transition-all duration-200 ${
                         executionMode === m
-                          ? "bg-editor-accent border-editor-accent text-gray-100 shadow-[0_0_18px_rgba(59,130,246,0.25)]"
+                          ? "bg-editor-accent border-editor-accent text-gray-100 shadow-[0_0_18px_rgba(99,102,241,0.25)]"
                           : "bg-editor-bg border-editor-border text-editor-text hover:bg-editor-border/70"
                       }`}
                     >
@@ -1615,3 +1602,58 @@ function EditorPane({
 // Memoised: the IDE page re-renders for layout state (drag/resize, auth, etc.);
 // EditorPane's props are stable, so it only re-renders for its own store slices.
 export default memo(EditorPane);
+
+
+/** Shown when no file is open: point people straight at something runnable. */
+function EmptyEditor() {
+  const [busy, setBusy] = useState(false);
+
+  const startBell = async () => {
+    if (busy) return;
+    const bell = FILE_TEMPLATES_PRESETS.find((t) => t.filename === "bell_state_qiskit.py");
+    if (!bell) return;
+    setBusy(true);
+    try {
+      const { activeProjectId, createFile } = useFileStore.getState();
+      await createFile(bell.filename, bell.content, activeProjectId ?? undefined, false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="editor-pane">
+      <div className="flex flex-1 items-center justify-center bg-editor-bg px-6">
+        <div className="qc-fade-in max-w-sm text-center">
+          <span className="qc-brand-mark mx-auto mb-5 block h-12 w-12 opacity-90" aria-hidden="true" />
+          <h3 className="text-lg font-semibold text-white">Start a circuit</h3>
+          <p className="mt-2 text-sm leading-relaxed text-editor-text">
+            Open a file from the explorer, or start from a program that runs as-is.
+          </p>
+          <div className="mt-6 flex flex-col items-center justify-center gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => void startBell()}
+              disabled={busy}
+              className="inline-flex h-9 items-center justify-center rounded-lg bg-indigo-600 px-4 text-sm font-medium text-white transition-[background-color,transform] duration-150 hover:bg-indigo-500 active:scale-[0.98] disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+            >
+              {busy ? "Creating…" : "Qiskit Bell state"}
+            </button>
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent("qcanvas:open-templates"))}
+              className="inline-flex h-9 items-center justify-center rounded-lg border border-editor-border px-4 text-sm text-editor-text transition-[border-color,color,transform] duration-150 hover:border-white/25 hover:text-white active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+            >
+              Browse templates
+            </button>
+          </div>
+          <p className="mt-6 text-xs text-gray-500">
+            <kbd className="rounded border border-editor-border px-1.5 py-0.5 font-mono text-[11px]">Alt+N</kbd> new file
+            <span className="mx-2" aria-hidden="true">/</span>
+            <kbd className="rounded border border-editor-border px-1.5 py-0.5 font-mono text-[11px]">Ctrl+B</kbd> toggle sidebar
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 import { Menu, X, Sun, Moon } from "lucide-react";
 import { useFileStore } from "@/lib/store";
 import { hasValidAuth, useAuthStore } from "@/lib/authStore";
+import BrandLogo from "@/components/BrandLogo";
+import UserMenu from "@/components/site/UserMenu";
 
 const NAV_LINKS = [
   { name: "Examples", path: "/examples" },
@@ -19,14 +21,7 @@ export default function Navbar() {
   const { isAuthenticated, token } = useAuthStore();
   const canAccessApp = hasValidAuth({ isAuthenticated, token });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  const clearAuth = useAuthStore((s) => s.clearAuth);
 
   // Close the mobile menu on navigation and on Escape.
   useEffect(() => setIsMenuOpen(false), [pathname]);
@@ -43,20 +38,15 @@ export default function Navbar() {
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-50 border-b transition-colors duration-200 ${
-        scrolled || isMenuOpen
-          ? "border-qc-line bg-qc-bg/95"
-          : "border-transparent bg-qc-bg/0"
-      }`}
+      className="fixed inset-x-0 top-0 z-50 border-b border-qc-line/70 bg-qc-bg/80 backdrop-blur-md supports-[backdrop-filter]:bg-qc-bg/70"
     >
       <nav className="qc-container flex h-14 items-center justify-between gap-4" aria-label="Main">
         <Link
           href="/"
-          className="qc-focus -ml-1 flex items-center gap-2 rounded-md px-1 py-1 text-qc-fg"
+          className="qc-focus -ml-1 rounded-md px-1 py-1"
           aria-label="QCanvas home"
         >
-          <span className="qc-logo h-7 w-7" aria-hidden="true" />
-          <span className="font-display text-[17px] font-semibold tracking-tight">QCanvas</span>
+          <BrandLogo />
         </Link>
 
         <div className="hidden items-center gap-1 md:flex">
@@ -87,9 +77,12 @@ export default function Navbar() {
             <ThemeIcon className="h-4 w-4" aria-hidden="true" />
           </button>
           {canAccessApp ? (
-            <Link href="/app" className="qc-btn qc-btn-primary qc-btn-sm">
-              Open editor
-            </Link>
+            <>
+              <Link href="/app" className="qc-btn qc-btn-primary qc-btn-sm">
+                Open editor
+              </Link>
+              <UserMenu />
+            </>
           ) : (
             <>
               <Link href="/login" className="qc-btn qc-btn-quiet qc-btn-sm">
@@ -141,9 +134,18 @@ export default function Navbar() {
               </button>
               <div className="ml-auto flex items-center gap-2">
                 {canAccessApp ? (
-                  <Link href="/app" className="qc-btn qc-btn-primary qc-btn-sm">
-                    Open editor
-                  </Link>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => clearAuth()}
+                      className="qc-btn qc-btn-quiet qc-btn-sm"
+                    >
+                      Log out
+                    </button>
+                    <Link href="/app" className="qc-btn qc-btn-primary qc-btn-sm">
+                      Open editor
+                    </Link>
+                  </>
                 ) : (
                   <>
                     <Link href="/login" className="qc-btn qc-btn-quiet qc-btn-sm">

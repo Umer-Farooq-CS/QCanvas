@@ -3,8 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Award } from "@/components/Icons";
-import { Circuit } from "@/components/Icons";
-import { User, LogOut, ChevronDown, Sparkles } from "lucide-react";
+import { User, LogOut, ChevronDown } from "lucide-react";
 import { useAuthStore } from "@/lib/authStore";
 import {
   useGamificationStore,
@@ -40,11 +39,20 @@ export default function ProfileDropdown({ onLogout }: ProfileDropdownProps) {
       }
     };
 
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsOpen(false);
+    };
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKey);
+    };
   }, []);
 
   if (!user) return null;
+  const isGuest = user.role === "demo";
 
   // Initials for avatar
   const initials = user.full_name
@@ -74,11 +82,13 @@ export default function ProfileDropdown({ onLogout }: ProfileDropdownProps) {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center space-x-2 p-1.5 rounded-lg hover:bg-quantum-blue-light/10 transition-all duration-200 group border border-transparent hover:border-quantum-blue-light/20"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        className="flex items-center space-x-2 p-1.5 rounded-lg hover:bg-indigo-500/10 transition-colors duration-150 group border border-transparent hover:border-indigo-400/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
       >
         {/* Avatar / Level Indicator */}
         <div className="relative">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-quantum-blue to-purple-600 flex items-center justify-center text-white text-xs font-bold shadow-lg ring-2 ring-white/10 group-hover:ring-quantum-blue-light/50 transition-all">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 via-violet-500 to-cyan-500 flex items-center justify-center text-white text-xs font-bold ring-2 ring-white/10 group-hover:ring-indigo-300/50 transition-[box-shadow]">
             {initials}
           </div>
           <div className="absolute -bottom-1 -right-1 bg-[#0a0a1a] border border-quantum-blue-light rounded-full w-4 h-4 flex items-center justify-center">
@@ -106,19 +116,22 @@ export default function ProfileDropdown({ onLogout }: ProfileDropdownProps) {
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-64 quantum-glass-dark rounded-xl shadow-2xl border border-white/10 backdrop-blur-xl animate-fade-in z-50 overflow-hidden">
+        <div
+          role="menu"
+          className="qc-menu-in absolute right-0 top-full z-50 mt-2 w-72 origin-top-right overflow-hidden rounded-xl border border-editor-border bg-editor-sidebar shadow-[0_24px_56px_-16px_rgba(0,0,0,0.7)]"
+        >
           {/* Header */}
-          <div className="p-4 border-b border-white/10 bg-gradient-to-br from-quantum-blue/10 to-transparent">
+          <div className="p-4 border-b border-editor-border">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-quantum-blue to-purple-600 flex items-center justify-center text-white text-lg font-bold shadow-inner">
+              <div className="w-11 h-11 shrink-0 rounded-full bg-gradient-to-br from-indigo-500 via-violet-500 to-cyan-500 flex items-center justify-center text-white text-base font-bold">
                 {initials}
               </div>
               <div className="flex-1 overflow-hidden">
-                <h3 className="font-bold text-white truncate">
+                <h3 className="font-semibold text-white truncate">
                   {user.full_name}
                 </h3>
                 <p className="text-xs text-black dark:text-gray-400 truncate">
-                  {user.email}
+                  {isGuest ? "Guest workspace" : user.email}
                 </p>
               </div>
             </div>
@@ -134,9 +147,9 @@ export default function ProfileDropdown({ onLogout }: ProfileDropdownProps) {
                   {formatXP(Math.max(0, nextLevelXp - currentLevelXp))} XP
                 </span>
               </div>
-              <div className="h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
+              <div className="h-1.5 bg-black/40 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-blue-500 transition-all duration-500"
+                  className="qc-grow-x h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-400"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
@@ -144,37 +157,45 @@ export default function ProfileDropdown({ onLogout }: ProfileDropdownProps) {
           </div>
 
           {/* Menu Items */}
-          <div className="p-2 space-y-1">
+          <div className="p-1.5 space-y-0.5">
             <Link
               href="/profile"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-black dark:text-gray-300 hover:bg-white/5 hover:text-white transition-colors group"
+              role="menuitem"
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-black dark:text-gray-300 hover:bg-indigo-500/10 hover:text-white transition-colors duration-100 group"
               onClick={() => setIsOpen(false)}
             >
               <User className="w-4 h-4 text-black dark:text-gray-400 group-hover:text-quantum-blue-light" />
-              <span>View Profile</span>
+              <span>Profile</span>
             </Link>
 
             <Link
               href="/achievements"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-black dark:text-gray-300 hover:bg-white/5 hover:text-white transition-colors group"
+              role="menuitem"
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-black dark:text-gray-300 hover:bg-indigo-500/10 hover:text-white transition-colors duration-100 group"
               onClick={() => setIsOpen(false)}
             >
               <Award className="w-4 h-4 text-black dark:text-gray-400 group-hover:text-yellow-400" />
               <span>Achievements</span>
             </Link>
 
-            <div className="h-px bg-white/10 my-1 mx-2"></div>
+            <div className="h-px bg-editor-border my-1 mx-2"></div>
 
             <button
               onClick={() => {
                 onLogout();
                 setIsOpen(false);
               }}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors group"
+              role="menuitem"
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors duration-100 group"
             >
-              <LogOut className="w-4 h-4 group-hover:scale-110 transition-transform" />
-              <span>Logout</span>
+              <LogOut className="w-4 h-4" />
+              <span>Log out</span>
             </button>
+            {isGuest && (
+              <p className="px-3 pb-1.5 pt-0.5 text-[11px] leading-relaxed text-gray-500">
+                Logging out deletes this guest workspace and its files.
+              </p>
+            )}
           </div>
         </div>
       )}

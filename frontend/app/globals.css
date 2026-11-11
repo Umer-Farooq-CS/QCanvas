@@ -31,7 +31,7 @@
     --editor-surface-high: #ffffff;
     --editor-surface-highest: #ffffff;
     --editor-outline: rgba(65, 71, 85, 0.2);
-    --editor-accent: #2563eb;
+    --editor-accent: #4f46e5; /* brand indigo (matches site --qc-accent-solid) */
     --framework-qiskit: #2563eb;
     --framework-cirq: #0f9ea8;
     --framework-pennylane: #b832a6;
@@ -48,9 +48,9 @@
     --qc-fg: 17 20 26;               /* #11141a */
     --qc-fg-muted: 75 82 98;         /* #4b5262 */
     --qc-fg-subtle: 100 107 122;     /* #646b7a */
-    --qc-accent: 31 95 209;          /* #1f5fd1  text/links */
-    --qc-accent-solid: 37 99 235;    /* #2563eb  fills, white text 5.2:1 */
-    --qc-accent-solid-hover: 29 78 216;
+    --qc-accent: 79 70 229;          /* #4f46e5  brand indigo, text/links 6.0:1 */
+    --qc-accent-solid: 79 70 229;    /* #4f46e5  fills, white text 6.3:1 */
+    --qc-accent-solid-hover: 67 56 202;
     --qc-on-accent: 255 255 255;
     --qc-success: 21 128 61;         /* #15803d */
     --qc-warning: 161 98 7;          /* #a16207 */
@@ -90,7 +90,7 @@
     --editor-surface-high: #2a2a2a;
     --editor-surface-highest: #353535;
     --editor-outline: rgba(139, 144, 160, 0.18);
-    --editor-accent: #3291ff;
+    --editor-accent: #5850ec; /* brand indigo, white text 5.6:1 */
     --framework-qiskit: #a7c8ff;
     --framework-cirq: #46eaed;
     --framework-pennylane: #ffabf3;
@@ -106,9 +106,9 @@
     --qc-fg: 230 232 236;            /* #e6e8ec */
     --qc-fg-muted: 161 168 181;      /* #a1a8b5 */
     --qc-fg-subtle: 138 146 161;     /* #8a92a1 */
-    --qc-accent: 110 168 255;        /* #6ea8ff */
-    --qc-accent-solid: 37 99 235;    /* #2563eb */
-    --qc-accent-solid-hover: 59 117 245;
+    --qc-accent: 167 160 255;        /* #a7a0ff  brand indigo, text 8.1:1 */
+    --qc-accent-solid: 88 80 236;    /* #5850ec  fills, white text 5.6:1 */
+    --qc-accent-solid-hover: 104 96 245;
     --qc-on-accent: 255 255 255;
     --qc-success: 62 207 142;        /* #3ecf8e */
     --qc-warning: 240 180 41;        /* #f0b429 */
@@ -131,9 +131,11 @@
     min-height: 100dvh;
   }
 
+  /* Desktop-first: QCanvas is used on laptops and desktops, so pages use the
+     available width instead of sitting in a narrow centred column. */
   .qc-container {
     width: 100%;
-    max-width: 72rem;
+    max-width: 96rem;
     margin-inline: auto;
     padding-inline: 1rem;
   }
@@ -141,6 +143,18 @@
   @media (min-width: 640px) {
     .qc-container {
       padding-inline: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .qc-container {
+      padding-inline: 2.5rem;
+    }
+  }
+
+  @media (min-width: 1536px) {
+    .qc-container {
+      padding-inline: 3.5rem;
     }
   }
 
@@ -259,6 +273,35 @@
     animation: qc-pop-in 180ms var(--qc-ease-out) both;
   }
 
+  /* Progress bars fill from the left when they appear. */
+  .qc-grow-x {
+    transform-origin: left center;
+    animation: qc-grow-x 700ms var(--qc-ease-out) 120ms both;
+  }
+
+  /* Dropdowns grow from their anchor (set transform-origin on the element). */
+  .qc-menu-in {
+    animation: qc-menu-in 160ms var(--qc-ease-out) both;
+  }
+
+  /* The QCanvas brand gradient: wordmark + logo mark, used identically on the
+     site and in the IDE. Reserved for the brand; not a decoration. */
+  .qc-brand-text {
+    background-image: linear-gradient(120deg, #6366f1 0%, #8b5cf6 52%, #06b6d4 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  .qc-brand-mark {
+    display: inline-block;
+    flex-shrink: 0;
+    background-image: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
+    -webkit-mask: url('/QCanvas-logo-White.svg') center / contain no-repeat;
+    mask: url('/QCanvas-logo-White.svg') center / contain no-repeat;
+  }
+
   .animate-modal-in {
     animation: qc-pop-in 180ms var(--qc-ease-out) both;
   }
@@ -268,6 +311,28 @@
   from {
     opacity: 0;
     transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes qc-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes qc-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
   }
 
   to {
