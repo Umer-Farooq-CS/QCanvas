@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.config.database import get_db
-from app.models.database_models import User, File, Project, Folder
+from app.models.database_models import User, UserRole, File, Project, Folder
 from app.models.schemas import FileCreate, FileResponse, FileUpdate
 from app.api.routes.auth import get_current_user
 from sqlalchemy import or_
@@ -211,8 +211,12 @@ def delete_file(
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
             
-    # Only owner can delete (unless file has no owner)
-    if file.user_id is not None and file.user_id != current_user.id:
+    # Only the owner can delete. Ownerless (legacy) files may only be deleted by
+    # an admin: previously ANY signed-in user could delete them.
+    if file.user_id is None:
+        if current_user.role != UserRole.ADMIN:
+            raise HTTPException(status_code=403, detail="Not authorized to delete this file")
+    elif file.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to delete this file")
         
     db.delete(file)

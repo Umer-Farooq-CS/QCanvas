@@ -1,12 +1,20 @@
 import sys
 import os
+import logging
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
-from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from app.core.middleware import limiter, SecurityHeadersMiddleware, AuditLogMiddleware
+from app.core.middleware import (
+    limiter,
+    rate_limit_exceeded_handler,
+    audit_log_writer,
+    SecurityHeadersMiddleware,
+    AuditLogMiddleware,
+)
+
+logger = logging.getLogger("qcanvas")
 
 
 # Add the project root directory to Python path
@@ -34,11 +42,21 @@ async def lifespan(app: FastAPI):
     except ImportError as e:
         print(f"✗ Import error: {e}")
         print("Please ensure all converter modules are available.")
+
+    print(
+        f"Rate limiting: {'enabled' if limiter.enabled else 'DISABLED'} "
+        f"(storage: {getattr(limiter, 'qcanvas_storage_uri', 'memory://')}, "
+        f"trusted proxy hops: {settings.FORWARDED_TRUSTED_HOPS})"
+    )
     
     yield
     
     # Shutdown
     print("Shutting down QCanvas Backend...")
+    try:
+        audit_log_writer.shutdown(timeout=5.0)
+    except Exception as e:
+        print(f"Audit log flush failed: {e}")
     from app.config.database import engine
     engine.dispose()
     print("Database connection closed.")
@@ -53,7 +71,7 @@ app = FastAPI(
 
 # Initialize Limiter
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 # Add Middleware (Order matters: Security -> Audit -> CORS)
 app.add_middleware(SecurityHeadersMiddleware)
@@ -67,6 +85,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Let the browser read Retry-After on 429/503 responses.
+    expose_headers=["Retry-After"],
 )
 
 # Include API routes
@@ -95,7 +115,10 @@ async def root():
         }
     }
 
-# Compatibility routes expected by tests
+# Compatibility routes expected by tests (backend/test_api.py).
+# NOTE: none of these are called by the frontend (frontend/lib, components, app);
+# /api/simulate in particular returns fixed fake counts and is NOT the real
+# simulator (that is /api/simulator/execute-qsim).
 
 @app.get("/health")
 async def compat_health():
@@ -181,18 +204,22 @@ async def hover_resolve(payload: dict):
     }
 
 
-# Global exception handler
+# Global exception handler: log the details server-side, never leak them to
+# clients (exception text can contain SQL, file paths, secrets) unless DEBUG.
 @app.exception_handler(Exception)
-async def global_exception_handler(request, exc):
-    return JSONResponse(
-        status_code=500,
-        content={
-            "error": "Internal server error",
-            "detail": str(exc),
-            "type": type(exc).__name__
-        }
-    )
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled error on %s %s", request.method, request.url.path, exc_info=exc)
+    content = {
+        "success": False,
+        "error": "Internal server error",
+        "detail": "Something went wrong on our side. Please try again.",
+    }
+    if settings.DEBUG:
+        content["detail"] = str(exc)
+        content["type"] = type(exc).__name__
+    return JSONResponse(status_code=500, content=content)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000, proxy_headers=True,
+                forwarded_allow_ips=os.getenv("FORWARDED_ALLOW_IPS", "*"))

@@ -111,6 +111,20 @@ XP_REWARDS = {
     'pennylane_circuit': 5,
 }
 
+# First-time bonus XP per activity type. (award_xp used to look up
+# f"first_{activity_type}", i.e. "first_simulation_run", while the table only
+# had "first_simulation", so the first-simulation bonus was never paid.)
+FIRST_TIME_BONUS_KEYS = {
+    'simulation_run': 'first_simulation',
+    'conversion': 'first_conversion',
+}
+
+
+def first_time_bonus_xp(activity_type: str) -> Optional[int]:
+    """XP to award instead of the base amount the first time a user does activity_type."""
+    key = FIRST_TIME_BONUS_KEYS.get(activity_type, f'first_{activity_type}')
+    return XP_REWARDS.get(key)
+
 
 
 # ============================================================================
@@ -199,6 +213,8 @@ class GamificationService:
                     'old_level': stats.level,
                     'level_up': False,
                     'xp_to_next_level': xp_for_level(stats.level + 1) - stats.total_xp,
+                    'is_first_time': False,
+                    'current_streak': stats.current_streak or 0,
                     'new_achievements': []
                 }
             
@@ -210,9 +226,9 @@ class GamificationService:
             
             # Apply first-time bonus if available
             if is_first_time:
-                first_time_key = f'first_{activity_type}'
-                if first_time_key in XP_REWARDS:
-                    xp_amount = XP_REWARDS[first_time_key]
+                bonus = first_time_bonus_xp(activity_type)
+                if bonus:
+                    xp_amount = bonus
                     logger.info(f"First-time bonus applied for {activity_type}: {xp_amount} XP")
             
             # Record the activity

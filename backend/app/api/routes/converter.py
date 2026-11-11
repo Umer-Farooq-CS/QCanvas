@@ -18,16 +18,79 @@ from app.api.routes.auth import get_optional_user
 from typing import Optional
 import uuid
 
-from app.core.middleware import limiter
+from app.core.middleware import limiter, limit_from_settings
+from app.core.concurrency import BusyError, busy_response, conversion_runner, release_db_connection
 from fastapi import Request
+from starlette.concurrency import run_in_threadpool
 
 router = APIRouter(prefix="/api/converter", tags=["converter"])
 
 # Initialize conversion service
 conversion_service = ConversionService()
 
+def _record_conversion_success(db: Session, user_id: str, request_data: ConversionRequest, result: dict) -> None:
+    """Award XP and store conversion history. Runs in the threadpool; never raises."""
+    # Award XP for successful conversion
+    try:
+        from app.services.gamification_service import GamificationService
+
+        # Extract conversion metadata for XP tracking
+        metadata = {
+            "source_framework": request_data.framework,
+            "target_framework": "openqasm",
+            "qubits": result.get("conversion_stats", {}).get("qubits", 0) if result.get("conversion_stats") else 0,
+            "gates": sum(result.get("conversion_stats", {}).get("gates", {}).values()) if result.get("conversion_stats") and result.get("conversion_stats").get("gates") else 0
+        }
+
+        GamificationService.award_xp(
+            db=db,
+            user_id=user_id,
+            activity_type='conversion',
+            metadata=metadata
+        )
+    except Exception as e:
+        # Don't fail the request if gamification fails
+        print(f"Failed to award XP for conversion: {e}")
+
+    # Save conversion history.
+    # NOTE: QuantumFramework (CIRQ, QISKIT, PENNYLANE) has no OPENQASM member and
+    # conversions.target_framework is NOT NULL, so QISKIT is stored as a
+    # placeholder target until the enum gets an OPENQASM value (needs a migration).
+    try:
+        source_fw = QuantumFramework(request_data.framework)
+        conversion_record = Conversion(
+            user_id=uuid.UUID(str(user_id)),
+            source_framework=source_fw,
+            target_framework=QuantumFramework.QISKIT, # Placeholder for OpenQASM
+            source_code=request_data.code,
+            qasm_code=result["qasm_code"],
+            status=ExecutionStatus.SUCCESS,
+            execution_time_ms=0 # We don't track time yet
+        )
+        db.add(conversion_record)
+        db.commit()
+        db.refresh(conversion_record)
+
+        if result.get("conversion_stats"):
+            stats_data = result["conversion_stats"]
+            stats_record = ConversionStats(
+                conversion_id=conversion_record.id,
+                num_qubits=stats_data.get("qubits", 0) or 0,
+                num_gates=sum(stats_data.get("gates", {}).values()) if stats_data.get("gates") else 0,
+                circuit_depth=stats_data.get("depth", 0) or 0
+            )
+            db.add(stats_record)
+            db.commit()
+    except Exception as e:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        print(f"Failed to save conversion history: {e}")
+
+
 @router.post("/convert", response_model=ConversionResponse)
-@limiter.limit("20/minute")
+@limiter.limit(limit_from_settings("RATE_LIMIT_COMPUTE_PER_USER", "RATE_LIMIT_COMPUTE_PER_IP"))
 async def convert_to_qasm(
     request: Request,
     request_data: ConversionRequest,
@@ -52,96 +115,23 @@ async def convert_to_qasm(
         if request_data.framework not in ["qiskit", "cirq", "pennylane"]:
             raise HTTPException(status_code=400, detail="Unsupported framework")
         
-        # Perform the conversion
-        result = conversion_service.convert_to_qasm(
-            code=request_data.code,
-            framework=request_data.framework,
-            style=request_data.style
-        )
-        
+        user_id = str(current_user.id) if current_user else None
+        # Don't pin a DB pool connection while the (possibly slow) conversion runs.
+        await release_db_connection(db)
+
+        # Perform the conversion off the event loop, at most CONVERT_MAX_CONCURRENCY per worker.
+        try:
+            async with conversion_runner.slot():
+                # TODO(isolation): swap the next line for
+                #   result = await conversion_service.convert_to_qasm_isolated(code=request_data.code, framework=request_data.framework, style=request_data.style)
+                result = await run_in_threadpool(conversion_service.convert_to_qasm, code=request_data.code, framework=request_data.framework, style=request_data.style)
+        except BusyError:
+            return busy_response("converter")
 
         if result["success"]:
-            # Award XP for successful conversion if user is authenticated
-            if current_user:
-                try:
-                    from app.services.gamification_service import GamificationService
-                    
-                    # Extract conversion metadata for XP tracking
-                    metadata = {
-                        "source_framework": request_data.framework,
-                        "target_framework": "openqasm",
-                        "qubits": result.get("conversion_stats", {}).get("qubits", 0) if result.get("conversion_stats") else 0,
-                        "gates": sum(result.get("conversion_stats", {}).get("gates", {}).values()) if result.get("conversion_stats") and result.get("conversion_stats").get("gates") else 0
-                    }
-                    
-                    # Award XP for conversion
-                    GamificationService.award_xp(
-                        db=db,
-                        user_id=str(current_user.id),
-                        activity_type='conversion',
-                        metadata=metadata
-                    )
-                except Exception as e:
-                    # Don't fail the request if gamification fails
-                    print(f"Failed to award XP for conversion: {e}")
-            
-            # Save to database if user is authenticated
-            if current_user:
-                try:
-                    # Map framework string to Enum
-                    save_fw = request_data.framework
-                    source_fw = QuantumFramework(save_fw)
-                    # For now, target is always OpenQASM (not in Enum as target, but we can store it as metadata or just assume)
-                    # Wait, schema has target_framework as QuantumFramework Enum.
-                    # But we are converting TO QASM.
-                    # Let's assume target is QISKIT for now as a placeholder or add QASM to Enum?
-                    # The schema says target_framework is QuantumFramework Enum (CIRQ, QISKIT, PENNYLANE).
-                    # OpenQASM is not in the Enum.
-                    # I should probably update the Enum to include OPENQASM or just use one of the others as "target" if it was a transpilation.
-                    # But here we are converting TO QASM.
-                    # Let's check the Enum definition again.
-                    # class QuantumFramework(str, enum.Enum): CIRQ, QISKIT, PENNYLANE.
-                    # This is a limitation. I should probably add OPENQASM to the Enum or just store it as string.
-                    # But the column is Enum.
-                    # I will skip saving target_framework for now or use source_framework as target (which is wrong).
-                    # Actually, I should update the Enum. But I don't want to do another migration right now if I can avoid it.
-                    # Let's check if I can add OPENQASM to Enum in code and it works if DB doesn't enforce it strictly? No, Postgres enforces it.
-                    # I will use QISKIT as target for now since QASM is often associated with it, or just not save it?
-                    # The `conversions` table has `target_framework` as NOT NULL.
-                    # This is a problem.
-                    # I will use `source_framework` as target for now to avoid error, but this is not ideal.
-                    # Or I can just not save it if I can't satisfy the constraint.
-                    # Let's try to save it with source_framework for now and note it.
-                    
-                    # Actually, better to not save if it's invalid.
-                    # But the user asked to save it.
-                    # I'll use QISKIT as a fallback for target since QASM is Qiskit's language originally.
-                    
-                    conversion_record = Conversion(
-                        user_id=current_user.id,
-                        source_framework=source_fw,
-                        target_framework=QuantumFramework.QISKIT, # Placeholder for OpenQASM
-                        source_code=request_data.code,
-                        qasm_code=result["qasm_code"],
-                        status=ExecutionStatus.SUCCESS,
-                        execution_time_ms=0 # We don't track time yet
-                    )
-                    db.add(conversion_record)
-                    db.commit()
-                    db.refresh(conversion_record)
-                    
-                    if result.get("conversion_stats"):
-                        stats_data = result["conversion_stats"]
-                        stats_record = ConversionStats(
-                            conversion_id=conversion_record.id,
-                            num_qubits=stats_data.get("qubits", 0) or 0,
-                            num_gates=sum(stats_data.get("gates", {}).values()) if stats_data.get("gates") else 0,
-                            circuit_depth=stats_data.get("depth", 0) or 0
-                        )
-                        db.add(stats_record)
-                        db.commit()
-                except Exception as e:
-                    print(f"Failed to save conversion history: {e}")
+            # Award XP + save history (sync DB work, off the event loop)
+            if user_id:
+                await run_in_threadpool(_record_conversion_success, db, user_id, request_data, result)
 
             return ConversionResponse(
                 success=True,
@@ -198,7 +188,8 @@ async def validate_code(request: ConversionRequest):
         if not request.code.strip():
             raise HTTPException(status_code=400, detail="Code cannot be empty")
         
-        validation_result = conversion_service.validate_code(
+        validation_result = await run_in_threadpool(
+            conversion_service.validate_code,
             code=request.code,
             framework=request.framework
         )
@@ -212,7 +203,7 @@ async def validate_code(request: ConversionRequest):
 
 
 @router.post("/parse", response_model=ParseResponse)
-@limiter.limit("30/minute")
+@limiter.limit(limit_from_settings("RATE_LIMIT_PARSE_PER_USER", "RATE_LIMIT_PARSE_PER_IP"))
 async def parse_circuit_gates(
     request: Request,
     request_data: ConversionRequest
@@ -244,7 +235,8 @@ async def parse_circuit_gates(
             )
         
         # Parse the circuit using AST parsers
-        result = conversion_service.parse_circuit_gates(
+        result = await run_in_threadpool(
+            conversion_service.parse_circuit_gates,
             code=request_data.code,
             framework=request_data.framework
         )

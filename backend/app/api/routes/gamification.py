@@ -3,11 +3,13 @@ Gamification API routes for QCanvas.
 
 Handles XP tracking, level progression, achievements, and leaderboards.
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Request, status, Query
 from sqlalchemy.orm import Session
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Set
 from pydantic import BaseModel, Field
 from app.config.database import get_db
+from app.config.settings import settings
+from app.core.middleware import limiter, limit_from_settings
 from app.services.gamification_service import GamificationService
 from app.api.routes.auth import get_current_user
 from app.models.database_models import User
@@ -20,22 +22,31 @@ router = APIRouter(prefix="/api/gamification", tags=["Gamification"])
 # ============================================================================
 
 class ActivityRequest(BaseModel):
-    """Request model for logging an activity."""
-    activity_type: str = Field(..., description="Type of activity (e.g., 'simulation_run', 'conversion')")
-    xp_amount: Optional[int] = Field(None, description="Custom XP amount (optional, uses default if not provided)")
+    """Request model for logging a client-reported activity."""
+    activity_type: str = Field(..., max_length=64, description="Client-reportable activity type (e.g. 'tutorial_completed')")
+    # Accepted for backwards compatibility but IGNORED: XP is always server-defined.
+    xp_amount: Optional[int] = Field(None, description="Ignored. XP amounts are defined by the server.")
     metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Additional activity metadata")
     
     class Config:
         json_schema_extra = {
             "example": {
-                "activity_type": "simulation_run",
+                "activity_type": "tutorial_completed",
                 "metadata": {
-                    "backend": "statevector",
-                    "shots": 1024,
-                    "qubits": 3
+                    "tutorial": "bell-states"
                 }
             }
         }
+
+
+def client_reportable_activity_types() -> Set[str]:
+    """
+    Activity types a client may report itself (GAMIFICATION_CLIENT_ACTIVITY_TYPES).
+    Server-awarded types (simulation_run, conversion, algorithm_*, ...) are never
+    accepted from clients, otherwise anyone could award themselves unlimited XP.
+    """
+    raw = settings.GAMIFICATION_CLIENT_ACTIVITY_TYPES or ""
+    return {t.strip() for t in raw.split(",") if t.strip()}
 
 
 class XPAwardResponse(BaseModel):
@@ -90,7 +101,7 @@ class AchievementsResponse(BaseModel):
     summary="Get Current User's Gamification Stats",
     description="Retrieve comprehensive gamification statistics for the authenticated user including XP, level, streaks, and progress."
 )
-async def get_gamification_stats(
+def get_gamification_stats(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> UserStatsResponse:
@@ -124,8 +135,10 @@ async def get_gamification_stats(
     description="Log a user activity and award XP. Automatically applies first-time bonuses, updates level progression, and checks for achievements.",
     status_code=status.HTTP_201_CREATED
 )
-async def log_activity(
-    request: ActivityRequest,
+@limiter.limit(limit_from_settings("RATE_LIMIT_GAMIFICATION_ACTIVITY"))
+def log_activity(
+    request: Request,
+    activity: ActivityRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> XPAwardResponse:
@@ -141,14 +154,26 @@ async def log_activity(
     - Streak tracking
     - Activity logging for analytics
     - Achievement checking and unlocking
+
+    Only activity types in GAMIFICATION_CLIENT_ACTIVITY_TYPES are accepted and the
+    XP amount always comes from the server's XP table (client xp_amount is ignored).
     """
+    activity_type = activity.activity_type.strip()
+    if activity_type not in client_reportable_activity_types():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Activity type '{activity_type}' cannot be reported by the client."
+        )
+    metadata = activity.metadata or {}
+    if len(str(metadata)) > 2000:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="metadata is too large")
+
     try:
         result = GamificationService.award_xp(
             db=db,
             user_id=str(current_user.id),
-            activity_type=request.activity_type,
-            xp_amount=request.xp_amount,
-            metadata=request.metadata
+            activity_type=activity_type,
+            metadata=metadata
         )
         
         # Generate appropriate message
@@ -182,7 +207,7 @@ async def log_activity(
     summary="Get Any User's Public Stats",
     description="Retrieve public gamification stats for any user (for leaderboards and profiles)."
 )
-async def get_user_stats(
+def get_user_stats(
     user_id: str,
     db: Session = Depends(get_db)
 ) -> UserStatsResponse:
@@ -215,7 +240,7 @@ async def get_user_stats(
     summary="Get Recent Activities",
     description="Retrieve the user's recent XP-earning activities."
 )
-async def get_recent_activities(
+def get_recent_activities(
     limit: int = Query(default=10, ge=1, le=50, description="Number of activities to return"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -253,7 +278,7 @@ async def get_recent_activities(
     summary="Get Activity Summary",
     description="Get aggregated statistics of user activities grouped by type."
 )
-async def get_activity_summary(
+def get_activity_summary(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> ActivitySummaryResponse:
@@ -291,7 +316,7 @@ async def get_activity_summary(
     summary="Get All Achievements with User Progress",
     description="Retrieve all achievements with the current user's progress and unlock status."
 )
-async def get_achievements(
+def get_achievements(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> AchievementsResponse:
@@ -334,7 +359,7 @@ async def get_achievements(
     summary="Get User's Unlocked Achievements",
     description="Retrieve only the achievements the current user has unlocked."
 )
-async def get_unlocked_achievements(
+def get_unlocked_achievements(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> AchievementsResponse:
@@ -369,7 +394,7 @@ async def get_unlocked_achievements(
     summary="Manually Check Achievements",
     description="Trigger a manual achievement check for the current user."
 )
-async def check_achievements(
+def check_achievements(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> AchievementsResponse:
@@ -418,7 +443,7 @@ async def check_achievements(
     summary="Get Leaderboard",
     description="Get top users by total XP (leaderboard)."
 )
-async def get_leaderboard(
+def get_leaderboard(
     limit: int = Query(default=10, ge=1, le=100, description="Number of top users to return"),
     db: Session = Depends(get_db)
 ):
@@ -475,7 +500,7 @@ async def get_leaderboard(
     summary="Health Check",
     description="Check if the gamification service is operational."
 )
-async def health_check():
+def health_check():
     """Simple health check endpoint."""
     return {
         "status": "healthy",

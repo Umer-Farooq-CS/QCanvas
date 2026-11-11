@@ -135,6 +135,9 @@ class Settings(BaseSettings):
     # Simulation safety (enforced server-side in /api/simulator/*)
     # ------------------------------------------------------------------
     SIM_MAX_QUBITS: int = 24
+    # The PennyLane path can add one wire per measured qubit (deferred
+    # measurement), doubling the statevector width; 12 keeps it <= ~24 wires.
+    SIM_MAX_QUBITS_PENNYLANE: int = 12
     # Legacy /api/simulator/execute builds a Python-list statevector (2^n entries).
     SIM_LEGACY_MAX_QUBITS: int = 16
     SIM_MAX_SHOTS: int = 100_000

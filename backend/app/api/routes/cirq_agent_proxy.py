@@ -12,8 +12,11 @@ from __future__ import annotations
 import httpx
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session
 
+from app.config.database import get_db
 from app.config.settings import settings
+from app.core.concurrency import release_db_connection
 from app.models.database_models import User, UserRole
 from app.api.routes.auth import get_current_user
 
@@ -21,35 +24,48 @@ router = APIRouter(prefix="/api/cirq-agent", tags=["cirq-agent"])
 
 _CIRQ_TIMEOUT = httpx.Timeout(120.0, connect=15.0)
 
-_HOP_BY_HOP = frozenset(
+# Only these request headers are forwarded upstream. In particular the user's
+# Authorization (QCanvas session JWT) and Cookie headers are NOT forwarded: the
+# Cirq agent authenticates this proxy via X-API-Key only.
+_FORWARDED_REQUEST_HEADERS = frozenset(
     {
-        "connection",
-        "keep-alive",
-        "proxy-authenticate",
-        "proxy-authorization",
-        "te",
-        "trailers",
-        "transfer-encoding",
-        "upgrade",
-        "host",
-        "content-length",
+        "accept",
+        "accept-language",
+        "content-type",
+        "x-request-id",
     }
+)
+
+# Upstream response headers worth passing back to the browser.
+_FORWARDED_RESPONSE_HEADERS = (
+    "retry-after",
+    "x-ratelimit-limit",
+    "x-ratelimit-remaining",
+    "x-ratelimit-reset",
+    "x-request-id",
 )
 
 
 def _forward_request_headers(request: Request) -> dict[str, str]:
     out: dict[str, str] = {}
     for key, value in request.headers.items():
-        lk = key.lower()
-        if lk in _HOP_BY_HOP:
-            continue
-        out[key] = value
+        if key.lower() in _FORWARDED_REQUEST_HEADERS:
+            out[key] = value
 
     # Inject the X-API-Key expected by the Cirq agent.
     api_key = settings.CIRQ_RAG_API_KEY
     if api_key:
         out["X-API-Key"] = api_key
 
+    return out
+
+
+def _forward_response_headers(upstream: httpx.Response) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for name in _FORWARDED_RESPONSE_HEADERS:
+        value = upstream.headers.get(name)
+        if value is not None:
+            out[name] = value
     return out
 
 
@@ -61,6 +77,7 @@ async def proxy_cirq_agent(
     path: str,
     request: Request,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> Response:
     if current_user.role != UserRole.ADMIN:
         return JSONResponse(
@@ -86,6 +103,9 @@ async def proxy_cirq_agent(
 
     body = await request.body()
     headers = _forward_request_headers(request)
+    # Same session as get_current_user's; don't hold its pool connection for up
+    # to two minutes while the upstream pipeline runs.
+    await release_db_connection(db)
 
     async with httpx.AsyncClient(timeout=_CIRQ_TIMEOUT) as client:
         try:
@@ -116,4 +136,5 @@ async def proxy_cirq_agent(
         content=upstream.content,
         status_code=upstream.status_code,
         media_type=ct,
+        headers=_forward_response_headers(upstream),
     )
