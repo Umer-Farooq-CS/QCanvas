@@ -139,17 +139,124 @@ def test_logout_revokes_all_tokens_for_regular_users():
     assert exc.value.status_code == 401
 
 
-def test_logout_does_not_revoke_shared_demo_account():
-    user = _user(role=UserRole.DEMO, token_version=0)
-    db = _FakeDB(user)
-
-    auth_routes.logout(current_user=user, db=db)
-
-    assert user.token_version == 0
-    assert db.commits == 0
-
-
 def test_anonymous_logout_is_harmless():
     assert auth_routes.logout(current_user=None, db=_FakeDB(None)) == {
         "message": "Successfully logged out"
     }
+
+
+# --------------------------------------------------------------------------
+# Private guest ("Try demo") workspaces
+# --------------------------------------------------------------------------
+from datetime import datetime, timedelta  # noqa: E402
+
+from app.services import guest_service  # noqa: E402
+
+
+class _RecordingQuery(_FakeQuery):
+    def __init__(self, user, model, log):
+        super().__init__(user)
+        self.model = model
+        self.log = log
+
+    def delete(self, synchronize_session=False):
+        self.log.append(self.model.__name__)
+        return 0
+
+
+class _GuestDB(_FakeDB):
+    def __init__(self, user=None):
+        super().__init__(user)
+        self.added = []
+        self.deleted_models = []
+
+    def query(self, model):
+        return _RecordingQuery(self.user, model, self.deleted_models)
+
+    def add(self, obj):
+        self.added.append(obj)
+        if getattr(obj, "created_at", None) is None:
+            obj.created_at = datetime.utcnow()
+
+    def refresh(self, obj):
+        pass
+
+    def rollback(self):
+        pass
+
+
+def test_each_guest_gets_a_distinct_private_account():
+    db = _GuestDB()
+    a = guest_service.create_guest(db)
+    b = guest_service.create_guest(db)
+    assert a.id != b.id
+    assert a.email != b.email and a.username != b.username
+    assert a.role == UserRole.DEMO and b.role == UserRole.DEMO
+    assert a.email.endswith("." + "invalid"), "guest emails must be undeliverable"
+    # Password is random and never returned to the client.
+    assert not a.verify_password("demo123")
+
+
+def test_guest_expires_after_ttl():
+    fresh = _user(role=UserRole.DEMO)
+    fresh.created_at = datetime.utcnow()
+    old = _user(role=UserRole.DEMO)
+    old.created_at = datetime.utcnow() - timedelta(hours=settings.GUEST_ACCOUNT_TTL_HOURS + 1)
+    regular = _user(role=UserRole.USER)
+    regular.created_at = datetime(2020, 1, 1)
+
+    assert not guest_service.is_expired_guest(fresh)
+    assert guest_service.is_expired_guest(old)
+    assert not guest_service.is_expired_guest(regular), "TTL only applies to guests"
+
+
+def test_expired_guest_token_is_rejected():
+    old = _user(role=UserRole.DEMO)
+    old.created_at = datetime.utcnow() - timedelta(hours=settings.GUEST_ACCOUNT_TTL_HOURS + 1)
+    token = create_access_token({"sub": old.id, "tv": 0})
+    db = _FakeDB(old)
+    with pytest.raises(HTTPException) as exc:
+        auth_routes.get_current_user(credentials=_creds(token), db=db)
+    assert exc.value.status_code == 401
+    assert auth_routes.get_optional_user(credentials=_creds(token), db=db) is None
+
+
+def test_guest_logout_purges_workspace_and_kills_tokens():
+    guest = _user(role=UserRole.DEMO)
+    guest.created_at = datetime.utcnow()
+    db = _GuestDB(guest)
+    token = create_access_token({"sub": guest.id, "tv": 0})
+
+    auth_routes.logout(current_user=guest, db=db)
+
+    assert {"File", "Folder", "Project"} <= set(db.deleted_models)
+    assert db.deleted_models.index("File") < db.deleted_models.index("Folder") < db.deleted_models.index("Project")
+    assert guest.is_active is False and guest.deleted_at is not None
+    assert guest.token_version == 1
+    with pytest.raises(HTTPException):
+        auth_routes.get_current_user(credentials=_creds(token), db=db)
+
+
+def test_purge_guest_refuses_regular_accounts():
+    with pytest.raises(ValueError):
+        guest_service.purge_guest(_GuestDB(), _user(role=UserRole.USER))
+
+
+def test_password_login_to_guest_or_legacy_shared_demo_is_refused():
+    legacy = _user(role=UserRole.DEMO)
+    legacy.email = "demo@qcanvas.dev"
+    legacy.verify_password = lambda pw: True
+    raw_login = getattr(auth_routes.login, "__wrapped__", auth_routes.login)
+    payload = SimpleNamespace(email="demo@qcanvas.dev", password="demo123")
+
+    with pytest.raises(HTTPException) as exc:
+        raw_login(request=None, payload=payload, db=_FakeDB(legacy))
+    assert exc.value.status_code == 403
+
+
+def test_guest_endpoint_returns_working_session():
+    db = _GuestDB()
+    raw = getattr(auth_routes.create_guest_session, "__wrapped__", auth_routes.create_guest_session)
+    resp = raw(request=None, db=db)
+    assert resp.user.role == "demo"
+    assert verify_token(resp.access_token)["sub"] == resp.user.id

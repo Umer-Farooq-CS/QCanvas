@@ -33,6 +33,7 @@ from app.models.schemas import (
 from app.services.otp_service import OTPService
 from app.services.email_service import EmailService
 from app.utils.jwt_auth import create_access_token, verify_token
+from app.services import guest_service
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 security = HTTPBearer(auto_error=False)
@@ -185,6 +186,14 @@ def get_current_user(
             detail="Session has expired, please login again",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+    if guest_service.is_expired_guest(user):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Guest session has expired. Start a new demo or create an account.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     
     return user
 
@@ -215,6 +224,8 @@ def get_optional_user(
         token_version = payload.get("tv", 0)
         if token_version != (user.token_version or 0):
             return None
+        if guest_service.is_expired_guest(user):
+            return None
             
         return user
     except Exception:
@@ -231,7 +242,7 @@ def get_optional_user(
         422: {"model": ErrorResponse, "description": "Validation error"}
     }
 )
-@limiter.limit("10/minute")
+@limiter.limit(settings.RATE_LIMIT_REGISTER)
 def register(request: Request, payload: UserRegisterRequest, db: Session = Depends(get_db)):
     """
     Register a new user account.
@@ -306,7 +317,7 @@ def register(request: Request, payload: UserRegisterRequest, db: Session = Depen
         500: {"model": ErrorResponse, "description": "Unable to send admin approval email"},
     }
 )
-@limiter.limit("5/minute")
+@limiter.limit(settings.RATE_LIMIT_REGISTER_ADMIN)
 def register_admin(request: Request, payload: UserRegisterRequest, db: Session = Depends(get_db)):
     """Register a new admin account that must be approved by the master admin."""
     if len(payload.password) < 8:
@@ -412,7 +423,7 @@ def approve_admin(payload: AdminApprovalRequest, db: Session = Depends(get_db)):
         401: {"model": ErrorResponse, "description": "Invalid credentials"}
     }
 )
-@limiter.limit("20/minute")
+@limiter.limit(settings.RATE_LIMIT_LOGIN)
 def login(request: Request, payload: UserLoginRequest, db: Session = Depends(get_db)):
     """
     Login with email and password.
@@ -432,6 +443,14 @@ def login(request: Request, payload: UserLoginRequest, db: Session = Depends(get
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
+        )
+
+    # Guest/demo accounts never log in by password. This also retires the old
+    # shared demo@qcanvas.dev account, which every visitor used to share.
+    if user.role == UserRole.DEMO:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The shared demo login has been retired. Use 'Try demo' to get your own private guest workspace."
         )
     
     # Verify password
@@ -473,7 +492,7 @@ def login(request: Request, payload: UserLoginRequest, db: Session = Depends(get
 
 
 @router.post("/signup/otp/send", response_model=OtpSendResponse)
-@limiter.limit("5/minute")
+@limiter.limit(settings.RATE_LIMIT_OTP_SEND)
 def send_signup_otp(request: Request, payload: EmailRequest, db: Session = Depends(get_db)):
     if not settings.AUTH_EMAIL_OTP_ENABLED:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="OTP flow disabled")
@@ -503,13 +522,13 @@ def send_signup_otp(request: Request, payload: EmailRequest, db: Session = Depen
 
 
 @router.post("/signup/otp/resend", response_model=OtpSendResponse)
-@limiter.limit("5/minute")
+@limiter.limit(settings.RATE_LIMIT_OTP_SEND)
 def resend_signup_otp(request: Request, payload: EmailRequest, db: Session = Depends(get_db)):
     return send_signup_otp(request=request, payload=payload, db=db)
 
 
 @router.post("/signup/otp/verify", response_model=OtpVerifyResponse)
-@limiter.limit("10/minute")
+@limiter.limit(settings.RATE_LIMIT_OTP_VERIFY)
 def verify_signup_otp(request: Request, payload: OtpVerifyRequest, db: Session = Depends(get_db)):
     if not settings.AUTH_EMAIL_OTP_ENABLED:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="OTP flow disabled")
@@ -551,7 +570,7 @@ def verify_signup_otp(request: Request, payload: OtpVerifyRequest, db: Session =
 
 
 @router.post("/password-reset/otp/send", response_model=MessageResponse)
-@limiter.limit("5/minute")
+@limiter.limit(settings.RATE_LIMIT_PASSWORD_RESET)
 def send_password_reset_otp(request: Request, payload: EmailRequest, db: Session = Depends(get_db)):
     if not settings.AUTH_EMAIL_OTP_ENABLED:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="OTP flow disabled")
@@ -571,7 +590,7 @@ def send_password_reset_otp(request: Request, payload: EmailRequest, db: Session
 
 
 @router.post("/password-reset/otp/verify", response_model=OtpVerifyResponse)
-@limiter.limit("10/minute")
+@limiter.limit(settings.RATE_LIMIT_OTP_VERIFY)
 def verify_password_reset_otp(request: Request, payload: OtpVerifyRequest, db: Session = Depends(get_db)):
     if not settings.AUTH_EMAIL_OTP_ENABLED:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="OTP flow disabled")
@@ -604,7 +623,7 @@ def verify_password_reset_otp(request: Request, payload: OtpVerifyRequest, db: S
 
 
 @router.post("/password-reset/complete", response_model=MessageResponse)
-@limiter.limit("10/minute")
+@limiter.limit(settings.RATE_LIMIT_PASSWORD_RESET)
 def complete_password_reset(
     request: Request,
     payload: PasswordResetCompleteRequest,
@@ -697,14 +716,48 @@ def logout(
     """
     Log out and revoke the user's tokens.
 
-    Bumping `token_version` invalidates every token issued to this user (all
-    devices). The shared demo account is exempt, otherwise one workshop
-    attendee logging out would sign out everyone using it.
+    - Regular users: bumping `token_version` invalidates every token issued to
+      this user (all devices).
+    - Guest ("Try demo") users: their private workspace is deleted and the
+      guest account is deactivated.
     """
-    if current_user and current_user.role != UserRole.DEMO:
+    if current_user is None:
+        return {"message": "Successfully logged out"}
+
+    if current_user.role == UserRole.DEMO:
+        # Private guest workspace: delete its data now (what the UI always promised).
+        guest_service.purge_guest(db, current_user)
+    else:
         current_user.token_version = (current_user.token_version or 0) + 1
-        db.commit()
+    db.commit()
     return {"message": "Successfully logged out"}
+
+
+@router.post(
+    "/guest",
+    response_model=TokenResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+@limiter.limit(settings.GUEST_CREATE_RATE_LIMIT)
+def create_guest_session(request: Request, db: Session = Depends(get_db)):
+    """
+    "Try demo": create a private, temporary guest workspace for this visitor.
+
+    Each call returns a NEW isolated account (no shared files between visitors).
+    Guest data is deleted on logout or after GUEST_ACCOUNT_TTL_HOURS.
+    """
+    # Housekeeping first, isolated from the guest creation transaction.
+    guest_service.purge_expired_guests(db)
+
+    guest = guest_service.create_guest(db)
+    access_token = create_access_token(
+        data={"sub": str(guest.id), "tv": guest.token_version or 0}
+    )
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=_to_user_response(guest),
+    )
 
 
 @router.put(

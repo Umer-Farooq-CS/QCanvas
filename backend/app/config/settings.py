@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24
     # Absolute session cap: refresh is refused this long after the original login.
     SESSION_MAX_AGE_DAYS: int = 30
+    # "Try demo" creates a private temporary guest account per visitor.
+    # Guest workspaces are purged on logout or after this many hours.
+    GUEST_ACCOUNT_TTL_HOURS: int = 72
+    GUEST_CREATE_RATE_LIMIT: str = "120/minute"
     AUTH_EMAIL_OTP_ENABLED: bool = False
     OTP_EXPIRE_MINUTES: int = 5
     OTP_MAX_ATTEMPTS: int = 5
@@ -73,6 +77,89 @@ class Settings(BaseSettings):
     FASTQSIM_API_TOKEN: str = ""
     FASTQUBIT_ENDPOINT: str = "https://fastqubit.dev/api"
     FASTQSIM_EXECUTION_MODE: str = "cloud"
+    # Seconds to cache the FASTQSIM_ONLINE_MODE lookup (it may hit AWS SSM).
+    FASTQSIM_ONLINE_MODE_CACHE_SECONDS: int = 30
+
+    # General
+    # When True, unhandled-exception responses include the exception text/type.
+    DEBUG: bool = False
+
+    # ------------------------------------------------------------------
+    # Rate limiting (slowapi). Limit strings use the "N/period" syntax and may
+    # be combined with ";" (e.g. "300/minute;3000/hour").
+    # Keys: authenticated requests are keyed by user id; everything else by the
+    # real client IP (taken from X-Forwarded-For, see FORWARDED_TRUSTED_HOPS).
+    # Workshop note: 100-200 students usually share ONE venue NAT IP, so per-IP
+    # limits on auth endpoints must allow everyone to sign up / log in at once.
+    # ------------------------------------------------------------------
+    RATE_LIMIT_ENABLED: bool = True
+    # "" or "auto": use REDIS_URL if it answers a ping at startup, else memory://.
+    # Set explicitly (e.g. "memory://" or "redis://host:6379/1") to skip the probe.
+    RATE_LIMIT_STORAGE_URI: str = ""
+    RATE_LIMIT_REDIS_TIMEOUT_SECONDS: float = 0.5
+    # Number of trusted proxies that append to X-Forwarded-For (ALB = 1;
+    # Cloudflare -> ALB = 2). 0 ignores X-Forwarded-For entirely.
+    FORWARDED_TRUSTED_HOPS: int = 1
+    # Optional header that already carries the real client IP (e.g. "CF-Connecting-IP").
+    CLIENT_IP_HEADER: str = ""
+
+    # Auth endpoints (keyed per IP: there is no session yet)
+    RATE_LIMIT_LOGIN: str = "300/minute;3000/hour"
+    RATE_LIMIT_REGISTER: str = "300/minute;2000/hour"
+    RATE_LIMIT_REGISTER_ADMIN: str = "10/minute"
+    RATE_LIMIT_OTP_SEND: str = "200/minute;1000/hour"
+    RATE_LIMIT_OTP_VERIFY: str = "300/minute"
+    RATE_LIMIT_PASSWORD_RESET: str = "120/minute"
+    # Compute endpoints (convert / simulate): per signed-in user, and per IP for
+    # anonymous callers (who share the venue IP).
+    RATE_LIMIT_COMPUTE_PER_USER: str = "30/minute"
+    RATE_LIMIT_COMPUTE_PER_IP: str = "600/minute"
+    # Circuit parsing for visualization (cheap AST parse)
+    RATE_LIMIT_PARSE_PER_USER: str = "120/minute"
+    RATE_LIMIT_PARSE_PER_IP: str = "1200/minute"
+    # Client-reported gamification activities (POST /api/gamification/activity)
+    RATE_LIMIT_GAMIFICATION_ACTIVITY: str = "20/hour"
+    # Comma-separated activity types the client may report itself. Everything
+    # else (simulation_run, conversion, algorithm_*, ...) is awarded server-side only.
+    GAMIFICATION_CLIENT_ACTIVITY_TYPES: str = "tutorial_completed,quiz_passed,concept_mastered,easter_egg_found"
+
+    # ------------------------------------------------------------------
+    # Simulation safety (enforced server-side in /api/simulator/*)
+    # ------------------------------------------------------------------
+    SIM_MAX_QUBITS: int = 24
+    # Legacy /api/simulator/execute builds a Python-list statevector (2^n entries).
+    SIM_LEGACY_MAX_QUBITS: int = 16
+    SIM_MAX_SHOTS: int = 100_000
+    SIM_MAX_QASM_CHARS: int = 200_000
+    # Max simulations running at once PER WORKER PROCESS; extra requests queue.
+    SIM_MAX_CONCURRENCY: int = 2
+    # How long a queued simulation waits for a slot before getting a 503 "busy".
+    SIM_QUEUE_TIMEOUT_SECONDS: float = 60.0
+    # Same idea for /api/converter/* conversions.
+    CONVERT_MAX_CONCURRENCY: int = 4
+    CONVERT_QUEUE_TIMEOUT_SECONDS: float = 60.0
+
+    # ------------------------------------------------------------------
+    # Database connection pool (per worker process!). Total connections to
+    # Postgres = WEB_CONCURRENCY * (DB_POOL_SIZE + DB_MAX_OVERFLOW) + audit writer.
+    # ------------------------------------------------------------------
+    DB_POOL_SIZE: int = 5
+    DB_MAX_OVERFLOW: int = 5
+    DB_POOL_TIMEOUT: int = 10
+    DB_POOL_RECYCLE: int = 1800
+    DB_POOL_PRE_PING: bool = True
+    DB_CONNECT_TIMEOUT: int = 10
+
+    # ------------------------------------------------------------------
+    # API audit log (api_activity table). Written off the request path in
+    # batches by a background thread; never blocks or fails a request.
+    # ------------------------------------------------------------------
+    AUDIT_LOG_ENABLED: bool = True
+    AUDIT_LOG_BATCH_SIZE: int = 200
+    AUDIT_LOG_FLUSH_INTERVAL_SECONDS: float = 2.0
+    AUDIT_LOG_MAX_QUEUE: int = 10_000
+    # Comma-separated path prefixes that are never logged (health/docs are always skipped).
+    AUDIT_LOG_EXCLUDE_PATHS: str = ""
 
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")

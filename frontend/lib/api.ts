@@ -512,8 +512,10 @@ export const quantumApi = {
   async executeHybrid(
     code: string,
     framework?: string,
-    timeout?: number
+    timeout?: number,
+    token?: string
   ): Promise<ApiResponse<HybridExecuteResult>> {
+    const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
     return apiRequest('/api/hybrid/execute', {
       method: 'POST',
       body: JSON.stringify({
@@ -521,20 +523,24 @@ export const quantumApi = {
         framework,
         timeout: timeout ?? 180,
       }),
+      headers,
     })
   },
 
   // Validate hybrid code without executing
-  async validateHybrid(code: string): Promise<ApiResponse<HybridValidateResult>> {
+  async validateHybrid(code: string, token?: string): Promise<ApiResponse<HybridValidateResult>> {
+    const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
     return apiRequest('/api/hybrid/validate', {
       method: 'POST',
       body: JSON.stringify({ code }),
+      headers,
     })
   },
 
   // Get hybrid execution status/configuration
-  async getHybridStatus(): Promise<ApiResponse<HybridStatusResult>> {
-    return apiRequest('/api/hybrid/status')
+  async getHybridStatus(token?: string): Promise<ApiResponse<HybridStatusResult>> {
+    const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
+    return apiRequest('/api/hybrid/status', { headers })
   },
 }
 
@@ -737,6 +743,13 @@ export const authApi = {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
+    })
+  },
+
+  /** "Try demo": creates a private, temporary guest workspace for this visitor. */
+  async guestLogin(): Promise<ApiResponse<AuthResponse>> {
+    return apiRequest<AuthResponse>('/api/auth/guest', {
+      method: 'POST',
     })
   },
 

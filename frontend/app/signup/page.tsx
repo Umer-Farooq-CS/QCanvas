@@ -107,26 +107,32 @@ export default function SignupPage() {
   };
 
   const handleDemoLogin = async () => {
-    // Auto-submit demo credentials
     setIsLoading(true);
     setLoading(true);
 
     try {
-      const response = await authApi.login("demo@qcanvas.dev", "demo123");
+      // Each visitor gets a private, temporary guest workspace (previously
+      // everyone shared one demo account and could overwrite each other's files).
+      const response = await authApi.guestLogin();
 
       if (!response.success || !response.data) {
-        throw new Error(response.error || "Demo login failed");
+        throw new Error(response.error || "Could not start a demo session");
       }
 
       const { access_token, user } = response.data;
       setAuth(user, access_token);
 
-      toast.success("Logged in as Demo User!");
-      toast("Demo data will be cleared on logout", { icon: "ℹ️" });
+      toast.success("You're in! This is your private guest workspace.");
+      toast(
+        "Guest files are deleted when you log out or after 3 days. Create an account to keep your work.",
+        { icon: "ℹ️", duration: 7000 },
+      );
 
       router.push("/app");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Demo login failed");
+      toast.error(
+        error instanceof Error ? error.message : "Could not start a demo session",
+      );
     } finally {
       setIsLoading(false);
       setLoading(false);
@@ -237,7 +243,7 @@ export default function SignupPage() {
               measurement results with the QSim backend, explore Bell state
               preparation, quantum teleportation, Grover&apos;s search, and
               quantum machine learning examples. Your account stores projects
-              server-side. Prefer not to register? Try the demo account for
+              server-side. Prefer not to register? Start a private guest session for
               instant access to the quantum simulator without any sign-up.
             </p>
             <p className="text-editor-text">
