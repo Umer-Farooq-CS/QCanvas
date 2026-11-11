@@ -50,6 +50,20 @@ def is_expired_guest(user: User) -> bool:
     return expiry is not None and datetime.utcnow() >= expiry
 
 
+def active_guest_count(db: Session) -> int:
+    """Live (not deleted, not expired) guest accounts, for the global cap."""
+    cutoff = datetime.utcnow() - timedelta(hours=settings.GUEST_ACCOUNT_TTL_HOURS)
+    return (
+        db.query(User)
+        .filter(
+            User.role == UserRole.DEMO,
+            User.deleted_at == None,  # noqa: E711
+            User.created_at >= cutoff,
+        )
+        .count()
+    )
+
+
 def create_guest(db: Session) -> User:
     suffix = secrets.token_hex(4)
     guest = User(

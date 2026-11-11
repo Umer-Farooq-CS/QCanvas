@@ -47,7 +47,11 @@ class Settings(BaseSettings):
     # "Try demo" creates a private temporary guest account per visitor.
     # Guest workspaces are purged on logout or after this many hours.
     GUEST_ACCOUNT_TTL_HOURS: int = 72
-    GUEST_CREATE_RATE_LIMIT: str = "120/minute"
+    # Per client IP. Sized so ~200 attendees behind one venue NAT can all start
+    # within a few minutes, while bounding abuse.
+    GUEST_CREATE_RATE_LIMIT: str = "60/minute;400/hour;1500/day"
+    # Global cap on live guest accounts; beyond it /guest returns 503.
+    GUEST_MAX_ACTIVE: int = 2000
     AUTH_EMAIL_OTP_ENABLED: bool = False
     OTP_EXPIRE_MINUTES: int = 5
     OTP_MAX_ATTEMPTS: int = 5

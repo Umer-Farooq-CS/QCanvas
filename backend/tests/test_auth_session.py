@@ -163,6 +163,15 @@ class _RecordingQuery(_FakeQuery):
         self.log.append(self.model.__name__)
         return 0
 
+    def limit(self, n):
+        return self
+
+    def all(self):
+        return []
+
+    def count(self):
+        return 0
+
 
 class _GuestDB(_FakeDB):
     def __init__(self, user=None):
@@ -260,3 +269,34 @@ def test_guest_endpoint_returns_working_session():
     resp = raw(request=None, db=db)
     assert resp.user.role == "demo"
     assert verify_token(resp.access_token)["sub"] == resp.user.id
+
+
+def _request_with_headers(headers, client_ip="203.0.113.7"):
+    from starlette.requests import Request
+
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/api/auth/login",
+        "headers": [(k.lower().encode(), v.encode()) for k, v in headers.items()],
+        "client": (client_ip, 12345),
+        "query_string": b"",
+    }
+    return Request(scope)
+
+
+def test_auth_endpoint_rate_key_ignores_bearer_tokens():
+    """Minting guest tokens must not give an attacker fresh login/OTP buckets."""
+    token = create_access_token({"sub": "attacker-guest-1", "tv": 0})
+    with_token = _request_with_headers({"Authorization": f"Bearer {token}"})
+    without = _request_with_headers({})
+    assert auth_routes._ip_rate_key(with_token) == auth_routes._ip_rate_key(without)
+    assert auth_routes._ip_rate_key(with_token).startswith("ip:")
+
+
+def test_guest_creation_refused_when_global_cap_reached(monkeypatch):
+    monkeypatch.setattr(guest_service, "active_guest_count", lambda db: settings.GUEST_MAX_ACTIVE)
+    raw = getattr(auth_routes.create_guest_session, "__wrapped__", auth_routes.create_guest_session)
+    with pytest.raises(HTTPException) as exc:
+        raw(request=None, db=_GuestDB())
+    assert exc.value.status_code == 503

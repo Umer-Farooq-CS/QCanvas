@@ -11,7 +11,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.config.database import get_db
 from app.config.settings import settings
-from app.core.middleware import limiter
+from app.core.middleware import get_client_ip, limiter
 from app.models.database_models import User, UserRole, OtpPurpose
 from app.models.schemas import (
     AdminApprovalRequest,
@@ -36,6 +36,15 @@ from app.utils.jwt_auth import create_access_token, verify_token
 from app.services import guest_service
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+
+
+def _ip_rate_key(request: Request) -> str:
+    """
+    Rate-limit key for unauthenticated auth endpoints: ALWAYS the client IP.
+    Never the bearer token: otherwise an attacker could mint guest tokens and
+    get a fresh login/OTP/reset bucket for each attempt.
+    """
+    return f"ip:{get_client_ip(request)}"
 security = HTTPBearer(auto_error=False)
 
 
@@ -242,7 +251,7 @@ def get_optional_user(
         422: {"model": ErrorResponse, "description": "Validation error"}
     }
 )
-@limiter.limit(settings.RATE_LIMIT_REGISTER)
+@limiter.limit(settings.RATE_LIMIT_REGISTER, key_func=_ip_rate_key)
 def register(request: Request, payload: UserRegisterRequest, db: Session = Depends(get_db)):
     """
     Register a new user account.
@@ -317,7 +326,7 @@ def register(request: Request, payload: UserRegisterRequest, db: Session = Depen
         500: {"model": ErrorResponse, "description": "Unable to send admin approval email"},
     }
 )
-@limiter.limit(settings.RATE_LIMIT_REGISTER_ADMIN)
+@limiter.limit(settings.RATE_LIMIT_REGISTER_ADMIN, key_func=_ip_rate_key)
 def register_admin(request: Request, payload: UserRegisterRequest, db: Session = Depends(get_db)):
     """Register a new admin account that must be approved by the master admin."""
     if len(payload.password) < 8:
@@ -423,7 +432,7 @@ def approve_admin(payload: AdminApprovalRequest, db: Session = Depends(get_db)):
         401: {"model": ErrorResponse, "description": "Invalid credentials"}
     }
 )
-@limiter.limit(settings.RATE_LIMIT_LOGIN)
+@limiter.limit(settings.RATE_LIMIT_LOGIN, key_func=_ip_rate_key)
 def login(request: Request, payload: UserLoginRequest, db: Session = Depends(get_db)):
     """
     Login with email and password.
@@ -492,7 +501,7 @@ def login(request: Request, payload: UserLoginRequest, db: Session = Depends(get
 
 
 @router.post("/signup/otp/send", response_model=OtpSendResponse)
-@limiter.limit(settings.RATE_LIMIT_OTP_SEND)
+@limiter.limit(settings.RATE_LIMIT_OTP_SEND, key_func=_ip_rate_key)
 def send_signup_otp(request: Request, payload: EmailRequest, db: Session = Depends(get_db)):
     if not settings.AUTH_EMAIL_OTP_ENABLED:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="OTP flow disabled")
@@ -522,13 +531,13 @@ def send_signup_otp(request: Request, payload: EmailRequest, db: Session = Depen
 
 
 @router.post("/signup/otp/resend", response_model=OtpSendResponse)
-@limiter.limit(settings.RATE_LIMIT_OTP_SEND)
+@limiter.limit(settings.RATE_LIMIT_OTP_SEND, key_func=_ip_rate_key)
 def resend_signup_otp(request: Request, payload: EmailRequest, db: Session = Depends(get_db)):
     return send_signup_otp(request=request, payload=payload, db=db)
 
 
 @router.post("/signup/otp/verify", response_model=OtpVerifyResponse)
-@limiter.limit(settings.RATE_LIMIT_OTP_VERIFY)
+@limiter.limit(settings.RATE_LIMIT_OTP_VERIFY, key_func=_ip_rate_key)
 def verify_signup_otp(request: Request, payload: OtpVerifyRequest, db: Session = Depends(get_db)):
     if not settings.AUTH_EMAIL_OTP_ENABLED:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="OTP flow disabled")
@@ -570,7 +579,7 @@ def verify_signup_otp(request: Request, payload: OtpVerifyRequest, db: Session =
 
 
 @router.post("/password-reset/otp/send", response_model=MessageResponse)
-@limiter.limit(settings.RATE_LIMIT_PASSWORD_RESET)
+@limiter.limit(settings.RATE_LIMIT_PASSWORD_RESET, key_func=_ip_rate_key)
 def send_password_reset_otp(request: Request, payload: EmailRequest, db: Session = Depends(get_db)):
     if not settings.AUTH_EMAIL_OTP_ENABLED:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="OTP flow disabled")
@@ -590,7 +599,7 @@ def send_password_reset_otp(request: Request, payload: EmailRequest, db: Session
 
 
 @router.post("/password-reset/otp/verify", response_model=OtpVerifyResponse)
-@limiter.limit(settings.RATE_LIMIT_OTP_VERIFY)
+@limiter.limit(settings.RATE_LIMIT_OTP_VERIFY, key_func=_ip_rate_key)
 def verify_password_reset_otp(request: Request, payload: OtpVerifyRequest, db: Session = Depends(get_db)):
     if not settings.AUTH_EMAIL_OTP_ENABLED:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="OTP flow disabled")
@@ -623,7 +632,7 @@ def verify_password_reset_otp(request: Request, payload: OtpVerifyRequest, db: S
 
 
 @router.post("/password-reset/complete", response_model=MessageResponse)
-@limiter.limit(settings.RATE_LIMIT_PASSWORD_RESET)
+@limiter.limit(settings.RATE_LIMIT_PASSWORD_RESET, key_func=_ip_rate_key)
 def complete_password_reset(
     request: Request,
     payload: PasswordResetCompleteRequest,
@@ -738,7 +747,7 @@ def logout(
     response_model=TokenResponse,
     status_code=status.HTTP_201_CREATED,
 )
-@limiter.limit(settings.GUEST_CREATE_RATE_LIMIT)
+@limiter.limit(settings.GUEST_CREATE_RATE_LIMIT, key_func=_ip_rate_key)
 def create_guest_session(request: Request, db: Session = Depends(get_db)):
     """
     "Try demo": create a private, temporary guest workspace for this visitor.
@@ -748,6 +757,12 @@ def create_guest_session(request: Request, db: Session = Depends(get_db)):
     """
     # Housekeeping first, isolated from the guest creation transaction.
     guest_service.purge_expired_guests(db)
+
+    if guest_service.active_guest_count(db) >= settings.GUEST_MAX_ACTIVE:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Demo capacity is full right now. Please create a free account instead.",
+        )
 
     guest = guest_service.create_guest(db)
     access_token = create_access_token(
