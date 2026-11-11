@@ -344,3 +344,6 @@ backend/app/temp/
 frontend/.next/
 # Local workshop venv
 .venv*/
+
+# Design audit screenshots (local only)
+design-audit/*.png
