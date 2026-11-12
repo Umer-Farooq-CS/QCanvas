@@ -26,7 +26,7 @@ function formatErrorMessage(error: string | undefined | null): string {
   // Transport-level failures (not about the user's code).
   if (/failed to fetch|network ?error|networkerror/.test(lower)) return 'Run failed: cannot reach the server. Check your connection and try again.'
   if (/timed? ?out/.test(lower) && !/line \d+/.test(lower)) return 'Run failed: the request timed out. Try again, or reduce the circuit size.'
-  const status = raw.match(/^HTTP error! status: (\d{3})/i) || raw.match(/status[: ]+(\d{3})/i)
+  const status = raw.match(/^HTTP error! status: (\d{3})/i) || raw.match(/\bstatus[: ]+(\d{3})\b/i)
   if (status) {
     const code = Number(status[1])
     if (code === 401 || code === 403) return 'Run failed: your session has expired. Sign in again.'

@@ -27,7 +27,7 @@ import { Check, X } from "lucide-react";
 function fileKind(name: string, content: string): "hybrid" | "circuit" | null {
   if (name.toLowerCase().endsWith(".qasm") || content.trimStart().startsWith("OPENQASM")) return "circuit";
   if (!name.toLowerCase().endsWith(".py")) return null;
-  return /^\s*(from\s+qcanvas|import\s+qcanvas|from\s+qsim|import\s+qsim)/m.test(content) || /qsim\.run\(/.test(content)
+  return /^\s*(from\s+qcanvas|import\s+qcanvas|from\s+qsim|import\s+qsim)\b/m.test(content) || /\bqsim\.run\(/.test(content)
     ? "hybrid"
     : "circuit";
 }

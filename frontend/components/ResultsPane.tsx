@@ -375,7 +375,7 @@ function ResultsPane() {
       severity,
       message,
       // Pull the line number out of messages like "... (line 6)".
-      line: Number((details || message).match(/line (\d+)/i)?.[1] ?? 0),
+      line: Number((details || message).match(/\bline (\d+)\b/i)?.[1] ?? 0),
       column: 0,
       file: useFileStore.getState().getActiveFile()?.name ?? "current file",
       code: details || message,

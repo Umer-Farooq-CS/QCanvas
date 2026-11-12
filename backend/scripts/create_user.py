@@ -29,13 +29,13 @@ def create_user():
     print("\nSelect Role:")
     print("  1. User (default)")
     print("  2. Admin")
-    print("  3. Researcher")
     role_choice = input("Choice [1]: ").strip() or "1"
-    
+
+    # Roles are USER / ADMIN / DEMO since migration 83149d586e8a; the old
+    # RESEARCHER entry crashed this script for every choice.
     role_map = {
         "1": UserRole.USER,
         "2": UserRole.ADMIN,
-        "3": UserRole.RESEARCHER
     }
     role = role_map.get(role_choice, UserRole.USER)
     
