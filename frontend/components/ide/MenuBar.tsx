@@ -18,6 +18,20 @@ import AddNewLanguage from "@/components/AddNewLanguage";
 import { FILE_TEMPLATES_PRESETS } from "@/lib/fileTemplates";
 import { Check, X } from "lucide-react";
 
+/**
+ * Whether the open file is a plain circuit (compiled to OpenQASM and run on
+ * the simulator) or hybrid code that calls the qcanvas / qsim Python API and
+ * runs in Expert mode. Returns a primitive so the menu bar only re-renders
+ * when the kind changes, not on every keystroke.
+ */
+function fileKind(name: string, content: string): "hybrid" | "circuit" | null {
+  if (name.toLowerCase().endsWith(".qasm") || content.trimStart().startsWith("OPENQASM")) return "circuit";
+  if (!name.toLowerCase().endsWith(".py")) return null;
+  return /^\s*(from\s+qcanvas|import\s+qcanvas|from\s+qsim|import\s+qsim)/m.test(content) || /qsim\.run\(/.test(content)
+    ? "hybrid"
+    : "circuit";
+}
+
 type MenuId =
   | "file"
   | "edit"
@@ -129,6 +143,10 @@ function MenuBar({
   );
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showTemplatesPicker, setShowTemplatesPicker] = useState(false);
+  const activeKind = useFileStore((s) => {
+    const f = s.files.find((file) => file.id === s.activeFileId);
+    return f ? fileKind(f.name, f.content) : null;
+  });
   const closeTemplatesPicker = useCallback(() => setShowTemplatesPicker(false), []);
 
   // Lets other parts of the IDE (e.g. the empty editor) open the templates picker.
@@ -391,6 +409,26 @@ function MenuBar({
         </div>
 
         <div className="ml-auto flex items-center gap-2">
+          {activeKind && (
+            <span
+              className={`hidden items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-medium md:inline-flex ${
+                activeKind === "hybrid"
+                  ? "border-emerald-500/30 text-emerald-500"
+                  : "border-editor-border text-editor-text opacity-80"
+              }`}
+              title={
+                activeKind === "hybrid"
+                  ? "Hybrid code: Python that calls qcanvas / qsim. Run it in Expert mode."
+                  : "Circuit code: compiled to OpenQASM 3.0 and run on the simulator."
+              }
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${activeKind === "hybrid" ? "bg-emerald-500" : "bg-editor-accent"}`}
+                aria-hidden="true"
+              />
+              {activeKind === "hybrid" ? "Hybrid" : "Circuit"}
+            </span>
+          )}
           <button
             type="button"
             className="text-xs text-editor-text hover:text-white px-2 py-1 rounded-md hover:bg-editor-bg/10 hidden sm:inline-flex"
