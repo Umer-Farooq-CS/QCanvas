@@ -5,7 +5,8 @@ Handles token creation, verification, and user extraction.
 import time
 from datetime import datetime, timedelta
 from typing import Optional
-from jose import JWTError, jwt
+import jwt
+from jwt import PyJWTError
 from app.config.settings import settings
 
 
@@ -58,7 +59,7 @@ def verify_token(token: str) -> Optional[dict]:
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
         return payload
-    except JWTError:
+    except PyJWTError:
         return None
 
 
