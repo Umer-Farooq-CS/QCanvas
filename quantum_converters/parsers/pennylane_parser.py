@@ -64,7 +64,7 @@ from typing import List, Any, Set, Optional, Tuple, Dict, Union
 from quantum_converters.base.circuit_ast import (
     CircuitAST, GateNode, MeasurementNode, ResetNode, BarrierNode, ForLoopNode, IfStatementNode
 )
-from quantum_converters.base.circuit_validation import UnsupportedCircuitError, bounded_range
+from quantum_converters.base.circuit_validation import MAX_STATIC_RANGE, UnsupportedCircuitError, bounded_range
 from quantum_converters.base.safe_eval import NotStatic, static_eval
 
 
@@ -93,6 +93,7 @@ class PennyLaneASTVisitor(ast.NodeVisitor):
         self.unsupported_operations: Set[str] = set()
         self.mcm_vars: Dict[str, Any] = {}   # m = qml.measure(...) -> clbit index
         self.loop_stack: List[Tuple[str, Any, Any]] = []
+        self.unrolled_iterations: int = 0  # total loop iterations unrolled at parse time
         self.measured = False
 
     # Detect qml.device(..., wires=N) and track variable assignments
@@ -324,6 +325,32 @@ class PennyLaneASTVisitor(ast.NodeVisitor):
             self.generic_visit(node)
             return
 
+        # A loop whose body indexes a known array with the loop variable (inputs[i],
+        # weights[layer, i, 0]) cannot stay a symbolic loop: every iteration needs its
+        # own concrete angle. Unroll it, with a hard cap on the total work.
+        if (isinstance(range_start, int) and isinstance(range_end, int)
+                and self._body_indexes_known_array(node, loop_var)):
+            iterations = bounded_range(range_start, range_end)
+            self.unrolled_iterations += len(iterations)
+            if self.unrolled_iterations > MAX_STATIC_RANGE:
+                raise UnsupportedCircuitError(
+                    f"unrolling loops that index arrays would produce more than "
+                    f"{MAX_STATIC_RANGE:,} iterations (limit {MAX_STATIC_RANGE:,})"
+                )
+            had_old = loop_var in self.variables
+            old_val = self.variables.get(loop_var)
+            try:
+                for value in iterations:
+                    self.variables[loop_var] = value
+                    for stmt in node.body:
+                        self.visit(stmt)
+            finally:
+                if had_old:
+                    self.variables[loop_var] = old_val
+                else:
+                    self.variables.pop(loop_var, None)
+            return
+
         # Preserve loop structure for OpenQASM output instead of unrolling.
         old_val = self.variables.get(loop_var)
         self.variables[loop_var] = loop_var
@@ -401,6 +428,30 @@ class PennyLaneASTVisitor(ast.NodeVisitor):
         else:
             if VERBOSE:
                 vprint(f"[PennyLaneASTVisitor] Skipping empty if statement: {condition}")
+
+    @staticmethod
+    def _subscript_chain(node: ast.Subscript) -> Tuple[Optional[str], List[ast.AST]]:
+        """a[i][j, k] -> ('a', [i, j, k]); the base name is None if it is not a plain name."""
+        index_nodes: List[ast.AST] = []
+        cur: ast.AST = node
+        while isinstance(cur, ast.Subscript):
+            sl = cur.slice.value if isinstance(cur.slice, getattr(ast, "Index", ())) else cur.slice
+            index_nodes = (list(sl.elts) if isinstance(sl, ast.Tuple) else [sl]) + index_nodes
+            cur = cur.value
+        return (cur.id if isinstance(cur, ast.Name) else None), index_nodes
+
+    def _body_indexes_known_array(self, loop: ast.For, loop_var: str) -> bool:
+        """True if the loop body indexes a known numeric array using the loop variable."""
+        for sub in ast.walk(loop):
+            if not isinstance(sub, ast.Subscript):
+                continue
+            base, index_nodes = self._subscript_chain(sub)
+            if base is None or not isinstance(self.variables.get(base), (list, tuple)):
+                continue
+            if any(isinstance(n, ast.Name) and n.id == loop_var
+                   for idx in index_nodes for n in ast.walk(idx)):
+                return True
+        return False
 
     def _extract_range(self, node: ast.expr) -> Tuple[Optional[int], Optional[int]]:
         """Extract range start and end from a range() call."""
@@ -1025,29 +1076,22 @@ class PennyLaneASTVisitor(ast.NodeVisitor):
 
     def _handle_subscript_parameter(self, node: ast.Subscript):
         """Handle subscript access like theta[w], list[:n], or weights[layer, i, 0]."""
-        # ── 1. Determine the base name ───────────────────────────────────────
-        base_name: Optional[str] = None
-        if isinstance(node.value, ast.Name):
-            base_name = node.value.id
-        elif isinstance(node.value, ast.Subscript):
-            # Handle nested subscripts if necessary (e.g., x[i][j])
-            pass
-
-        # ── 2. Extract and resolve all indices ────────────────────────────────
-        # Python 3.8 wraps in ast.Index, 3.9+ doesn't.
-        # Multi-dimensional indexing (x[i, j]) uses ast.Tuple in the slice.
-        index_node = node.slice.value if hasattr(node.slice, 'value') and isinstance(node.slice, ast.Index) else node.slice
-        
-        indices_nodes = []
-        if isinstance(index_node, ast.Tuple):
-            indices_nodes = index_node.elts
-        else:
-            indices_nodes = [index_node]
+        # ── 1/2. Flatten a[i][j] / a[i, j] / a[i][j, k] into base name + index nodes ──
+        base_name, indices_nodes = self._subscript_chain(node)
 
         resolved_indices: List[Union[int, str]] = []
         for idx_node in indices_nodes:
             val = self._extract_parameter(idx_node)
-            if isinstance(val, (int, float)):
+            if not isinstance(val, (int, float, np.integer, np.floating)) or isinstance(val, bool):
+                try:  # index arithmetic such as (a + b) % 2, resolved without running user code
+                    val = static_eval(idx_node, self._numeric_variables())
+                except NotStatic:
+                    pass
+            if isinstance(val, bool):
+                resolved_indices.append(str(val))
+            elif isinstance(val, (int, np.integer)):
+                resolved_indices.append(int(val))
+            elif isinstance(val, (float, np.floating)) and float(val).is_integer():
                 resolved_indices.append(int(val))
             else:
                 resolved_indices.append(str(val))

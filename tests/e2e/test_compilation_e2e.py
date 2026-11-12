@@ -150,9 +150,6 @@ def _load_frontend_iteration_i_demo_cases() -> list[CompileCase]:
 # "unsupported operation" error. Not needed for the Qiskit-only workshop.
 KNOWN_GAPS = {
     "iteration_i_complete:pennylane": "MultiRZ/adjoint/ctrl not yet supported (previously silently dropped)",
-    # The QNN example indexes module-level arrays inside loops (inputs[i],
-    # weights[layer, i, 0]); the static PennyLane parser can't resolve that yet.
-    "official:quantum-neural-network": "static PennyLane parser can't index module-level arrays inside loops",
 }
 
 
