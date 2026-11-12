@@ -124,10 +124,9 @@ export default function ProfilePage() {
     let cancelled = false;
     authApi.getAdminAccessRequestStatus(token).then((response) => {
       if (cancelled) return;
-      if (!response.success || !response.data) {
-        toast.error(response.error || "Failed to check admin access request");
-        return;
-      }
+      // Status is secondary on this page: on failure keep the default
+      // rather than interrupting every profile visit with a toast.
+      if (!response.success || !response.data) return;
       setAdminAccessStatus(response.data.status);
     });
 
@@ -212,33 +211,43 @@ export default function ProfilePage() {
               <ProfileHeader />
 
               {user?.role !== "demo" && (
-                <section className="bg-quantum-glass-dark border border-white/10 rounded-xl p-5">
+                <section className="rounded-xl border border-qc-line bg-qc-surface p-5" aria-labelledby="admin-access-heading">
                   <div className="flex items-start gap-3">
-                    <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-quantum-blue-light" />
+                    <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-qc-accent" aria-hidden="true" />
                     <div className="min-w-0 flex-1">
-                      <h2 className="text-sm font-semibold text-white">
-                        Admin access
-                      </h2>
-                      <p className="mt-1 text-xs text-gray-400">
-                        {adminAccessStatus === "approved"
-                          ? "Your admin access is approved."
-                          : adminAccessStatus === "pending"
-                            ? "Your request is awaiting master administrator approval."
-                            : "Request admin access for your existing account. Approval is reviewed by the master administrator."}
-                      </p>
-                      {adminAccessStatus === "not_requested" &&
-                        user?.role !== "admin" && (
-                          <button
-                            type="button"
-                            onClick={handleAdminAccessRequest}
-                            disabled={adminRequestLoading}
-                            className="mt-3 rounded-lg bg-quantum-blue/20 px-3 py-2 text-xs font-medium text-quantum-blue-light transition-colors hover:bg-quantum-blue/30 disabled:cursor-not-allowed disabled:opacity-60"
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 id="admin-access-heading" className="text-sm font-semibold text-qc-fg">
+                          Admin access
+                        </h2>
+                        {adminAccessStatus !== "not_requested" && (
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                              adminAccessStatus === "approved"
+                                ? "bg-qc-success/10 text-qc-success"
+                                : "bg-qc-warning/10 text-qc-warning"
+                            }`}
                           >
-                            {adminRequestLoading
-                              ? "Submitting request..."
-                              : "Request admin access"}
-                          </button>
+                            {adminAccessStatus === "approved" ? "Approved" : "Pending"}
+                          </span>
                         )}
+                      </div>
+                      <p className="mt-1 text-sm leading-relaxed text-qc-muted">
+                        {adminAccessStatus === "approved"
+                          ? "Your account has admin access."
+                          : adminAccessStatus === "pending"
+                            ? "Your request is waiting for the master administrator. You can ask again after 24 hours if it is not approved."
+                            : "Ask the master administrator to give this account admin access. They approve requests by email."}
+                      </p>
+                      {adminAccessStatus === "not_requested" && user?.role !== "admin" && (
+                        <button
+                          type="button"
+                          onClick={handleAdminAccessRequest}
+                          disabled={adminRequestLoading}
+                          className="qc-btn qc-btn-secondary qc-btn-sm mt-3"
+                        >
+                          {adminRequestLoading ? "Sending request…" : "Request admin access"}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </section>
