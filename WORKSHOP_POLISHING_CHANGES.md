@@ -176,6 +176,13 @@ Residuals stated in the commits: the guest-cap count-then-create is not atomic (
 
 ## 4. Improvements
 
+### 4.0 Dependency security updates (merge `022461a`)
+
+- npm audit findings 22 to 12. Python minimum versions now clear of known advisories (fastapi, starlette, cryptography, python-multipart, pytest).
+- `python-jose` replaced by `PyJWT` (same HS256 tokens: sessions issued before the switch keep working). **Rebuild the backend image** so PyJWT is installed.
+- Lockfiles regenerated (about 190 in-range version bumps, chart.js 4.6). Verified: frontend build, backend tests, login, refresh, Run and the histogram.
+- Not done (major upgrades): Next.js 15, zod 4, KaTeX packages, lint tooling. The separate Cirq-RAG-Code-Assistant service was not touched.
+
 ### 4.1 UI and UX
 
 - **Shared design tokens (`26bbb1a`).** Theme-aware `--qc-*` palette (WCAG AA in both themes) exposed as Tailwind `qc-*` colours, a display type scale and the Instrument Sans display face. Pre-paint theme script, `prefers-reduced-motion` support, per-route titles and canonical URLs.
@@ -192,6 +199,7 @@ Residuals stated in the commits: the guest-cap count-then-create is not atomic (
   - auto-fit to the panel, zoom and fit controls, hover tooltip, click for details, SVG export.
 
   The 3D view uses the same layout, renders on demand (no GPU work while idle), frames the camera to the circuit, and draws proper CNOT rings, control spheres and swap crosses. OpenQASM files now draw too (they showed nothing before).
+- **Diagram styling (`07a666e`).** `|0⟩` at the start of each wire, a numbered time axis with alternating bands, double classical wires after the final measurements (lined up at the end), and colour by role with a legend: single-qubit (indigo), rotation (cyan), entangling incl. CNOT control-to-target (pink), measurement (amber).
 - **Navbar logo (`1aa8977`).** Larger and vertically centred with the nav links.
 - **Copy (`a5eb196`, `78cfc4f`).** No "demo account" wording, no version footer, no shared credentials shown, plain copy instead of exclamation-mark prompts.
 
@@ -358,7 +366,7 @@ Four merge commits group the UI work. Each can be reverted as a unit:
 |---|---|
 | `2909b2e` | Redesign of non-IDE pages: landing, docs, examples, about, auth, profile and achievements, 404, shared `qc-*` palette. IDE unchanged. |
 | `659b433` | UI polish: one brand across site and IDE, live hero run, Templates picker, desktop-width layout. |
-| `39f1e34` | Circuit visualization rewrite (2D and 3D), parse caching, navbar logo. |
+| `39f1e34` | Circuit visualization rewrite (2D and 3D), parse caching, navbar logo. Diagram styling follow-up is the single commit `07a666e` (`git revert 07a666e`). |
 | `df61e3c` | UI polish round 2: themed tabs, light-theme coverage, inline New File, honest stats, resolution scaling, readable run errors, site audit fixes. |
 
 ```bash
