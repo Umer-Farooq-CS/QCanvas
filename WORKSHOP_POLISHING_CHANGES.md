@@ -201,6 +201,7 @@ Residuals stated in the commits: the guest-cap count-then-create is not atomic (
 |---|---|---|
 | Narrow store selectors and `memo` across the IDE | Typing no longer re-renders the whole IDE | `2588b8c` |
 | Memoised d3 diagram colours | The diagram no longer redraws per keystroke | `2588b8c` |
+| Qiskit Aer simulator and pass manager cached per thread | A Run on the qiskit backend: 116 ms to 6.9 ms; 4-worker throughput 5 to 26.8 runs/s with 0 errors | (see 9.2) |
 | Circuit diagram: memoised SVG glyphs, cached parses (32 entries), stale requests aborted, 350 ms debounce, 3D `frameloop="demand"` with capped DPR | Hover re-renders one gate; tab switches and undo show the diagram instantly; an idle 3D view costs nothing | `26bfd4b` |
 | Lazy-loaded chart.js, d3 diagram, markdown/KaTeX and the Cirq assistant | `/app` first-load JS 551 kB to 245 kB (`2588b8c`). The CHANGELOG records 238 kB; the team's current measurement is about 235 kB. All figures are in the same range. | `2588b8c` |
 | Landing page as Server Component | `/` first-load JS 197 kB to 118 kB | `2909b2e` |
@@ -305,11 +306,12 @@ Defaults are those in the README and commit messages. Settings live in `backend/
 | `CLIENT_IP_HEADER` | empty (unused) | Optional header carrying the real client IP (e.g. `CF-Connecting-IP`). Honoured only from trusted proxies. |
 | `SIM_MAX_QUBITS` / `QSIM_MAX_QUBITS` | 24 | Qubit cap enforced on the built circuit. |
 | `SIM_MAX_SHOTS` | 100000 | Shot cap. |
+| `SIM_QUEUE_TIMEOUT_SECONDS` | 30 | A Run waiting longer than this for a free simulator slot gets a quick "server busy" instead of hanging (was 60). |
 | `HYBRID_MAX_EXECUTION_TIME` | 60 s | Child process is killed after this; also capped server-side. |
 | `USER_CODE_MAX_CONCURRENCY` | CPU count | Concurrent sandboxed processes per worker. README suggests 1 to 2 for about 200 users. Excess requests get 503. |
 | `USER_CODE_RUN_AS_UID` | `nobody` when root | Privilege drop for user code. Only counts as isolation when the API is root and the target is not root. |
 | `USER_CODE_ALLOW_SAME_UID` | false | Escape hatch for non-root deployments. Without it (or `ENVIRONMENT=development`), hybrid execution is refused. |
-| `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | 5 / 5 | Per worker. Postgres needs about `WEB_CONCURRENCY x (DB_POOL_SIZE + DB_MAX_OVERFLOW)` connections plus the audit writer. |
+| `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | 10 / 10 | Per worker (raised from 5 / 5 after the load test exhausted the pool). 4 workers x 20 = 80, under Postgres's default 100; with 6+ workers raise `max_connections` or add a pooler. Postgres needs about `WEB_CONCURRENCY x (DB_POOL_SIZE + DB_MAX_OVERFLOW)` connections plus the audit writer. |
 | `DB_POOL_TIMEOUT` / `DB_POOL_RECYCLE` / `DB_POOL_PRE_PING` / `DB_CONNECT_TIMEOUT` | 10 s / 1800 s / true / 10 s | Fail fast when the pool is exhausted, recycle before idle timeouts, detect dead connections. |
 | `ENVIRONMENT` | `production` | Fail-closed default. Only a local `.env` should set `development`, which also accepts any `localhost` / `127.0.0.1` port as a CORS origin. Never set `development` on a server. |
 | `NEXT_PUBLIC_API_BASE` (frontend) | `https://api.qcanvas.codes` | API URL for non-localhost deployments. |
@@ -329,6 +331,8 @@ Defaults are those in the README and commit messages. Settings live in `backend/
 ---
 
 ## 8. Known limitations and not done
+
+- **Do not run the session on `docker compose up` as is.** The base compose file starts `uvicorn --reload` (one process). In the 200-attendee load test it collapsed at about 100-150 users. Use `docker compose -f docker-compose.yml -f docker-compose.workshop.yml up -d postgres redis backend` (production `start.py`, 4 workers), or the Docker image's default command in AWS. Results: `scripts/loadtest/README.md`.
 
 - **PennyLane QNN example: fixed (`8463195`).** Static loops that index module-level arrays are now unrolled (bounded), and the example matches real PennyLane probabilities to within 1e-7 on all three backends. PennyLane `MultiRZ`, `adjoint` and `ctrl` still raise instead of being converted (`a77300d`, `2e2dbfb`).
 - **No per-account login lockout.** Auth limits are keyed on client IP, not on the targeted account.

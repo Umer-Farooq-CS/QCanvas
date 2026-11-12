@@ -1,0 +1,13 @@
+# Production-style backend for a live session on local Docker.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.workshop.yml up -d postgres redis backend
+#
+# The base file runs `uvicorn --reload` (one process, for development). In a
+# 200-user load test that collapsed at ~100-150 users; start.py with several
+# workers served 200 users with zero errors.
+services:
+  backend:
+    working_dir: /app
+    command: ["python", "backend/start.py"]
+    environment:
+      - WEB_CONCURRENCY=${WEB_CONCURRENCY:-4}

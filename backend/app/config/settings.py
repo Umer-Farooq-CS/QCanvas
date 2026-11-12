@@ -154,7 +154,7 @@ class Settings(BaseSettings):
     # Max simulations running at once PER WORKER PROCESS; extra requests queue.
     SIM_MAX_CONCURRENCY: int = 2
     # How long a queued simulation waits for a slot before getting a 503 "busy".
-    SIM_QUEUE_TIMEOUT_SECONDS: float = 60.0
+    SIM_QUEUE_TIMEOUT_SECONDS: float = 30.0
     # Same idea for /api/converter/* conversions.
     CONVERT_MAX_CONCURRENCY: int = 4
     CONVERT_QUEUE_TIMEOUT_SECONDS: float = 60.0
@@ -163,8 +163,8 @@ class Settings(BaseSettings):
     # Database connection pool (per worker process!). Total connections to
     # Postgres = WEB_CONCURRENCY * (DB_POOL_SIZE + DB_MAX_OVERFLOW) + audit writer.
     # ------------------------------------------------------------------
-    DB_POOL_SIZE: int = 5
-    DB_MAX_OVERFLOW: int = 5
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 10
     DB_POOL_TIMEOUT: int = 10
     DB_POOL_RECYCLE: int = 1800
     DB_POOL_PRE_PING: bool = True

@@ -5,9 +5,11 @@ Provides endpoints for executing Python code with quantum circuits
 in a sandboxed environment with qcanvas and qsim access.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+
+from app.core.middleware import limiter, limit_from_settings
 from typing import Optional, List, Dict, Any
 import asyncio
 import logging
@@ -192,7 +194,8 @@ def _ensure_fastqsim_session() -> None:
 
 
 @router.post("/execute", response_model=HybridExecuteResponse)
-async def execute_hybrid(request: HybridExecuteRequest):
+@limiter.limit(limit_from_settings("RATE_LIMIT_COMPUTE_PER_USER", "RATE_LIMIT_COMPUTE_PER_IP"))
+async def execute_hybrid(request: Request, payload: HybridExecuteRequest):
     """
     Execute Python code with quantum circuits in a sandboxed environment.
     
@@ -206,7 +209,7 @@ async def execute_hybrid(request: HybridExecuteRequest):
     Security restrictions are applied based on config settings.
 
     The code runs in a separate, resource-limited child process that is killed
-    after min(request.timeout, HYBRID_MAX_EXECUTION_TIME) seconds.  When all
+    after min(payload.timeout, HYBRID_MAX_EXECUTION_TIME) seconds.  When all
     execution slots stay busy for USER_CODE_QUEUE_TIMEOUT seconds the endpoint
     answers HTTP 503 with a "server busy, try again" message.
 
@@ -236,7 +239,7 @@ async def execute_hybrid(request: HybridExecuteRequest):
         )
     
     try:
-        exec_timeout = effective_timeout(request.timeout)
+        exec_timeout = effective_timeout(payload.timeout)
 
         # Security: the child runs untrusted user code, so it must never receive
         # the server's FastQSim credentials (any user could print them). Hybrid
@@ -249,8 +252,8 @@ async def execute_hybrid(request: HybridExecuteRequest):
         outcome = await run_isolated_async(
             execute_sandboxed_job,
             kwargs={
-                "code": request.code,
-                "framework_hint": request.framework,
+                "code": payload.code,
+                "framework_hint": payload.framework,
                 "online_mode": online_mode,
             },
             timeout=exec_timeout,

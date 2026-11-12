@@ -1,0 +1,4 @@
+# Raw run output (regenerate with the commands in README.md)
+*.csv
+*.log
+guest_summary_*.txt

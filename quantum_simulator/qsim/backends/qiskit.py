@@ -1,9 +1,27 @@
+import threading
 from typing import Any, Dict, Optional
 import numpy as np
 from .base import BaseBackend
 from qiskit_aer import Aer
 
 _ALL_QUBITS_REG = "qsim_all_qubits"
+
+# Building the Aer simulator and its preset pass manager is the expensive part
+# of a run: transpile(qc, backend) rebuilds Aer's Target ~150 times per call
+# (~110-190 ms for a 2-qubit Bell circuit vs ~6 ms on the other backends).
+# Build both once per thread and reuse them; the compiled output is identical
+# because it is the same pass manager transpile() would construct.
+_local = threading.local()
+
+
+def _aer_and_pass_manager():
+    cached = getattr(_local, "aer", None)
+    if cached is None:
+        from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
+        backend = Aer.get_backend("aer_simulator")
+        pm = generate_preset_pass_manager(optimization_level=0, backend=backend)
+        cached = _local.aer = (backend, pm)
+    return cached
 
 
 class QiskitBackend(BaseBackend):
@@ -47,10 +65,10 @@ class QiskitBackend(BaseBackend):
             circuit: qiskit.QuantumCircuit from visitor
             shots: Number of shots (0 for statevector)
         """
-        from qiskit import transpile, ClassicalRegister
+        from qiskit import ClassicalRegister
 
+        backend, pass_manager = _aer_and_pass_manager()
         if shots > 0:
-            backend = self.Aer.get_backend('aer_simulator')
             qc = circuit.copy()
             run_kwargs = {'shots': shots}
             if seed is not None:
@@ -75,7 +93,7 @@ class QiskitBackend(BaseBackend):
                     reg, idx = loc.registers[0]
                     wanted.append((reg.name, idx))
 
-            qc_transpiled = transpile(qc, backend, optimization_level=0)
+            qc_transpiled = pass_manager.run(qc)
             result = backend.run(qc_transpiled, **run_kwargs).result()
             counts_raw = result.get_counts()
 
@@ -95,11 +113,10 @@ class QiskitBackend(BaseBackend):
         # Exact statevector mode
         # ('statevector_simulator' already saves the state; adding save_statevector()
         #  there fails with "Duplicate key statevector", so use aer_simulator.)
-        backend = self.Aer.get_backend('aer_simulator')
         qc = circuit.copy()
         qc.remove_final_measurements(inplace=True)
         qc.save_statevector()
-        qc_transpiled = transpile(qc, backend, optimization_level=0)
+        qc_transpiled = pass_manager.run(qc)
         result = backend.run(qc_transpiled).result()
         statevector = result.get_statevector()
 
