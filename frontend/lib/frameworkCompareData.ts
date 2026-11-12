@@ -33,7 +33,27 @@ export interface FrameworkProgram {
   ops: Record<number, OpId>;
 }
 
-export const PROGRAMS: ReadonlyArray<FrameworkProgram> = [
+/**
+ * Which operation each source line performs, found by matching the code
+ * itself (hand-counted line numbers drifted: PennyLane was off by one).
+ * qml.counts() is where PennyLane measures, so it maps to "measure".
+ */
+const OP_PATTERNS: ReadonlyArray<[OpId, RegExp]> = [
+  ["h", /\.h\(|cirq\.H\(|qml\.Hadamard\(/],
+  ["cx", /\.cx\(|cirq\.CNOT\(|qml\.CNOT\(/],
+  ["measure", /\.measure\(|cirq\.measure\(|qml\.counts\(/],
+];
+
+function opsFrom(code: string): Record<number, OpId> {
+  const ops: Record<number, OpId> = {};
+  code.split("\n").forEach((line, i) => {
+    const hit = OP_PATTERNS.find(([, re]) => re.test(line));
+    if (hit) ops[i] = hit[0];
+  });
+  return ops;
+}
+
+const SOURCES: ReadonlyArray<Omit<FrameworkProgram, "ops">> = [
   {
     id: "qiskit",
     name: "Qiskit",
@@ -44,7 +64,6 @@ qc = QuantumCircuit(2, 2)
 qc.h(0)
 qc.cx(0, 1)
 qc.measure([0, 1], [0, 1])`,
-    ops: { 3: "h", 4: "cx", 5: "measure" },
   },
   {
     id: "cirq",
@@ -58,7 +77,6 @@ circuit = cirq.Circuit(
     cirq.CNOT(q0, q1),
     cirq.measure(q0, q1),
 )`,
-    ops: { 4: "h", 5: "cx", 6: "measure" },
   },
   {
     id: "pennylane",
@@ -73,9 +91,10 @@ def bell():
     qml.Hadamard(wires=0)
     qml.CNOT(wires=[0, 1])
     return qml.counts()`,
-    ops: { 7: "h", 8: "cx", 9: "measure" },
   },
 ];
+
+export const PROGRAMS: ReadonlyArray<FrameworkProgram> = SOURCES.map((p) => ({ ...p, ops: opsFrom(p.code) }));
 
 const QISKIT_CIRQ_QASM = `OPENQASM 3.0;
 include "stdgates.inc";
