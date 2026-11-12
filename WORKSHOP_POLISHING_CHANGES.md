@@ -425,3 +425,23 @@ Oldest first, from `git log --reverse main..workshop-polishing`.
 | 42 | `39f1e34` | Merge circuit visualization rewrite (workshop-viz) |
 
 Suggested review order for a short session: `78cfc4f` (guest workspaces), `a5d3413` and `2e2dbfb` (sandbox), `7f787ae` (correctness), `8213465` (capacity), then the config table in section 7.
+
+---
+
+## 10. Integration with master (2026-11-12)
+
+`master` had 18 commits not in this branch. Backup before integrating: `backup/master-2026-11-12` (= `556d007`).
+
+**Taken from master**
+- Admin access request (Irtaza): existing users request admin rights from their profile; the master admin approves by email. Migration `d9f4b1a2c6e8` (adds `users.admin_access_requested_at`). Now covered by 6 API tests; profile panel restyled. **Needs `alembic upgrade head` on deploy, and `RESEND_API_KEY` + `MASTER_ADMIN_EMAIL` on the server, otherwise the request reports success but no email is sent.**
+- Hussain's research papers (now `docs/research-papers/`), FYP docs, benchmark additions (`docs/archive/benchmarks/`), Cirq-RAG evaluation files.
+- Ideas re-implemented for the current code: stale example hand-off (examples now expire after 10 minutes), Circuit/Hybrid badge in the editor menu bar, `.env.example` email/OTP variables, `.gitignore` entries for DB dumps and keys, production guard for the load test.
+- Hybrid templates (Bell, QRNG) rewritten to use `qsim.run` (the FastQSim cloud versions could not run) and verified.
+
+**Not taken, and why**
+- Hard-coded 5000/minute rate limits: this branch's limits are settings-based and load-tested.
+- `backend/database_scripts/`: the moved scripts could not import the app (wrong path); `backend/scripts/` versions work.
+- `LICENSE` deletion (licence is proprietary), `psycopg[binary]` (driver crash already fixed), `kernel_ws.py` (not imported anywhere), `Load-Test/` (superseded by `scripts/loadtest/`).
+
+**Also fixed during integration**: three regexes broken by stray control characters (Errors tab line numbers were always 0) and `backend/scripts/create_user.py` crashing on an obsolete role.
+
