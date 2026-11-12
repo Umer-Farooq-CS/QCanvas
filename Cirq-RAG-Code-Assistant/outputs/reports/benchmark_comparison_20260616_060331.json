@@ -1,0 +1,185 @@
+{
+  "benchmark_run": "2026-06-16T06:11:40.092574",
+  "phases": [
+    {
+      "phase": "Phase 1 - Curated KB (140 entries)",
+      "kb_size": 140,
+      "timestamp": "2026-06-16T06:06:40.319853",
+      "total_prompts": 3,
+      "passed": 2,
+      "failed": 1,
+      "pass_rate": 0.6667,
+      "avg_quality_score": 0.8333,
+      "avg_latency_s": 44.4,
+      "tier_breakdown": {
+        "basic": {
+          "count": 3,
+          "passed": 2,
+          "pass_rate": 0.6666666666666666,
+          "avg_quality": 0.8333333333333334
+        }
+      },
+      "prompt_results": [
+        {
+          "id": "BM-001",
+          "tier": "basic",
+          "query": "Create a 2-qubit Bell state circuit in Cirq",
+          "algorithm": "bell_state",
+          "success": true,
+          "validation_passed": true,
+          "passed": true,
+          "latency_s": 38.95,
+          "code_quality": {
+            "score": 1.0,
+            "syntax_valid": true,
+            "compilation_success": true,
+            "has_measurement": true,
+            "circuit_non_empty": true,
+            "correct_imports": true
+          },
+          "code_length": 474,
+          "code_lines": 17,
+          "context_used": 0,
+          "errors": [
+            "Optimization iteration 1 failed: Failed to compile code: [{'type': 'execution_error', 'message': '__enter__', 'traceback': 'Traceback (most recent call last):\\n  File \"C:\\\\MyProperty\\\\UNI\\\\QCanvas\\\\QCanvas\\\\Cirq-RAG-Code-Assistant\\\\src\\\\tools\\\\compiler.py\", line 217, in _execute_code\\n    exec(code, namespace)\\n  File \"<string>\", line 8, in <module>\\nAttributeError: __enter__\\n'}]"
+          ]
+        },
+        {
+          "id": "BM-002",
+          "tier": "basic",
+          "query": "Create a 3-qubit GHZ state circuit in Cirq",
+          "algorithm": "ghz",
+          "success": true,
+          "validation_passed": false,
+          "passed": false,
+          "latency_s": 55.26,
+          "code_quality": {
+            "score": 0.5,
+            "syntax_valid": true,
+            "compilation_success": false,
+            "has_measurement": false,
+            "circuit_non_empty": true,
+            "correct_imports": true
+          },
+          "code_length": 488,
+          "code_lines": 18,
+          "context_used": 0,
+          "errors": [
+            "Optimization iteration 1 failed: Failed to compile code: []"
+          ]
+        },
+        {
+          "id": "BM-003",
+          "tier": "basic",
+          "query": "Apply a Hadamard gate to a single qubit and measure it in Cirq",
+          "algorithm": "single_qubit",
+          "success": true,
+          "validation_passed": true,
+          "passed": true,
+          "latency_s": 38.98,
+          "code_quality": {
+            "score": 1.0,
+            "syntax_valid": true,
+            "compilation_success": true,
+            "has_measurement": true,
+            "circuit_non_empty": true,
+            "correct_imports": true
+          },
+          "code_length": 510,
+          "code_lines": 16,
+          "context_used": 0,
+          "errors": [
+            "Optimization iteration 1 failed: Failed to compile code: []"
+          ]
+        }
+      ]
+    },
+    {
+      "phase": "Phase 2 - Expanded KB (700 entries)",
+      "kb_size": 700,
+      "timestamp": "2026-06-16T06:11:40.092030",
+      "total_prompts": 3,
+      "passed": 2,
+      "failed": 1,
+      "pass_rate": 0.6667,
+      "avg_quality_score": 0.7667,
+      "avg_latency_s": 34.67,
+      "tier_breakdown": {
+        "basic": {
+          "count": 3,
+          "passed": 2,
+          "pass_rate": 0.6666666666666666,
+          "avg_quality": 0.7666666666666666
+        }
+      },
+      "prompt_results": [
+        {
+          "id": "BM-001",
+          "tier": "basic",
+          "query": "Create a 2-qubit Bell state circuit in Cirq",
+          "algorithm": "bell_state",
+          "success": true,
+          "validation_passed": false,
+          "passed": false,
+          "latency_s": 40.31,
+          "code_quality": {
+            "score": 0.5,
+            "syntax_valid": true,
+            "compilation_success": false,
+            "has_measurement": false,
+            "circuit_non_empty": true,
+            "correct_imports": true
+          },
+          "code_length": 580,
+          "code_lines": 23,
+          "context_used": 0,
+          "errors": []
+        },
+        {
+          "id": "BM-002",
+          "tier": "basic",
+          "query": "Create a 3-qubit GHZ state circuit in Cirq",
+          "algorithm": "ghz",
+          "success": true,
+          "validation_passed": true,
+          "passed": true,
+          "latency_s": 48.2,
+          "code_quality": {
+            "score": 0.8,
+            "syntax_valid": true,
+            "compilation_success": true,
+            "has_measurement": false,
+            "circuit_non_empty": true,
+            "correct_imports": true
+          },
+          "code_length": 595,
+          "code_lines": 20,
+          "context_used": 0,
+          "errors": []
+        },
+        {
+          "id": "BM-003",
+          "tier": "basic",
+          "query": "Apply a Hadamard gate to a single qubit and measure it in Cirq",
+          "algorithm": "single_qubit",
+          "success": true,
+          "validation_passed": true,
+          "passed": true,
+          "latency_s": 15.49,
+          "code_quality": {
+            "score": 1.0,
+            "syntax_valid": true,
+            "compilation_success": true,
+            "has_measurement": true,
+            "circuit_non_empty": true,
+            "correct_imports": true
+          },
+          "code_length": 523,
+          "code_lines": 22,
+          "context_used": 0,
+          "errors": []
+        }
+      ]
+    }
+  ]
+}

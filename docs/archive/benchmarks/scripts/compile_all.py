@@ -290,10 +290,16 @@ def run_compilation(
                 edges_str = str(edges_list)
                 source = source.replace('edges = [(i, (i + 1) % n) for i in range(n)]', f'edges = {edges_str}')
             elif algo_name == 'grovers_algorithm':
-                # For Grover, replace MARKED_STATES
-                marked_dict = {2: "11", 3: "101", 4: "1011", 5: "10110", 6: "101101"}
+                # For Grover, replace MARKED_STATES — covers n=2–15 (nb08 extended range)
+                marked_dict = {
+                    2: "11", 3: "101", 4: "1011", 5: "10110", 6: "101101",
+                    7: "1011010", 8: "10110101", 9: "101101011",
+                    10: "1011010110", 11: "10110101101", 12: "101101011010",
+                    13: "1011010110101", 14: "10110101101011", 15: "101101011010110",
+                }
                 marked = marked_dict[n_qubits]
                 source = source.replace('marked         = MARKED_STATES[n]', f'marked = "{marked}"')
+
             elif algo_name == 'vqe':
                 # For VQE, replace theta list
                 theta_list = [0.7853981633974483] * n_qubits

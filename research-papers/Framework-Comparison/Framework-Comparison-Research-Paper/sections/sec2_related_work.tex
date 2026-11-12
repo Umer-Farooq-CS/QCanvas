@@ -1,0 +1,50 @@
+% ============================================================
+%  Section 2 — Related Work  (~1 page)
+% ============================================================
+\section{Related Work}
+
+\subsection{Framework-Specific Benchmarking}
+A substantial body of work characterises the performance of a single
+quantum SDK in isolation.
+Studies of Qiskit's transpiler optimisation levels show that higher
+optimisation passes reduce CNOT counts by 10--40\% on typical circuits,
+but these evaluations run exclusively on Qiskit's Aer simulator and
+cannot be compared directly to equivalent Cirq or PennyLane measurements.
+Similarly, PennyLane benchmarks in the variational literature report
+gradient-evaluation throughput on its \texttt{default.qubit} backend, a
+metric with no direct counterpart in Qiskit or Cirq.
+Framework-specific benchmarks are valuable for intra-framework
+optimisation studies; they do not establish cross-framework rankings.
+
+\subsection{Cross-Framework Comparisons}
+Multi-framework studies exist but carry the simulator confound described
+above.
+The most common experimental design pairs each framework with its native
+backend (Qiskit + Aer, Cirq + cirq-google simulator,
+PennyLane + default.qubit) and reports fidelity or runtime figures side
+by side.
+An observed difference in simulation time between Qiskit and Cirq in
+such a study conflates transpiler latency, compiled circuit size, and the
+throughput of two distinct simulators---three variables that cannot be
+disentangled post hoc.
+A second limitation of existing cross-framework studies is scope: most
+restrict comparison to one or two algorithms (typically Bell state and
+Quantum Fourier Transform) without systematically varying qubit count,
+which precludes scaling analysis.
+To our knowledge, this paper presents the first study that routes all
+circuits from all frameworks through a single common backend before
+comparison.
+
+\subsection{Quantum Volume and Holistic Benchmarks}
+Cross et~al.\ introduced Quantum Volume (QV) as a single-number
+estimator of a device's effective circuit-processing
+capacity~\cite{cross2019validating}.
+QV integrates gate fidelity, connectivity, and compilation quality into
+one figure, making it attractive as a holistic comparison metric.
+QPack-style composite scores extend this idea to multi-dimensional
+profiles that separate compilation speed, scalability, accuracy, and
+capacity into independently interpretable sub-scores.
+We apply QV in a structure-implied, simulator-agnostic mode using a
+depolarizing noise model~\cite{nielsen2010quantum}, which differs from
+IBM's original hardware-measured QV but allows fair cross-framework
+comparison on a common backend.

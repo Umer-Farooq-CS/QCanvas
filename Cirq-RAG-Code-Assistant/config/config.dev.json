@@ -1,0 +1,169 @@
+{
+  "app": {
+    "name": "Cirq-RAG-Code-Assistant",
+    "version": "0.1.0",
+    "debug": false,
+    "environment": "local_benchmark"
+  },
+  "aws": {
+    "embeddings": {
+      "model_id": "",
+      "embedding_dimension": 768,
+      "request_delay_seconds": 0
+    }
+  },
+  "models": {
+    "embedding": {
+      "provider": "local",
+      "model_name": "BAAI/bge-base-en-v1.5",
+      "embedding_dimension": 768,
+      "device": "cpu",
+      "batch_size": 32,
+      "cache_folder": ".cache/embeddings"
+    },
+    "fine_tuning": {
+      "use_fine_tuned_model": false,
+      "fine_tuned_model_path": null,
+      "fine_tuning_dataset_path": null
+    }
+  },
+  "rag": {
+    "knowledge_base": {
+      "path": "data/knowledge_base",
+      "size_target": 700
+    },
+    "vector_store": {
+      "type": "faiss",
+      "index_path": "data/models/vector_index",
+      "use_gpu": false,
+      "pgvector": {
+        "schema": "cirq_rag",
+        "table": "rag_knowledge_base",
+        "dsn_env": "CIRQ_RAG_DB_URL"
+      }
+    },
+    "retrieval": {
+      "top_k_results": 5,
+      "similarity_threshold": 0.7,
+      "chunk_size": 512,
+      "chunk_overlap": 50
+    }
+  },
+  "agents": {
+    "general": {
+      "max_retries": 3,
+      "timeout_seconds": 300,
+      "parallel_execution": false
+    },
+    "designer": {
+      "enabled": true,
+      "use_rag": true,
+      "model": {
+        "provider": "ollama",
+        "model": "qwen2.5-coder:7b-instruct-q4_K_M",
+        "temperature": 0.2,
+        "max_tokens": 2000
+      }
+    },
+    "optimizer": {
+      "enabled": true,
+      "level": "balanced",
+      "use_rl": false,
+      "rl_reward_weights": {
+        "circuit_depth": -0.3,
+        "two_qubit_gates": -0.3,
+        "fidelity": 0.4
+      },
+      "rl_iterations": 10,
+      "model": {
+        "provider": "ollama",
+        "model": "qwen2.5-coder:7b-instruct-q4_K_M",
+        "temperature": 0.2,
+        "max_tokens": 2000
+      }
+    },
+    "validator": {
+      "enabled": true,
+      "mode": "local",
+      "validation_level": "comprehensive",
+      "llm_enabled": true,
+      "default_shots": 1024,
+      "default_backend": "cirq",
+      "model": {
+        "provider": "ollama",
+        "model": "qwen2.5-coder:7b-instruct-q4_K_M",
+        "temperature": 0.2,
+        "max_tokens": 2000
+      }
+    },
+    "qcanvas": {
+      "backend_url": "http://localhost:8000",
+      "timeout_seconds": 30
+    },
+    "educational": {
+      "enabled": true,
+      "model": {
+        "provider": "ollama",
+        "model": "qwen2.5-coder:7b-instruct-q4_K_M",
+        "temperature": 0.2,
+        "max_tokens": 1000
+      }
+    }
+  },
+  "tools": {
+    "compiler": {
+      "validate_syntax": true,
+      "check_imports": true
+    },
+    "simulator": {
+      "type": "simulator",
+      "repetitions": 1000,
+      "use_noise": false
+    },
+    "analyzer": {
+      "calculate_connectivity": true,
+      "detect_optimizations": true
+    }
+  },
+  "paths": {
+    "data_dir": "data",
+    "datasets_dir": "data/datasets",
+    "knowledge_base_dir": "data/knowledge_base",
+    "models_dir": "data/models",
+    "outputs_dir": "outputs",
+    "logs_dir": "outputs/logs",
+    "reports_dir": "outputs/reports",
+    "artifacts_dir": "outputs/artifacts",
+    "cache_dir": ".cache",
+    "embedding_cache_dir": ".cache/embeddings"
+  },
+  "pytorch": {
+    "cuda_visible_devices": "0",
+    "torch_device": "cpu",
+    "torch_deterministic": false,
+    "torch_benchmark": true,
+    "torch_memory_fraction": 0.8
+  },
+  "evaluation": {
+    "target_syntax_accuracy": 0.90,
+    "evaluation_batch_size": 32,
+    "benchmark_dataset_path": "data/datasets/benchmark_prompts_v2.jsonl",
+    "benchmark_algorithms": [
+      "bell_state", "ghz", "grover", "qft", "teleportation",
+      "vqe", "qaoa", "deutsch_jozsa", "bernstein_vazirani",
+      "amplitude_estimation", "phase_estimation", "qec",
+      "noise_model", "parametric", "explanation"
+    ],
+    "enable_ablations": false,
+    "ablation_variants": []
+  },
+  "logging": {
+    "log_level": "INFO",
+    "log_file": "outputs/logs/cirq_rag_local.log",
+    "log_format": "text",
+    "enable_console_logging": true,
+    "enable_file_logging": true,
+    "max_log_file_size": "10MB",
+    "log_backup_count": 5
+  }
+}

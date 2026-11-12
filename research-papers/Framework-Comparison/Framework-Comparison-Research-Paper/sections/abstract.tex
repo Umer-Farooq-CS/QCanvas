@@ -1,0 +1,32 @@
+% ============================================================
+%  Abstract  (~200 words, no section heading per LNCS style)
+% ============================================================
+Cross-framework comparisons of quantum software development kits (SDKs)
+are methodologically compromised by a simulator confound: each framework
+is typically evaluated on its own native backend, making it impossible
+to attribute observed differences to the transpiler rather than the
+simulator.
+We resolve this by introducing a unified benchmarking pipeline built on
+QCanvas, which compiles circuits from any source framework to OpenQASM
+3.0 and routes all execution through a single QSim statevector backend.
+We apply this pipeline to 12 quantum algorithms across 3 frameworks
+(Qiskit, Cirq, PennyLane), up to 8 qubits, at 4096 shots, and across
+6 metric dimensions.
+Three findings stand out.
+First, Qiskit and Cirq are virtually equivalent in compiled circuit
+quality (QPack $S_{\text{overall}}$ 58.80 vs.\ 58.79), differing only
+in ancilla-placement strategy on error-correction circuits.
+Second, PennyLane exhibits super-linear gate scaling on oracle and
+search algorithms: for Grover's algorithm the power-law exponent reaches
+$a{=}2.21$, yielding 216 gates at 6 qubits versus 18 for Qiskit and
+Cirq.
+Third, Jensen--Shannon divergence equals exactly 1.000 between PennyLane
+and both other frameworks for six algorithms at 4 or more qubits,
+indicating fully non-overlapping measurement distributions---a
+systematic decomposition incompatibility, not noise.
+NISQ practitioners should treat Qiskit and Cirq as interchangeable in
+circuit-quality terms and select PennyLane only when its differentiable
+programming model is required, accepting the overhead at scale.
+
+\keywords{quantum benchmarking \and framework comparison \and
+OpenQASM 3.0 \and NISQ \and circuit transpilation}

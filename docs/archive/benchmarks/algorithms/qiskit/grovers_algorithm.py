@@ -1,10 +1,10 @@
 """
-Qiskit Implementation: Grover's Algorithm (variable: 2–6 qubits)
+Qiskit Implementation: Grover's Algorithm (variable: 2–15 qubits)
 Paper 5 – Cross-Framework Quantum Algorithm Benchmarking
 
 Algorithm: Grover's Search Algorithm
 Category: Search
-Qubit Range: 2–6
+Qubit Range: 2–6 (simulation), 7–15 (compile-only, nb08)
 Framework: Qiskit (idiomatic style)
 
 PRIMARY CASE STUDY for Paper 5 (Case Study 2).
@@ -24,13 +24,25 @@ Called by:
 import numpy as np
 from qiskit import QuantumCircuit
 
-# Fixed marked states — must match across Cirq and PennyLane files
+# Fixed marked states — must match across Cirq and PennyLane files.
+# n=2–6: used in full simulation benchmarks (nb01).
+# n=7–15: used in compilation-only benchmarks (nb08) — no statevector sim.
+# Pattern: alternating 10... truncated to length n.
 MARKED_STATES = {
-    2: "11",
-    3: "101",
-    4: "1011",
-    5: "10110",
-    6: "101101",
+    2:  "11",
+    3:  "101",
+    4:  "1011",
+    5:  "10110",
+    6:  "101101",
+    7:  "1011010",
+    8:  "10110101",
+    9:  "101101011",
+    10: "1011010110",
+    11: "10110101101",
+    12: "101101011010",
+    13: "1011010110101",
+    14: "10110101101011",
+    15: "101101011010110",
 }
 
 
@@ -115,7 +127,8 @@ def get_circuit(n: int = 2):
             the marked state with probability > 80% (optimal iterations).
     """
     if n not in MARKED_STATES:
-        raise ValueError(f"n must be in {sorted(MARKED_STATES.keys())}, got {n}")
+        raise ValueError(f"n must be in {sorted(MARKED_STATES.keys())}, got {n}.\n"
+                         f"For n>6, use nb08 (compile-only mode — no simulation).")
 
     marked = MARKED_STATES[n]
     num_iterations = max(1, int(np.floor(np.pi / 4 * np.sqrt(2 ** n))))

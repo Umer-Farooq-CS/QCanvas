@@ -1,10 +1,10 @@
 """
-PennyLane Implementation: Grover's Algorithm (variable: 2–6 qubits)
+PennyLane Implementation: Grover's Algorithm (variable: 2–15 qubits)
 Paper 5 – Cross-Framework Quantum Algorithm Benchmarking
 
 Algorithm: Grover's Search Algorithm
 Category: Search
-Qubit Range: 2–6
+Qubit Range: 2–6 (simulation), 7–15 (compile-only, nb08)
 Framework: PennyLane (idiomatic style)
 
 Uses PennyLane's built-in qml.GroverOperator template for the diffusion operator,
@@ -20,11 +20,20 @@ import numpy as np
 import pennylane as qml
 
 MARKED_STATES = {
-    2: "11",
-    3: "101",
-    4: "1011",
-    5: "10110",
-    6: "101101",
+    2:  "11",
+    3:  "101",
+    4:  "1011",
+    5:  "10110",
+    6:  "101101",
+    7:  "1011010",
+    8:  "10110101",
+    9:  "101101011",
+    10: "1011010110",
+    11: "10110101101",
+    12: "101101011010",
+    13: "1011010110101",
+    14: "10110101101011",
+    15: "101101011010110",
 }
 
 
@@ -42,7 +51,8 @@ def get_circuit(n: int = 2):
         callable: PennyLane QNode.
     """
     if n not in MARKED_STATES:
-        raise ValueError(f"n must be in {sorted(MARKED_STATES.keys())}")
+        raise ValueError(f"n must be in {sorted(MARKED_STATES.keys())}, got {n}.\n"
+                         f"For n>6, use nb08 (compile-only mode — no simulation).")
 
     marked         = MARKED_STATES[n]
     num_iterations = max(1, int(np.floor(np.pi / 4 * np.sqrt(2 ** n))))

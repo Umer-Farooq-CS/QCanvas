@@ -1,0 +1,60 @@
+% ============================================================
+%  Section 1 — Introduction  (~1.5 pages)
+% ============================================================
+\section{Introduction}
+
+The quantum software ecosystem has fragmented into a collection of
+competing, incompatible SDKs.
+Qiskit~\cite{qiskit}, Cirq~\cite{cirq}, and
+PennyLane~\cite{bergholm2018pennylane} are the three most widely adopted
+frameworks, each offering a distinct programming model and each producing
+a different gate decomposition for the same conceptual circuit.
+For a practitioner selecting a framework for a NISQ application, this
+diversity creates a genuine engineering problem: performance differences
+reported in the literature may reflect the choice of simulator as much
+as the choice of SDK.
+
+Prior cross-framework comparisons are methodologically flawed in a
+consistent way: each framework is executed on its own native simulator.
+A difference in measured fidelity could originate from the transpiler,
+the simulator, or an interaction between the two.
+In the NISQ era---where gate counts and circuit depth directly govern
+decoherence and error accumulation~\cite{preskill2018quantum}---this
+confound is not a minor caveat; it invalidates the comparison as a guide
+to framework selection.
+
+We resolve the confound with QCanvas, a unified compilation platform
+that acts as a single intermediate layer between framework source code
+and simulation.
+The pipeline is: native circuit (Qiskit, Cirq, or PennyLane)
+$\to$ QCanvas converter $\to$
+OpenQASM 3.0~\cite{cross2022openqasm3}
+$\to$ QSim statevector backend.
+The backend is fixed for all frameworks; every measured difference is
+therefore attributable solely to the framework's transpilation strategy
+and gate vocabulary.
+
+This paper makes four contributions:
+\begin{enumerate}
+  \item A unified benchmarking methodology that eliminates the simulator
+        confound via a common OpenQASM 3.0 intermediate representation.
+  \item Empirical evaluation of 12 quantum algorithms across 6 metric
+        dimensions: compilation time, circuit structure, scaling
+        behaviour, simulation performance, statistical equivalence, and
+        holistic QPack scores.
+  \item Discovery of systematic decomposition incompatibilities in
+        PennyLane that produce JSD$=1.000$ divergence at scale, with
+        documentation of which algorithms and qubit thresholds trigger
+        them.
+  \item An open benchmark suite and automated notebook pipeline for
+        reproducible framework comparisons.
+\end{enumerate}
+
+Section~2 surveys related work.
+Section~3 provides background on the three frameworks, OpenQASM 3.0, and
+the metrics used.
+Section~4 describes the QCanvas pipeline and measurement protocol.
+Section~5 presents results across all six metric dimensions.
+Section~6 discusses implications for framework selection and identifies
+limitations.
+Section~7 concludes.

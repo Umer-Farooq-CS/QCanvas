@@ -79,6 +79,10 @@ _NON_GATE_PREFIXES = (
     'def ',     # subroutine definition
     '{',        # block open
     '}',        # block close
+    'if',       # classical condition
+    'for',      # loop construct
+    'array',    # array declaration
+    'float',    # scalar declaration
 )
 
 

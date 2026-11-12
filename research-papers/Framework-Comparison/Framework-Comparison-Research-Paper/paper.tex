@@ -1,0 +1,66 @@
+% ============================================================
+%  Cross-Framework Quantum Algorithm Benchmarking
+%  via Unified Compilation to OpenQASM 3.0
+%
+%  Root file — mirrors the structure of the FYP-2 Final Report
+%  (thesis.tex).  Figures live in figs/, sections in sections/.
+%  Build:  make          (requires latexmk + pdflatex)
+%  Clean:  make clean
+% ============================================================
+\documentclass[runningheads]{llncs}
+
+% ---- Packages ------------------------------------------------
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\graphicspath{{figs/}}          % all figures in figs/
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, shapes.geometric}
+
+\renewcommand{\UrlFont}{\ttfamily\small}
+
+% ---- Document ------------------------------------------------
+\begin{document}
+
+\title{Cross-Framework Quantum Algorithm Benchmarking\\
+       via Unified Compilation to OpenQASM 3.0}
+
+\titlerunning{Cross-Framework Quantum Benchmarking via OpenQASM 3.0}
+
+\author{Umer Farooq\inst{1} \and
+        Hussan Waseem Syed\inst{1} \and
+        Muhammad Irtaza Khan\inst{1}}
+
+\authorrunning{U. Farooq et al.}
+
+\institute{Department of Computer Science, FAST-NUCES, Islamabad, Pakistan\\
+\email{\{umer.farooq, hussan.syed, irtaza.khan\}@nu.edu.pk}}
+
+\maketitle
+
+% ---- Abstract (LNCS: no heading, keywords on same page) -----
+\begin{abstract}
+\input{sections/abstract}
+\end{abstract}
+
+% ---- Body sections (one file each, mirrors thesis.tex) -------
+\input{sections/sec1_introduction}
+\input{sections/sec2_related_work}
+\input{sections/sec3_background}
+\input{sections/sec4_methodology}
+\input{sections/sec5_results}
+\input{sections/sec6_discussion}
+\input{sections/sec7_conclusion}
+
+% ---- References ----------------------------------------------
+\addcontentsline{toc}{section}{References}
+\bibliographystyle{splncs04}   % Springer LNCS bib style
+\bibliography{references}
+
+\end{document}

@@ -42,6 +42,31 @@ qc.measure(2, 2)
 `,
   },
   {
+    name: 'Bell Circuit (Cirq) Hybrid',
+    description: 'Bell circuit using cirq and fastqsim hybrid engine',
+    filename: 'bell_circuit_cirq_hybrid.py',
+    content: `import time
+import cirq
+import qcanvas
+import fastqsim
+# Authenticates automatically via pre-provisioned session
+client = fastqsim.init()
+q0, q1 = cirq.LineQubit.range(2)
+# Added cirq.measure to measure both qubits!
+circuit = cirq.Circuit(
+    cirq.H(q0), 
+    cirq.CNOT(q0, q1),
+    cirq.measure(q0, key='m0'),
+    cirq.measure(q1, key='m1')
+)
+qasm = qcanvas.compile(circuit, framework='cirq')
+job = client.run(qasm, shots=2048, asynchronous=False)
+result = job.result()
+print("Job status:", job.job_id, job.status.value)
+print("Result counts:", result.counts)
+`,
+  },
+  {
     name: 'QRNG (Cirq)',
     description: 'Generate truly random numbers using quantum mechanics',
     filename: 'qrng_cirq.py',
@@ -62,6 +87,50 @@ for i in range(n_bits):
 # Measure all qubits
 for i in range(n_bits):
     circuit.append(cirq.measure(cirq.LineQubit(i), key=f'c{i}'))
+`,
+  },
+  {
+    name: 'QRNG (Cirq) Hybrid',
+    description: 'Generate truly random numbers using quantum mechanics using fastqsim hybrid engine',
+    filename: 'qrng_cirq_hybrid.py',
+    content: `import time
+import cirq
+
+from qcanvas import compile
+import fastqsim
+
+print("=== FastQSim Quantum Random Number Generator (QRNG) ===\\n")
+
+# Initialize FastQSim cloud client (Authenticates automatically via pre-provisioned session)
+client = fastqsim.init()
+
+# Create a simple circuit that generates one random bit
+# H gate creates superposition, measurement collapses to 0 or 1
+q = cirq.LineQubit(0)
+circuit = cirq.Circuit([
+    cirq.H(q),
+    cirq.measure(q, key='random_bit')
+])
+
+# Compile to QASM using QCanvas compiler
+qasm = compile(circuit, framework="cirq")
+print(f"QRNG Circuit QASM:\\n{qasm}\\n")
+
+# Generate 10 random bits via FastQSim Cloud Q-Pods
+print("Generating 10 random bits via FastQSim Cloud:")
+random_bits = []
+
+for i in range(10):
+    # Run via FastQSim Cloud client
+    job = client.run(qasm, shots=1, asynchronous=False, backend="cirq")
+    result = job.result()
+    
+    # Extract the bit value (0 or 1) from measurement counts
+    bit = list(result.counts.keys())[0]
+    random_bits.append(bit)
+    print(f"  Bit {i+1} [Job ID: {job.job_id}]: {bit}")
+
+print(f"\\nRandom bit sequence: {''.join(random_bits)}")
 `,
   },
   {

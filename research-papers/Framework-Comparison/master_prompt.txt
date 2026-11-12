@@ -1,0 +1,522 @@
+You are an expert researcher in quantum computing and software engineering writing a full, publication-ready research paper for a Springer LNCS venue. Your writing is precise, objective, and tightly argued — every claim is backed by a number from the data. You do not use filler phrases ("it is worth noting", "it is important to mention", "in conclusion we can see"), you do not over-explain concepts the target audience (quantum computing researchers) already know, and you do not pad sections to meet a length target. Write only as much as the content requires.
+
+═══════════════════════════════════════════════
+PAPER IDENTITY
+═══════════════════════════════════════════════
+
+Title:
+  Cross-Framework Quantum Algorithm Benchmarking
+  via Unified Compilation to OpenQASM 3.0
+
+Target format: Springer LNCS
+Target length: 14–16 pages including references and figures
+Tone: Academic, third-person, active voice where possible
+Citation style: Numbered [n] in order of appearance
+
+═══════════════════════════════════════════════
+CORE THESIS (carry this through every section)
+═══════════════════════════════════════════════
+
+Prior cross-framework comparisons are methodologically flawed: each
+framework runs on its own native simulator, so observed differences
+conflate transpiler quality with simulator quality. This paper resolves
+that confound by introducing a unified pipeline — QCanvas compiles every
+circuit from its native framework to OpenQASM 3.0, and all circuits
+execute on the same QSim backend. Any measured difference is therefore
+attributable solely to the framework's transpilation strategy and gate
+vocabulary. Using this pipeline across 12 algorithms, 3 frameworks
+(Qiskit, Cirq, PennyLane), and up to 8 qubits, we find that:
+  (a) Qiskit and Cirq are virtually equivalent in circuit quality
+      (S_overall 58.80 vs 58.79);
+  (b) PennyLane diverges significantly, especially for oracle/search
+      algorithms where it exhibits super-linear gate scaling (a=2.21 for
+      Grover's, producing 216 gates at 6 qubits vs 18 for Qiskit/Cirq);
+  (c) statistical equivalence breaks down systematically — not randomly —
+      whenever PennyLane uses a different gate basis, revealing a
+      decomposition incompatibility rather than noise.
+
+═══════════════════════════════════════════════
+ABSTRACT  (write this first, ~200 words)
+═══════════════════════════════════════════════
+
+Must include:
+- The methodological problem (simulator confound in prior work)
+- The solution (QCanvas unified pipeline → OpenQASM 3.0 → QSim)
+- The scale (12 algorithms, 3 frameworks, up to 8 qubits, 4096 shots,
+  6 metric dimensions)
+- The three headline findings (Qiskit≈Cirq; PennyLane super-linear
+  scaling; systematic JSD=1.000 failures on oracle algorithms)
+- One sentence on practical implication for NISQ practitioners
+- Do NOT cite references in the abstract
+- End with 5 keywords: quantum benchmarking, framework comparison,
+  OpenQASM 3.0, NISQ, circuit transpilation
+
+═══════════════════════════════════════════════
+SECTION 1 — INTRODUCTION  (~1.5 pages)
+═══════════════════════════════════════════════
+
+Paragraph 1 — Motivation:
+  Open with the growing diversity of quantum SDKs and the practical
+  challenge practitioners face in selecting one. Name Qiskit [6],
+  Cirq [7], and PennyLane [8] as the three dominant frameworks. State
+  that each produces different gate decompositions for the same
+  conceptual circuit.
+
+Paragraph 2 — The gap in prior work:
+  Prior comparisons run each framework on its own native simulator.
+  This confounds transpiler quality with simulator quality — a
+  difference in measured fidelity could be the transpiler, the
+  simulator, or both. Cite Preskill [1] to frame the NISQ-era stakes.
+
+Paragraph 3 — Our approach:
+  Introduce QCanvas as the unified compilation platform. Describe the
+  pipeline: framework source → QCanvas → OpenQASM 3.0 [5] → QSim.
+  Emphasise that the intermediate representation and backend are fixed,
+  so all variation is framework-attributable.
+
+Paragraph 4 — Contributions (use a numbered list):
+  1. A unified benchmarking methodology that eliminates the simulator
+     confound via a common OpenQASM 3.0 intermediate representation.
+  2. Empirical evaluation of 12 quantum algorithms across 6 metric
+     dimensions: compilation time, circuit structure, scaling behaviour,
+     simulation performance, statistical equivalence, and holistic QPack
+     scores.
+  3. Discovery of systematic decomposition incompatibilities in
+     PennyLane that produce JSD=1.000 divergence at scale, and
+     documentation of which algorithms and qubit thresholds trigger them.
+  4. An open benchmark suite and automated notebook pipeline for
+     reproducible framework comparisons.
+
+Paragraph 5 — Paper outline (one sentence per section).
+
+═══════════════════════════════════════════════
+SECTION 2 — RELATED WORK  (~1 page)
+═══════════════════════════════════════════════
+
+Organise into three paragraphs:
+
+2.1 Framework-specific benchmarking:
+  Discuss prior work that benchmarks a single framework in isolation.
+  Note the limitation: no cross-framework comparison.
+
+2.2 Cross-framework comparisons:
+  Discuss any prior multi-framework studies. Explicitly note that they
+  either (a) use different simulators for each framework, introducing
+  the confound this paper addresses, or (b) restrict themselves to
+  one or two algorithms without scaling analysis. This is where our
+  paper makes its methodological contribution.
+
+2.3 Quantum Volume and holistic benchmarks:
+  Cite Cross et al. 2019 [3] for the QV metric. Discuss QPack-style
+  scores as a higher-level aggregation. Note that we apply QV in a
+  structure-implied, simulator-agnostic way using a depolarizing noise
+  model [2], which differs from IBM's original hardware-measured QV.
+
+═══════════════════════════════════════════════
+SECTION 3 — BACKGROUND  (~0.75 pages)
+═══════════════════════════════════════════════
+
+Keep this brief — the audience knows quantum computing. Cover only:
+
+3.1 Frameworks (one short paragraph each):
+  Qiskit [6]: IBM's mature SDK; QuantumCircuit abstraction; transpiler
+    with multiple optimization levels.
+  Cirq [7]: Google's hardware-oriented SDK; native grid-qubit model;
+    moment-based circuit structure.
+  PennyLane [8]: Xanadu's differentiable programming SDK; device-
+    agnostic QNode abstraction; strong variational/ML focus.
+
+3.2 OpenQASM 3.0 [5]:
+  One paragraph. Position it as the lingua franca that enables the
+  unified pipeline. Note key additions over QASM 2.0: subroutines,
+  complex types, gate modifiers (ctrl@, pow@, inv@), control flow.
+
+3.3 Metrics (define concisely, no more than 3 sentences each):
+  Jensen-Shannon Divergence [4] — symmetric, bounded [0,1], defined
+    even on non-overlapping supports. Equivalence threshold JSD < 0.02.
+  Quantum Volume [3] — single-number circuit quality estimator.
+  Power-law scaling — y = c·nᵃ; exponent a classifies scaling regime.
+
+═══════════════════════════════════════════════
+SECTION 4 — METHODOLOGY  (~2 pages)
+═══════════════════════════════════════════════
+
+4.1 The QCanvas Pipeline
+  Describe the end-to-end flow:
+    native circuit (Qiskit / Cirq / PennyLane)
+    → QCanvas converter
+    → OpenQASM 3.0 intermediate representation
+    → QSim backend (statevector, fixed backend for all frameworks)
+  Emphasise: the backend is fixed. Fidelity and timing differences
+  are transpiler-attributable.
+
+4.2 Algorithm Suite
+  Present Table 1 — the 12 algorithms:
+    Bell State (Foundational, 2q)
+    GHZ State (Foundational, 3–8q)
+    Quantum Teleportation (Communication, 3q)
+    Deutsch–Jozsa (Oracle, 3–8q)
+    Bernstein–Vazirani (Oracle, 3–8q)
+    Grover's Algorithm (Search, 2–6q)
+    QRNG (Randomness, 4–8q)
+    VQE (Variational, 2–6q)
+    QAOA (Variational, 2–6q)
+    QML XOR Classifier (Quantum ML, 2–4q)
+    Bit-Flip Error Code (Error Correction, 3–9q)
+    Phase-Flip Error Code (Error Correction, 3–9q)
+  State: each algorithm is implemented idiomatically (not ported) in
+  each framework by a practitioner familiar with that framework's
+  conventions, ensuring we measure the framework as real users use it.
+
+4.3 Metric Categories (present as a brief table or numbered list):
+  (i)   Compilation: mean_compile_ms ± std, success flag (10 runs)
+  (ii)  Structural: total_gates, circuit_depth, multi_qubit_gates,
+        multi_qubit_ratio, per-gate-type counts
+  (iii) Scaling: power-law exponent a, coefficient c, R², scaling_class
+  (iv)  Simulation: mean/std sim_time_ms, mean/std memory_mb,
+        mean_cpu_pct, fidelity (depolarizing noise model [2])
+  (v)   Statistical equivalence: pairwise JSD [4], threshold 0.02,
+        all_equivalent verdict
+  (vi)  Holistic: Quantum Volume [3], QPack sub-scores
+        (S_compile_speed, S_scalability, S_accuracy, S_capacity,
+        S_overall)
+
+4.4 Measurement Protocol
+  - All timed measurements repeated 10× (report mean ± std)
+  - Simulation at 1024, 4096, and 8192 shots; primary analysis at 4096
+  - Same hardware for all runs; no concurrent workloads
+  - Package versions pinned; full environment reproducible from repo
+
+═══════════════════════════════════════════════
+SECTION 5 — RESULTS  (~4 pages)
+═══════════════════════════════════════════════
+
+Use a subsection for each metric category. Lead each subsection with
+one sentence stating the main finding, then support it with numbers.
+Reference figures by number. Do not describe what is "visible" in a
+figure — describe what it means.
+
+5.1 Structural Metrics — Gate Count and Circuit Depth
+  (references: Fig. 2, Fig. 3)
+
+  Gate count headline:
+    Frameworks produce identical or near-identical gate counts for 8 of
+    12 algorithms. Key divergences:
+    - QAOA (2q): PennyLane 6 gates vs Qiskit/Cirq 12 — PennyLane uses
+      an RY-only decomposition; Qiskit/Cirq use H/CX/RZ.
+    - Quantum Teleportation: Cirq 12 gates, Qiskit 8, PennyLane 6.
+    - Bit-Flip Code: Cirq 9 vs Qiskit/PennyLane 10.
+    - Phase-Flip Code: Cirq 15 vs Qiskit/PennyLane 16.
+
+  Circuit depth headline:
+    Qiskit produces the shallowest or equal-depth circuits for all 12
+    algorithms. Notable findings:
+    - QAOA (2q): PennyLane depth 3 vs Qiskit 8 vs Cirq 9 (PennyLane's
+      shallower circuit is a consequence of fewer gate types, not
+      optimisation — this matters for the fidelity interpretation in 5.4)
+    - Quantum Teleportation: PennyLane 5, Qiskit 5, Cirq 6.
+    - QRNG: Qiskit depth 1 vs Cirq/PennyLane depth 2.
+    - Bit-Flip Code: Cirq depth 7 vs Qiskit/PennyLane depth 8.
+    - Grover's (base 2q): all three frameworks depth 12.
+    Connect depth to hardware fidelity: citing [1] and [2], note that
+    shallower circuits decohere less and accumulate fewer gate errors.
+
+5.2 Compilation Times
+  (present Table 2 with mean±std per algorithm per framework)
+
+  Headline: Cirq is consistently the fastest compiler (8–35 ms across
+  all algorithms). Qiskit is mid-range (7–65 ms). PennyLane is
+  significantly slower for oracle-based algorithms due to heavier gate
+  decomposition: Deutsch–Jozsa up to 106 ms, Grover's up to 184 ms.
+
+  Key rows to call out explicitly:
+    Bell State:        Qiskit 18.6±0.4 ms | Cirq 8.3±0.5 ms | PL 12.2±0.3 ms
+    Grover's avg:      Qiskit 9.9±0.5 ms  | Cirq 32.9±1.4 ms | PL 99.5±59.4 ms
+    Deutsch–Jozsa avg: Qiskit 8.1±1.8 ms  | Cirq 12.3±0.9 ms | PL 81.4±21.0 ms
+    Phase-Flip Code:   Qiskit 64.8±11.4 ms| Cirq 22.4±5.3 ms | PL 54.7±5.1 ms
+
+  Note: Qiskit's high std on Bit-Flip (55.5±27.0 ms) and Phase-Flip
+  (64.8±11.4 ms) indicates transpiler instability on error correction
+  circuits — a practical concern for repeated NISQ compilation loops.
+
+5.3 Scaling Analysis
+  (references: Fig. 5 GHZ, Fig. 14 Grover's)
+  (present Table 3 with power-law fit results)
+
+  Present Table 3 — power law fits (all R² ≥ 0.998):
+    GHZ:   Qiskit a=0.00, c=6  (constant-depth)
+           Cirq   a=0.00, c=6  (constant-depth)
+           PL     a=1.00, c=2  (linear)
+    DJ:    Qiskit a=0.00, c=14 (constant-depth)
+           Cirq   a=0.00, c=14 (constant-depth)
+           PL     a=0.91, c=5.15, R²=0.9998 (linear)
+    BV:    Qiskit a=0.00, c=13 (constant-depth)
+           Cirq   a=0.00, c=13 (constant-depth)
+           PL     a=0.87, c=4.99, R²=0.9984 (sub-linear)
+    QRNG:  Qiskit a=0.00, c=6  (constant-depth)
+           Cirq   a=0.00, c=8  (constant-depth)
+           PL     a=1.00, c=2  (linear)
+    Grover's: Qiskit a=0.00, c=18 (constant-depth)
+              Cirq   a=0.00, c=18 (constant-depth)
+              PL     a=2.21, c=3.89, R²=0.9976 (SUPER-LINEAR)
+
+  Grover's is the critical case to elaborate:
+    Qiskit and Cirq maintain exactly 18 gates for all qubit counts
+    (2–6) — their transpilers use an optimised oracle representation
+    with a fixed multi-controlled gate structure. PennyLane fully
+    decomposes multi-controlled gates into primitive two-qubit gates,
+    reaching 216 gates at 6 qubits. This is not a bug; it reflects a
+    deliberate design philosophy (full decomposition for hardware
+    portability) but makes PennyLane infeasible for large Grover
+    instances on NISQ hardware.
+
+5.4 Simulation Performance
+  (reference Fig. 5's simulation times if applicable)
+
+  4096-shot averages:
+    Qiskit:    ~280 ms sim time, ~0.79 MB memory, ~12% CPU
+    Cirq:      ~285 ms sim time, ~0.81 MB memory, ~13% CPU
+    PennyLane: ~430 ms sim time, ~0.93 MB memory, ~13% CPU
+
+  PennyLane's 54% higher simulation time directly reflects its larger
+  circuit sizes. Memory scales as 2ⁿ (statevector) [2][9] and is
+  consistent across frameworks for equal-depth circuits.
+
+  Present fidelity table (Table 4):
+    All frameworks achieve fidelity ≥ 0.85 at base qubit size.
+    QAOA (2q) is notable: PennyLane fidelity 0.979 vs Qiskit/Cirq
+    0.919. Explain that PennyLane's higher fidelity here is entirely
+    attributable to having fewer gates (its RY-only circuit is shallower
+    under the depolarizing model [2]), NOT to superior accuracy — a
+    crucial distinction that must not be misread as PennyLane being
+    more accurate.
+
+5.5 Statistical Equivalence
+  (references: Fig. 9 JSD heatmap, Fig. 10 equivalence summary,
+   Fig. 13 Bell State distribution)
+
+  Present Table 5 with per-algorithm JSD values and verdict.
+
+  Three classes of result:
+  CLASS A — Full equivalence (9/12 algorithms at base qubit size):
+    Bell State (JSD Q→C=0.004, Q→PL=0.000, C→PL=0.004) ✓
+    Bernstein–Vazirani 3q (all JSD=0.000) ✓
+    Deutsch–Jozsa 3q (all JSD=0.000) ✓
+    GHZ 3q (JSD Q→PL=0.002) ✓
+    Grover's 2q (all JSD=0.000) ✓
+    QAOA 2q (all JSD≤0.005) ✓
+    QML XOR (all JSD≤0.007 across 2–4q) ✓
+    VQE 2q (all JSD≤0.005) ✓
+    Bell State demonstrates all frameworks produce identical |00⟩/|11⟩
+    distributions (Fig. 13) — cite as successful validation.
+
+  CLASS B — Scale-dependent failure (6 algorithms fail at 4+ qubits):
+    JSD Q→PL and C→PL jump to exactly 1.000 for:
+      Bernstein–Vazirani 4+q, Deutsch–Jozsa 4+q, GHZ 4+q,
+      Grover's 3+q, QAOA 3+q, VQE 3+q.
+    JSD=1.000 is a signature of MAXIMAL divergence — the distributions
+    share no support. This is not noise; it is a systematic change in
+    measurement basis. PennyLane's decomposition for multi-qubit
+    oracle circuits at these sizes measures a different basis state
+    than Qiskit/Cirq. This is the most significant finding of the paper.
+
+  CLASS C — Structural mismatch (framework-pair specific):
+    Bit-Flip Code 3q: Q↔C JSD=0.707 (✗), Q↔PL JSD=0.000 (✓)
+    Phase-Flip Code 3q: Q↔C JSD=0.706 (✗), Q↔PL JSD=0.000 (✓)
+    These failures are Qiskit↔Cirq, not Qiskit↔PennyLane. Attribute
+    to different ancilla/SWAP placement strategies between the two
+    frameworks for error correction circuits.
+    Quantum Teleportation: Q↔PL JSD=1.000 and C↔PL JSD=1.000 even at
+    3 qubits — PennyLane's decomposition of the teleportation protocol
+    produces a completely different output distribution.
+
+  QRNG at 4q: borderline (~) for all pairs (JSD≈0.010–0.012).
+  Report as inconclusive; note it likely reflects shot noise at this
+  threshold and should be re-evaluated at higher shot counts.
+
+5.6 Holistic Benchmark Scores
+  (reference: Fig. 15 QPack radar chart)
+
+  QPack scores (present Table 6):
+    Qiskit:    S_speed=2.84, S_scale=3.91, S_acc=9.41, S_cap=8.00, S_overall=58.80
+    Cirq:      S_speed=2.84, S_scale=3.91, S_acc=9.41, S_cap=8.00, S_overall=58.79
+    PennyLane: S_speed=2.56, S_scale=-0.90, S_acc=9.18, S_cap=2.00, S_overall=9.28
+
+  QV = 2048 (log₂=11) for all frameworks on this platform — QV is
+  bounded by the simulation backend's 11-qubit effective capacity, not
+  framework choice, confirming that QV alone cannot differentiate
+  transpiler quality.
+
+  Qiskit and Cirq are separated by 0.01 in S_overall — effectively
+  tied. PennyLane's negative S_scalability (-0.90) reflects the
+  Grover's super-linear scaling penalty; its S_capacity of 2.00 vs
+  8.00 reflects the infeasibility of its circuits at larger qubit sizes.
+
+═══════════════════════════════════════════════
+SECTION 6 — DISCUSSION  (~1.5 pages)
+═══════════════════════════════════════════════
+
+6.1 Framework Selection Guidance
+  For NISQ practitioners: Qiskit and Cirq are functionally
+  interchangeable in circuit quality terms (0.01 score gap). Selection
+  between them should be based on ecosystem fit (IBM hardware → Qiskit;
+  Google hardware → Cirq) or team preference, not performance. Both
+  outperform PennyLane on hardware-efficiency metrics for oracle and
+  search algorithms.
+
+  PennyLane's advantage lies outside this study's scope: its
+  automatic differentiation and device-agnostic design make it the
+  preferred choice for variational algorithm research (VQE, QAOA,
+  QML), even though its compiled circuits are larger.
+
+6.2 The Decomposition Incompatibility Problem
+  The JSD=1.000 failures are not compilation errors — PennyLane
+  produces syntactically valid, executable circuits. The issue is
+  semantic: PennyLane uses a different gate basis for multi-qubit
+  oracle circuits at scale, which changes the computational basis in
+  which results are measured. This is an underdocumented behaviour with
+  serious implications: a practitioner who ports an algorithm from
+  Qiskit to PennyLane at 5+ qubits and compares results will observe
+  completely non-overlapping distributions and may incorrectly conclude
+  their implementation is wrong.
+
+6.3 The Unified Pipeline as a Methodological Contribution
+  Emphasise that the JSD=1.000 findings are only discoverable because
+  all circuits run on the same backend. Had we used PennyLane's native
+  simulator alongside Qiskit's Aer, we could not distinguish framework-
+  induced divergence from simulator-induced divergence.
+
+6.4 Limitations
+  - Classical simulation only (no physical hardware validation)
+  - QSim backend uses statevector simulation; density matrix and
+    stabilizer modes not evaluated
+  - PennyLane version pinned to benchmark snapshot; decomposition
+    strategy may change in future releases
+  - Quantum Volume is structure-implied from a depolarizing model;
+    does not reflect real hardware noise profiles (crosstalk, leakage)
+  - 12-algorithm suite is representative but not exhaustive; more
+    complex circuits (QAOA at deeper layers, fault-tolerant codes) are
+    out of scope for this study
+
+═══════════════════════════════════════════════
+SECTION 7 — CONCLUSION  (~0.5 pages)
+═══════════════════════════════════════════════
+
+Summarise in four sentences:
+  1. Restate the methodological contribution (unified pipeline).
+  2. Restate finding (a): Qiskit≈Cirq, score 58.80 vs 58.79.
+  3. Restate finding (b): PennyLane super-linear scaling for oracle
+     algorithms (Grover's a=2.21, 216 gates at 6q).
+  4. Restate finding (c): JSD=1.000 decomposition failures — a
+     systematic incompatibility, not noise.
+
+One sentence on future work: physical hardware validation, extension
+to fault-tolerant algorithms, and integration of additional frameworks
+(e.g. Braket, Stim).
+
+Do NOT introduce any new claims or data in the conclusion.
+
+═══════════════════════════════════════════════
+FIGURES TO REFERENCE (place inline near first citation)
+═══════════════════════════════════════════════
+
+Fig. 1 — QCanvas pipeline diagram (create inline as a simple diagram
+         if not provided: framework source → QCanvas → OpenQASM 3.0 →
+         QSim → metrics)
+Fig. 2 — Total Gate Count per Algorithm and Framework (bar chart)
+Fig. 3 — Circuit Depth per Algorithm and Framework (bar chart)
+Fig. 5 — GHZ State Gate Count Scaling (3–8 qubits, line chart)
+Fig. 9 — Pairwise JSD Heatmap (Algorithm-Level, 4096 shots)
+Fig. 10 — Distribution Equivalence Summary (✓/~/✗ heatmap)
+Fig. 13 — Bell State Measurement Distribution (|00⟩/|11⟩ bar chart)
+Fig. 14 — Grover's Gate Count Scaling (2–6 qubits, line chart)
+Fig. 15 — QPack-Adapted Composite Scores (radar chart)
+
+Tables to include:
+Table 1 — Algorithm test suite (12 rows: name, category, qubit range)
+Table 2 — Compilation times (mean±std, all 12 algorithms × 3 frameworks)
+Table 3 — Power-law fit results (5 scalable algorithms × 3 frameworks)
+Table 4 — Simulation fidelity by algorithm and framework
+Table 5 — Statistical equivalence test results (JSD values + verdicts)
+Table 6 — QPack composite scores
+
+═══════════════════════════════════════════════
+REFERENCES (use exactly in this format)
+═══════════════════════════════════════════════
+
+[1] Preskill, J.: Quantum computing in the NISQ era and beyond.
+    Quantum 2, 79 (2018). https://doi.org/10.22331/q-2018-08-06-79
+
+[2] Nielsen, M.A., Chuang, I.L.: Quantum Computation and Quantum
+    Information, 10th edn. Cambridge University Press (2010)
+
+[3] Cross, A.W., Bishop, L.S., Sheldon, S., Nation, P.D., Gambetta,
+    J.M.: Validating quantum computers using randomized model circuits.
+    Phys. Rev. A 100(3), 032328 (2019).
+    https://doi.org/10.1103/PhysRevA.100.032328
+
+[4] Lin, J.: Divergence measures based on the Shannon entropy. IEEE
+    Trans. Inf. Theory 37(1), 145–151 (1991).
+    https://doi.org/10.1109/18.61115
+
+[5] Cross, A., et al.: OpenQASM 3: A broader and deeper quantum
+    assembly language. ACM Trans. Quantum Comput. 3(3), 12 (2022).
+    https://doi.org/10.1145/3505636
+
+[6] Qiskit contributors: Qiskit: An open-source framework for quantum
+    computing. Zenodo (2023).
+    https://doi.org/10.5281/zenodo.2573505
+
+[7] Cirq Developers: Cirq. Zenodo (2024).
+    https://doi.org/10.5281/zenodo.8161858
+
+[8] Bergholm, V., et al.: PennyLane: Automatic differentiation of
+    hybrid quantum-classical computations. arXiv:1811.04968 (2022)
+
+[9] Villalonga, B., et al.: A flexible high-performance simulator for
+    verifying and benchmarking quantum circuits implemented on real
+    hardware. npj Quantum Inf. 5(1), 86 (2019).
+    https://doi.org/10.1038/s41534-019-0196-1
+
+═══════════════════════════════════════════════
+WRITING STYLE RULES (enforce throughout)
+═══════════════════════════════════════════════
+
+1. Every quantitative claim must include the number:
+   BAD:  "PennyLane produces significantly more gates."
+   GOOD: "PennyLane produces 216 gates at 6 qubits vs 18 for Qiskit
+          and Cirq (a 12× overhead)."
+
+2. Cite figures/tables immediately after the claim they support,
+   not at the end of the paragraph.
+
+3. LNCS uses numbered, non-bold section headings. Subsections use
+   the format "4.1 Title" not "4.1. Title".
+
+4. Avoid hedging unless genuinely uncertain:
+   BAD:  "This may suggest that PennyLane could potentially..."
+   GOOD: "PennyLane exhibits super-linear gate scaling (a=2.21)."
+
+5. JSD=1.000 is your strongest finding — do not understate it. It
+   means the distributions share zero support. Frame it precisely.
+
+6. The QAOA PennyLane fidelity result (0.979 vs 0.919) MUST be
+   explained in the correct direction: PennyLane's higher fidelity
+   is because its circuit is shallower (fewer gates to accumulate
+   error), not because PennyLane is more accurate. If not explained,
+   a reader will draw the wrong conclusion.
+
+7. Do not use "novel", "state-of-the-art", or "cutting-edge".
+   Describe specifically what is new: "To our knowledge, this is
+   the first study to route all circuits through a common OpenQASM
+   3.0 intermediate representation before simulation..."
+
+8. LNCS abstract has no section heading. Keywords appear immediately
+   after, on a new line: "Keywords: keyword1 · keyword2 · keyword3"
+
+9. Keep Related Work honest — acknowledge what others have done.
+   Do not diminish prior work; show exactly where the gap is.
+
+10. The paper's limitation section must include that these results
+    are from classical simulation only. Do not claim hardware
+    implications beyond what the depolarizing noise model supports.
