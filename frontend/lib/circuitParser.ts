@@ -828,13 +828,14 @@ function normalizeBackendGates(gates: ParsedGate[]): ParsedGate[] {
   })
 }
 
-async function requestBackendParse(code: string, framework: string): Promise<Response> {
+async function requestBackendParse(code: string, framework: string, signal?: AbortSignal): Promise<Response> {
   const apiBase = await getApiBase()
   // Send the session token when we have one: the backend rate-limits per user
   // when authenticated, otherwise per IP (shared by everyone behind one NAT).
   const token = useAuthStore.getState().token
   return fetch(`${apiBase}/api/converter/parse`, {
     method: 'POST',
+    signal,
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -914,43 +915,209 @@ export interface ParseResult {
  * @param code - The quantum circuit source code
  * @returns Promise resolving to gates and qubit count
  */
-export async function parseCircuitWithCountAsync(code: string): Promise<ParseResult> {
+/**
+ * Recent results keyed by source text. Switching tabs, undo/redo and toggling
+ * the panel re-request the same code; answering from memory makes the diagram
+ * appear instantly and spares the shared backend 100+ identical requests.
+ * Only backend (AST) answers are cached; regex fallbacks are retried.
+ */
+const PARSE_CACHE_SIZE = 32
+const parseCache = new Map<string, ParseResult>()
+
+function cacheGet(code: string): ParseResult | undefined {
+  const hit = parseCache.get(code)
+  if (hit) {
+    // Refresh recency (Map keeps insertion order).
+    parseCache.delete(code)
+    parseCache.set(code, hit)
+  }
+  return hit
+}
+
+function cachePut(code: string, result: ParseResult) {
+  parseCache.set(code, result)
+  while (parseCache.size > PARSE_CACHE_SIZE) {
+    const oldest = parseCache.keys().next().value
+    if (oldest === undefined) break
+    parseCache.delete(oldest)
+  }
+}
+
+/** Synchronous cache lookup so callers can paint a known diagram immediately. */
+export function getCachedParse(code: string): ParseResult | undefined {
+  return code ? cacheGet(code) : undefined
+}
+
+function regexResult(code: string): ParseResult {
+  const gates = parseCircuit(code)
+  return { gates, qubits: calculateQubitCount(gates) }
+}
+
+/**
+ * QASM sources are parsed on the client: they are line-oriented and the
+ * backend parse endpoint only accepts Python frameworks.
+ */
+function looksLikeQasm(code: string): boolean {
+  return /^\s*OPENQASM\s+\d/m.test(code)
+}
+
+export async function parseCircuitWithCountAsync(
+  code: string,
+  options: { signal?: AbortSignal } = {},
+): Promise<ParseResult> {
   if (!code || code.trim().length === 0) {
     return { gates: [], qubits: 2 }
   }
-  
-  const framework = detectFramework(code)
-  
-  // If framework is unknown, use regex fallback directly
-  if (framework === 'unknown') {
-    const gates = parseCircuit(code)
-    return { gates, qubits: calculateQubitCount(gates) }
+
+  const cached = cacheGet(code)
+  if (cached) return cached
+
+  if (looksLikeQasm(code)) {
+    const result = parseQasm(code)
+    cachePut(code, result)
+    return result
   }
-  
+
+  const framework = detectFramework(code)
+
+  // If framework is unknown, use regex fallback directly
+  if (framework === 'unknown') return regexResult(code)
+
   try {
-    const response = await requestBackendParse(code, framework)
-    
-    if (!response.ok) {
-      const gates = parseCircuit(code)
-      return { gates, qubits: calculateQubitCount(gates) }
-    }
-    
+    const response = await requestBackendParse(code, framework, options.signal)
+    if (!response.ok) return regexResult(code)
+
     const data: ParseApiResponse = await response.json()
-    
     if (data.success && data.gates && data.gates.length > 0) {
       // Backend parsing succeeded - use backend's qubit count if available
       const gates = normalizeBackendGates(data.gates)
-      const qubits = data.qubits ?? calculateQubitCount(gates)
-      return { gates, qubits }
+      const result = { gates, qubits: data.qubits ?? calculateQubitCount(gates) }
+      cachePut(code, result)
+      return result
     }
-    
-    // Fall back to regex
-    const gates = parseCircuit(code)
-    return { gates, qubits: calculateQubitCount(gates) }
-    
-  } catch {
-    // Network error, fall back to regex
-    const gates = parseCircuit(code)
-    return { gates, qubits: calculateQubitCount(gates) }
+    return regexResult(code)
+  } catch (error) {
+    // A superseded request: let the caller ignore it rather than flash the
+    // regex fallback for code that is no longer on screen.
+    if (error instanceof DOMException && error.name === 'AbortError') throw error
+    return regexResult(code)
   }
+}
+
+const QASM_GATE_ALIASES: Record<string, string> = { cnot: 'cx', u: 'u3', phase: 'p' }
+
+/** Evaluate a QASM angle such as `pi/2`, `-3*pi/4`, `0.5`, `π`. */
+function evalQasmAngle(expr: string): number | undefined {
+  const src = expr.trim().replace(/π/g, 'pi')
+  if (!/^[\d\s.+\-*/()epi]+$/i.test(src)) return undefined
+  // Tiny recursive-descent evaluator: no eval/Function.
+  let i = 0
+  const peek = () => src[i]
+  const skip = () => { while (src[i] === ' ') i++ }
+  const num = (): number => {
+    skip()
+    if (peek() === '(') { i++; const v = add(); skip(); i++; return v }
+    if (peek() === '-') { i++; return -num() }
+    if (peek() === '+') { i++; return num() }
+    if (src.slice(i, i + 2).toLowerCase() === 'pi') { i += 2; return Math.PI }
+    const m = /^\d*\.?\d+(?:e[+-]?\d+)?/i.exec(src.slice(i))
+    if (!m) throw new Error('bad number')
+    i += m[0].length
+    return Number(m[0])
+  }
+  const mul = (): number => {
+    let v = num()
+    for (;;) {
+      skip()
+      if (peek() === '*') { i++; v *= num() } else if (peek() === '/') { i++; v /= num() } else return v
+    }
+  }
+  const add = (): number => {
+    let v = mul()
+    for (;;) {
+      skip()
+      if (peek() === '+') { i++; v += mul() } else if (peek() === '-') { i++; v -= mul() } else return v
+    }
+  }
+  try {
+    const v = add()
+    skip()
+    return i === src.length && Number.isFinite(v) ? v : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** Parse OpenQASM 2/3 gate statements into the shared gate format. */
+export function parseQasm(code: string): ParseResult {
+  const registers = new Map<string, { offset: number; size: number }>()
+  let total = 0
+  const gates: ParsedGate[] = []
+
+  const addRegister = (name: string, size: number) => {
+    if (!registers.has(name)) {
+      registers.set(name, { offset: total, size })
+      total += size
+    }
+  }
+  const operand = (ref: string): number[] => {
+    const m = /^([A-Za-z_]\w*)\s*(?:\[\s*(\d+)\s*\])?$/.exec(ref.trim())
+    if (!m) return []
+    const reg = registers.get(m[1])
+    if (!reg) return []
+    if (m[2] !== undefined) return [reg.offset + Number(m[2])]
+    return Array.from({ length: reg.size }, (_, k) => reg.offset + k)
+  }
+
+  const statements = code
+    .replace(/\/\/.*$/gm, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split(';')
+
+  for (const raw of statements) {
+    const st = raw.trim()
+    if (!st) continue
+
+    // c[0] = measure q[0];  |  measure q[0] -> c[0];  |  bit[2] c = measure q;
+    let m = /(?:^|=\s*)measure\s+([A-Za-z_]\w*(?:\s*\[\s*\d+\s*\])?)/.exec(st)
+    if (m) {
+      for (const q of operand(m[1])) gates.push({ type: 'measure', qubit: q })
+      continue
+    }
+    if (/^(OPENQASM|include|bit|creg|gate|def|input|output|const|float|int|uint|angle|bool|if|for|while)\b/i.test(st)) continue
+
+    m = /^qubit\s*(?:\[\s*(\d+)\s*\])?\s+([A-Za-z_]\w*)$/.exec(st)
+    if (m) { addRegister(m[2], m[1] ? Number(m[1]) : 1); continue }
+    m = /^qreg\s+([A-Za-z_]\w*)\s*\[\s*(\d+)\s*\]$/.exec(st)
+    if (m) { addRegister(m[1], Number(m[2])); continue }
+    m = /^reset\s+(.+)$/.exec(st)
+    if (m) { for (const q of operand(m[1])) gates.push({ type: 'reset', qubit: q }); continue }
+    m = /^barrier\b\s*(.*)$/.exec(st)
+    if (m) {
+      const qs = m[1].trim() ? m[1].split(',').flatMap(operand) : []
+      gates.push({ type: 'barrier', qubit: qs[0] ?? 0, ...(qs.length ? { qubits: qs } : {}) })
+      continue
+    }
+
+    // gate[(params)] operands
+    m = /^([A-Za-z_]\w*)\s*(?:\(([^)]*)\))?\s+(.+)$/.exec(st)
+    if (!m) continue
+    const type = QASM_GATE_ALIASES[m[1].toLowerCase()] ?? m[1].toLowerCase()
+    const params = m[2] ? m[2].split(',') : []
+    const lists = m[3].split(',').map(operand)
+    if (lists.some((l) => l.length === 0)) continue
+    // Register broadcast: `h q;` applies to every qubit in q.
+    const width = Math.max(...lists.map((l) => l.length))
+    const angle = params.length ? evalQasmAngle(params[0]) : undefined
+    for (let k = 0; k < width; k++) {
+      const qs = lists.map((l) => (l.length === 1 ? l[0] : l[k]))
+      const g: ParsedGate = { type, qubit: qs[0] }
+      if (qs.length > 1) g.qubits = qs
+      if (angle !== undefined) g.angle = angle
+      gates.push(g)
+    }
+  }
+
+  const fromGates = calculateQubitCount(gates)
+  return { gates, qubits: Math.max(total, gates.length ? fromGates : 1) }
 }

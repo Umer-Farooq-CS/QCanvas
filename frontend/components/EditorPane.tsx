@@ -14,6 +14,7 @@ import {
 import {
   parseCircuit,
   calculateQubitCount,
+  getCachedParse,
   parseCircuitWithCountAsync,
   ParsedGate,
 } from "@/lib/circuitParser";
@@ -21,12 +22,12 @@ import FindReplace from "./FindReplace";
 import { InputLanguage } from "@/types";
 
 // Lazy-load heavy, optional views so they are not part of the /app first load:
-// the 2D circuit diagram pulls in all of d3, and the markdown preview pulls in
-// react-markdown + remark/rehype + KaTeX. Both are only shown on demand.
+// the circuit diagram and the markdown preview (react-markdown +
+// remark/rehype + KaTeX) are only shown on demand.
 const CircuitVisualization = dynamic(() => import("./CircuitVisualization"), {
   ssr: false,
   loading: () => (
-    <div className="flex items-center justify-center h-full text-black dark:text-gray-500">
+    <div className="flex items-center justify-center h-full text-xs text-editor-text opacity-60">
       Loading circuit view...
     </div>
   ),
@@ -35,7 +36,7 @@ const CircuitVisualization = dynamic(() => import("./CircuitVisualization"), {
 const MarkdownPreview = dynamic(() => import("./MarkdownPreview"), {
   ssr: false,
   loading: () => (
-    <div className="flex items-center justify-center h-full text-black dark:text-gray-500">
+    <div className="flex items-center justify-center h-full text-xs text-editor-text opacity-60">
       Loading preview...
     </div>
   ),
@@ -60,7 +61,7 @@ const CircuitVisualization3D = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex items-center justify-center h-full text-black dark:text-gray-500">
+      <div className="flex items-center justify-center h-full text-xs text-editor-text opacity-60">
         Loading 3D View...
       </div>
     ),
@@ -126,7 +127,7 @@ function EditorPane({
   const [is3DMode, setIs3DMode] = useState(false);
   const [showRunMenu, setShowRunMenu] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const [circuitHeight, setCircuitHeight] = useState(200);
+  const [circuitHeight, setCircuitHeight] = useState(260);
   const [isDraggingCircuit, setIsDraggingCircuit] = useState(false);
   const [showMarkdownPreview, setShowMarkdownPreview] = useState(false);
 
@@ -209,26 +210,43 @@ function EditorPane({
     if (!showCircuitVisualization || !activeFile?.content) {
       return;
     }
+    const code = activeFile.content;
 
-    // Debounce the parsing to avoid too many API calls
+    // Known source (tab switch, undo, reopening the panel): paint at once.
+    const cached = getCachedParse(code);
+    if (cached) {
+      setParsedGates(cached.gates);
+      setParsedQubits(cached.qubits);
+      setIsParsing(false);
+      return;
+    }
+
+    // Debounce typing; abort the request if the code changes again before it
+    // returns so a slow, stale answer never overwrites a newer diagram. The
+    // previous diagram stays on screen meanwhile (no flash to empty).
+    const controller = new AbortController();
     const timer = setTimeout(async () => {
       setIsParsing(true);
       try {
-        const result = await parseCircuitWithCountAsync(activeFile.content);
+        const result = await parseCircuitWithCountAsync(code, { signal: controller.signal });
+        if (controller.signal.aborted) return;
         setParsedGates(result.gates);
         setParsedQubits(result.qubits);
       } catch (err) {
-        // Fallback to sync parsing on error
+        if (controller.signal.aborted) return;
         console.warn("Async parsing failed, using sync fallback:", err);
-        const gates = parseCircuit(activeFile.content);
+        const gates = parseCircuit(code);
         setParsedGates(gates);
         setParsedQubits(calculateQubitCount(gates));
       } finally {
-        setIsParsing(false);
+        if (!controller.signal.aborted) setIsParsing(false);
       }
-    }, 500); // 500ms debounce
+    }, 350);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [activeFile?.content, showCircuitVisualization]);
 
   // Handle drag resize for circuit visualization panel
@@ -1482,31 +1500,20 @@ function EditorPane({
       {showCircuitVisualization && activeFile && (
         <>
           <div
-            className="bg-editor-bg border-b border-editor-border p-4 overflow-auto"
+            className="bg-editor-bg border-b border-editor-border overflow-hidden"
             style={{ height: `${circuitHeight}px` }}
           >
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-medium text-white">
-                Circuit Visualization
-              </h4>
-              {isParsing && (
-                <span className="text-xs text-black dark:text-gray-400 flex items-center">
-                  <div className="w-3 h-3 border border-quantum-blue-light border-t-transparent rounded-full animate-spin mr-1"></div>
-                  Parsing...
-                </span>
-              )}
-            </div>
             {is3DMode ? (
               <CircuitVisualization3D
                 gates={parsedGates}
                 qubits={parsedQubits}
-                className="h-full"
+                busy={isParsing}
               />
             ) : (
               <CircuitVisualization
                 gates={parsedGates}
                 qubits={parsedQubits}
-                className="h-full"
+                busy={isParsing}
               />
             )}
           </div>
