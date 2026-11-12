@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     GUEST_ACCOUNT_TTL_HOURS: int = 72
     # Per client IP. Sized so ~200 attendees behind one venue NAT can all start
     # within a few minutes, while bounding abuse.
-    GUEST_CREATE_RATE_LIMIT: str = "60/minute;400/hour;1500/day"
+    GUEST_CREATE_RATE_LIMIT: str = "300/minute;1000/hour;3000/day"
     # Global cap on live guest accounts; beyond it /guest returns 503.
     # Well above any single IP's allowance; at the cap, abandoned guests are
     # evicted first (see guest_service.purge_idle_guests).

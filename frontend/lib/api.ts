@@ -756,6 +756,11 @@ export const authApi = {
   async refreshToken(token: string): Promise<ApiResponse<AuthResponse>> {
     return apiRequest<AuthResponse>('/api/auth/refresh', {
       method: 'POST',
+      // The IDE waits on this before loading files: a stalled backend must
+      // not leave it on the loading screen. Timeout -> treated as offline.
+      signal: typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal
+        ? AbortSignal.timeout(8000)
+        : undefined,
       headers: {
         'Authorization': `Bearer ${token}`,
       },
