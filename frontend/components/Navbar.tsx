@@ -22,6 +22,10 @@ export default function Navbar() {
   const canAccessApp = hasValidAuth({ isAuthenticated, token });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const clearAuth = useAuthStore((s) => s.clearAuth);
+  // Immediate feedback for "Open editor": the editor bundle takes a moment
+  // to load, and a click with no visible response reads as a broken button.
+  const [openingEditor, setOpeningEditor] = useState(false);
+  useEffect(() => setOpeningEditor(false), [pathname]);
 
   // Close the mobile menu on navigation and on Escape.
   useEffect(() => setIsMenuOpen(false), [pathname]);
@@ -78,8 +82,14 @@ export default function Navbar() {
           </button>
           {canAccessApp ? (
             <>
-              <Link href="/app" className="qc-btn qc-btn-primary qc-btn-sm">
-                Open editor
+              <Link
+                href="/app"
+                prefetch
+                onClick={() => setOpeningEditor(true)}
+                aria-busy={openingEditor}
+                className="qc-btn qc-btn-primary qc-btn-sm min-w-[7rem] justify-center"
+              >
+                {openingEditor ? "Opening…" : "Open editor"}
               </Link>
               <UserMenu />
             </>
@@ -142,8 +152,13 @@ export default function Navbar() {
                     >
                       Log out
                     </button>
-                    <Link href="/app" className="qc-btn qc-btn-primary qc-btn-sm">
-                      Open editor
+                    <Link
+                      href="/app"
+                      prefetch
+                      onClick={() => setOpeningEditor(true)}
+                      className="qc-btn qc-btn-primary qc-btn-sm"
+                    >
+                      {openingEditor ? "Opening…" : "Open editor"}
                     </Link>
                   </>
                 ) : (
