@@ -26,8 +26,9 @@ const MAX_OPS_3D = 400
 const FAMILY: Record<GateFamily, string> = {
   clifford: '#6366f1',
   rotation: '#06b6d4',
-  multi: '#8b5cf6',
-  measure: '#64748b',
+  entangle: '#ec4899',
+  measure: '#f59e0b',
+  other: '#64748b',
 }
 
 function useIsDark() {

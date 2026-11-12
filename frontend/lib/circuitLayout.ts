@@ -22,8 +22,12 @@ export interface RawGate {
 
 export type OpKind = 'single' | 'controlled' | 'swap' | 'multi' | 'measure' | 'reset' | 'barrier'
 
-/** Visual family: drives colour. Kept to four so the diagram reads calmly. */
-export type GateFamily = 'clifford' | 'rotation' | 'multi' | 'measure'
+/**
+ * Visual role: drives colour. Single-qubit gates, rotations, entangling
+ * (multi-qubit) operations and measurement each get one colour; reset and
+ * barriers stay neutral.
+ */
+export type GateFamily = 'clifford' | 'rotation' | 'entangle' | 'measure' | 'other'
 
 export interface LayoutOp {
   id: number
@@ -90,11 +94,12 @@ export function formatAngle(angle: number): string {
 }
 
 function familyOf(base: string, kind: OpKind): GateFamily {
-  if (kind === 'measure' || kind === 'reset' || kind === 'barrier') return 'measure'
-  if (kind === 'multi') return 'multi'
+  if (kind === 'measure') return 'measure'
+  if (kind === 'reset' || kind === 'barrier') return 'other'
+  if (kind === 'controlled' || kind === 'swap' || kind === 'multi') return 'entangle'
   if (ROTATION.has(base)) return 'rotation'
-  if (CLIFFORD.has(base) || base === 'swap') return 'clifford'
-  return 'multi'
+  if (CLIFFORD.has(base)) return 'clifford'
+  return 'entangle'
 }
 
 function labelOf(base: string): string {
@@ -190,6 +195,23 @@ export function layoutCircuit(gates: RawGate[], qubitHint = 0): CircuitLayout {
     for (let q = lo; q <= hi; q++) next[q] = column + 1
     ops.push({ ...op, column })
   })
+
+  // Line final measurements up in one column at the end (as textbook diagrams
+  // do). Moving a qubit's last operation later can never collide with
+  // anything, because nothing comes after it on that wire.
+  const lastOnQubit = new Map<number, LayoutOp>()
+  for (const op of ops) {
+    if (op.kind === 'barrier') continue
+    for (const q of op.qubits) {
+      const prev = lastOnQubit.get(q)
+      if (!prev || prev.column <= op.column) lastOnQubit.set(q, op)
+    }
+  }
+  const finalMeasures = Array.from(new Set(lastOnQubit.values())).filter((o) => o.kind === 'measure')
+  if (finalMeasures.length > 1) {
+    const col = Math.max(...finalMeasures.map((o) => o.column))
+    for (const o of finalMeasures) o.column = col
+  }
 
   const columns = ops.reduce((m, o) => Math.max(m, o.column + 1), 0)
   return { ops, qubits: nQubits, columns }

@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Maximize2, Minus, Plus } from 'lucide-react'
-import { describeOp, layoutCircuit, type LayoutOp, type RawGate } from '@/lib/circuitLayout'
+import { describeOp, layoutCircuit, type GateFamily, type LayoutOp, type RawGate } from '@/lib/circuitLayout'
 
 /**
  * 2D circuit diagram.
@@ -24,8 +24,8 @@ interface CircuitVisualizationProps {
 const ROW = 52
 const BOX = 34
 const GAP = 20
-const LEFT = 52
-const TOP = 30
+const LEFT = 84 // room for "q0" and the |0> initial state
+const TOP = 46 // room for the time axis
 const BOTTOM = 18
 const RIGHT = 24
 
@@ -37,10 +37,13 @@ interface Palette {
   muted: string
   hover: string
   select: string
+  /** Initial-state labels (|0>). */
+  init: string
   clifford: FamilyColors
   rotation: FamilyColors
-  multi: FamilyColors
+  entangle: FamilyColors
   measure: FamilyColors
+  other: FamilyColors
 }
 
 const DARK: Palette = {
@@ -50,10 +53,12 @@ const DARK: Palette = {
   muted: '#6b7280',
   hover: '#a5b4fc',
   select: '#22d3ee',
+  init: '#60a5fa',
   clifford: { fill: '#262a4a', stroke: '#6366f1', text: '#c7d2fe' },
   rotation: { fill: '#16343b', stroke: '#06b6d4', text: '#a5f3fc' },
-  multi: { fill: '#2c2347', stroke: '#8b5cf6', text: '#ddd6fe' },
-  measure: { fill: '#272b33', stroke: '#94a3b8', text: '#e2e8f0' },
+  entangle: { fill: '#3b1a33', stroke: '#ec4899', text: '#fbcfe8' },
+  measure: { fill: '#352812', stroke: '#f59e0b', text: '#fde68a' },
+  other: { fill: '#272b33', stroke: '#94a3b8', text: '#e2e8f0' },
 }
 
 const LIGHT: Palette = {
@@ -63,11 +68,20 @@ const LIGHT: Palette = {
   muted: '#94a3b8',
   hover: '#4f46e5',
   select: '#0891b2',
+  init: '#2563eb',
   clifford: { fill: '#eef2ff', stroke: '#6366f1', text: '#3730a3' },
   rotation: { fill: '#ecfeff', stroke: '#0891b2', text: '#155e75' },
-  multi: { fill: '#f5f3ff', stroke: '#7c3aed', text: '#5b21b6' },
-  measure: { fill: '#f8fafc', stroke: '#64748b', text: '#334155' },
+  entangle: { fill: '#fdf2f8', stroke: '#db2777', text: '#9d174d' },
+  measure: { fill: '#fffbeb', stroke: '#d97706', text: '#92400e' },
+  other: { fill: '#f8fafc', stroke: '#64748b', text: '#334155' },
 }
+
+const LEGEND: Array<{ family: GateFamily; label: string }> = [
+  { family: 'clifford', label: 'Single-qubit' },
+  { family: 'rotation', label: 'Rotation' },
+  { family: 'entangle', label: 'Entangling' },
+  { family: 'measure', label: 'Measure' },
+]
 
 const SANS = "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif"
 const MONO = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
@@ -272,7 +286,23 @@ export default function CircuitVisualization({ gates, qubits, className = '', bu
       centers.push(x + w / 2)
       x += w + GAP
     }
-    return { centers, opW, width: Math.max(x + RIGHT - GAP, 240), height: TOP + (layout.qubits - 1) * ROW + BOTTOM + BOX / 2 }
+    // A qubit whose last operation is a measurement continues as a classical
+    // (double) wire from the meter onwards.
+    const last = new Array<LayoutOp | undefined>(layout.qubits)
+    for (const op of layout.ops) {
+      if (op.kind === 'barrier') continue
+      for (const q of op.qubits) {
+        const prev = last[q]
+        if (!prev || prev.column <= op.column) last[q] = op
+      }
+    }
+    const measuredAt = last.map((op) => (op && op.kind === 'measure' ? centers[op.column] : undefined))
+    const families = new Set(layout.ops.map((o) => o.family))
+    return {
+      centers, widths, opW, measuredAt, families,
+      width: Math.max(x + RIGHT - GAP, 240),
+      height: TOP + (layout.qubits - 1) * ROW + BOTTOM + BOX / 2,
+    }
   }, [layout])
 
   // Track the visible area to auto-fit.
@@ -394,7 +424,15 @@ export default function CircuitVisualization({ gates, qubits, className = '', bu
             Updating
           </span>
         )}
-        <div className="ml-auto flex items-center gap-0.5">
+        <ul className="ml-auto hidden items-center gap-3 opacity-80 xl:flex" aria-label="Colour key">
+          {LEGEND.filter((l) => geo.families.has(l.family)).map((l) => (
+            <li key={l.family} className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-sm" style={{ background: p[l.family].stroke }} aria-hidden="true" />
+              {l.label}
+            </li>
+          ))}
+        </ul>
+        <div className="ml-auto flex items-center gap-0.5 xl:ml-3">
           <button type="button" className={ctrlBtn} onClick={() => setZoomClamped(scale / 1.2)} title="Zoom out" aria-label="Zoom out">
             <Minus className="h-3.5 w-3.5" />
           </button>
@@ -427,15 +465,52 @@ export default function CircuitVisualization({ gates, qubits, className = '', bu
             className="block select-none"
             onMouseLeave={() => setHovered(null)}
           >
-            {/* Wires and labels */}
-            {Array.from({ length: layout.qubits }, (_, q) => (
-              <g key={q}>
-                <line x1={LEFT} x2={drawW - 8} y1={rowY(q)} y2={rowY(q)} stroke={p.wire} strokeWidth={1.25} />
-                <text x={LEFT - 10} y={rowY(q)} textAnchor="end" dominantBaseline="middle" fontFamily={MONO} fontSize={12} fill={p.label}>
-                  q<tspan fontSize={9} dy={3}>{q}</tspan>
+            {/* Time axis: one shaded band and number per moment, left to right. */}
+            <text x={10} y={14} dominantBaseline="middle" fontFamily={SANS} fontSize={9} fill={p.label} opacity={0.8}>
+              time →
+            </text>
+            {geo.centers.map((cx, i) => (
+              <g key={i}>
+                {i % 2 === 0 && (
+                  <rect
+                    x={cx - geo.widths[i] / 2 - GAP / 2}
+                    y={TOP - ROW / 2 + 6}
+                    width={geo.widths[i] + GAP}
+                    height={geo.height - TOP + ROW / 2 - 10}
+                    rx={4}
+                    fill={p.label}
+                    opacity={dark ? 0.05 : 0.06}
+                  />
+                )}
+                <text x={cx} y={14} textAnchor="middle" dominantBaseline="middle" fontFamily={MONO} fontSize={9} fill={p.label} opacity={0.8}>
+                  {i + 1}
                 </text>
               </g>
             ))}
+
+            {/* Wires: quantum (single line) until a final measurement, then classical (double line). */}
+            {Array.from({ length: layout.qubits }, (_, q) => {
+              const y = rowY(q)
+              const m = geo.measuredAt[q]
+              const end = drawW - 8
+              return (
+                <g key={q}>
+                  <line x1={LEFT} x2={m ?? end} y1={y} y2={y} stroke={p.wire} strokeWidth={1.25} />
+                  {m !== undefined && (
+                    <g stroke={p.measure.stroke} strokeWidth={1} opacity={0.55}>
+                      <line x1={m + BOX / 2} x2={end} y1={y - 1.75} y2={y - 1.75} />
+                      <line x1={m + BOX / 2} x2={end} y1={y + 1.75} y2={y + 1.75} />
+                    </g>
+                  )}
+                  <text x={10} y={y} dominantBaseline="middle" fontFamily={MONO} fontSize={12} fill={p.label}>
+                    q<tspan fontSize={9} dy={3}>{q}</tspan>
+                  </text>
+                  <text x={LEFT - 6} y={y} textAnchor="end" dominantBaseline="middle" fontFamily={MONO} fontSize={12} fontWeight={600} fill={p.init}>
+                    |0⟩
+                  </text>
+                </g>
+              )
+            })}
 
             {layout.ops.map((op) => (
               <g key={op.id} className="qc-viz-op" style={{ transform: `translateX(${geo.centers[op.column]}px)` }}>
