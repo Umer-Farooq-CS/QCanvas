@@ -27,6 +27,9 @@ import {
 import { refreshSession, useSessionKeepAlive } from "@/lib/session";
 import { useExecutionActions } from "@/components/ide/useExecutionActions";
 
+/** Examples handed over to the editor expire after this long. */
+const PENDING_EXAMPLE_TTL_MS = 10 * 60 * 1000;
+
 /** Open an example handed over via sessionStorage (homepage / examples page). */
 function openPendingExample() {
   let pendingJson: string | null = null;
@@ -40,7 +43,10 @@ function openPendingExample() {
   if (!pendingJson) return;
   try {
     const example = JSON.parse(pendingJson);
-    if (example?.name && example?.content) {
+    // A hand-off left behind (e.g. "Open in editor" while signed out, then the
+    // visitor wandered off) must not pop up in a later editor session.
+    const fresh = typeof example?.savedAt !== "number" || Date.now() - example.savedAt < PENDING_EXAMPLE_TTL_MS;
+    if (fresh && example?.name && example?.content) {
       void useFileStore.getState().createFile(example.name, example.content);
     }
   } catch (e) {

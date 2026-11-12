@@ -1005,7 +1005,8 @@ export default function ExamplesPage() {
       // Store in session storage so the app page can pick it up
       sessionStorage.setItem('pending-example', JSON.stringify({
         name: filename,
-        content: example.code
+        content: example.code,
+        savedAt: Date.now(),
       }))
       
       // If app tab is not open, navigate to it

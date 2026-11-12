@@ -24,7 +24,7 @@ export default function OpenExampleButton({
 
   const open = () => {
     try {
-      sessionStorage.setItem("pending-example", JSON.stringify(example));
+      sessionStorage.setItem("pending-example", JSON.stringify({ ...example, savedAt: Date.now() }));
     } catch {
       // Storage unavailable (private mode); the editor still opens.
     }
