@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { animate, motion, useReducedMotion } from "framer-motion";
 import { RotateCcw } from "lucide-react";
 import { highlight, type Lang } from "./CodeSample";
+import { StaticCircuit } from "@/components/CircuitVisualization";
+import type { RawGate } from "@/lib/circuitLayout";
 
 /**
  * The homepage's one orchestrated moment: a Bell-state program "runs" in front
@@ -48,6 +50,13 @@ const FRAMEWORK_DOT: Record<keyof typeof PROGRAMS, string> = {
   Cirq: "bg-qc-cirq",
   PennyLane: "bg-qc-pennylane",
 };
+
+const BELL_GATES: RawGate[] = [
+  { type: "h", qubit: 0 },
+  { type: "cx", qubit: 0, control: 0, target: 1 },
+  { type: "measure", qubit: 0 },
+  { type: "measure", qubit: 1 },
+];
 
 const QASM = `OPENQASM 3.0;
 include "stdgates.inc";
@@ -221,6 +230,16 @@ export default function HeroRun() {
         {/* Source */}
         <div className="border-b border-qc-line px-5 py-4" key={`src-${framework}-${run}`}>
           <Lines code={source} lang="python" stagger={0.045} animateIn={!reduce} />
+        </div>
+
+        {/* Circuit: the same renderer as the editor's diagram view */}
+        <div
+          className={`border-b border-qc-line px-5 py-3 transition-opacity duration-500 ${
+            showQasm || reduce ? "opacity-100" : "opacity-30"
+          }`}
+        >
+          <p className="mb-1 text-xs font-medium text-qc-subtle">Circuit</p>
+          <StaticCircuit gates={BELL_GATES} qubits={2} showAxis={false} className="max-h-[7.5rem]" label="Bell state circuit: H on q0, CNOT from q0 to q1, then measure both" />
         </div>
 
         {/* QASM + counts */}

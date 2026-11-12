@@ -39,14 +39,14 @@
     /* QCanvas site tokens (light). Space-separated RGB so Tailwind
        opacity modifiers work: bg-qc-surface/80, border-qc-line/60 …
        Contrast on --qc-bg: fg 17:1, muted 7.6:1, subtle 5.0:1, accent 5.4:1 */
-    --qc-bg: 246 247 249;            /* #f6f7f9 */
+    --qc-bg: 243 244 248;            /* #f3f4f8 cool paper */
     --qc-surface: 255 255 255;       /* #ffffff */
-    --qc-surface-2: 240 242 245;     /* #f0f2f5 */
-    --qc-surface-3: 231 234 239;     /* #e7eaef */
-    --qc-line: 225 228 234;          /* #e1e4ea */
-    --qc-line-strong: 205 210 218;   /* #cdd2da */
-    --qc-fg: 17 20 26;               /* #11141a */
-    --qc-fg-muted: 75 82 98;         /* #4b5262 */
+    --qc-surface-2: 236 238 244;     /* #eceef4 */
+    --qc-surface-3: 226 229 238;     /* #e2e5ee */
+    --qc-line: 221 224 234;          /* #dde0ea */
+    --qc-line-strong: 200 205 218;   /* #c8cdda */
+    --qc-fg: 16 19 28;               /* #10131c */
+    --qc-fg-muted: 74 82 102;        /* #4a5266 */
     --qc-fg-subtle: 100 107 122;     /* #646b7a */
     --qc-accent: 79 70 229;          /* #4f46e5  brand indigo, text/links 6.0:1 */
     --qc-accent-solid: 79 70 229;    /* #4f46e5  fills, white text 6.3:1 */
@@ -58,7 +58,9 @@
     --qc-qiskit: 37 99 235;
     --qc-cirq: 11 125 133;
     --qc-pennylane: 184 50 166;
-    --qc-code-bg: 240 242 245;
+    --qc-code-bg: 236 238 244;
+    --qc-signal: 8 145 178;          /* #0891b2 data only: bars, field highlights */
+    --qc-field: 79 70 229;           /* interference-field strokes */
     --qc-shadow: 0 1px 2px rgb(17 20 26 / 0.04), 0 8px 24px -12px rgb(17 20 26 / 0.12);
     --qc-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   }
@@ -97,16 +99,16 @@
 
     /* QCanvas site tokens (dark). Contrast on --qc-bg:
        fg 15.5:1, muted 8.0:1, subtle 5.9:1, accent 7.9:1 */
-    --qc-bg: 14 16 20;               /* #0e1014 */
-    --qc-surface: 21 23 28;          /* #15171c */
-    --qc-surface-2: 27 30 36;        /* #1b1e24 */
-    --qc-surface-3: 35 39 46;        /* #23272e */
-    --qc-line: 42 47 56;             /* #2a2f38 */
-    --qc-line-strong: 58 64 76;      /* #3a404c */
-    --qc-fg: 230 232 236;            /* #e6e8ec */
-    --qc-fg-muted: 161 168 181;      /* #a1a8b5 */
+    --qc-bg: 9 11 18;                /* #090b12 blue-black */
+    --qc-surface: 15 18 27;          /* #0f121b */
+    --qc-surface-2: 21 25 37;        /* #151925 */
+    --qc-surface-3: 29 34 49;        /* #1d2231 */
+    --qc-line: 30 36 51;             /* #1e2433 */
+    --qc-line-strong: 46 54 75;      /* #2e364b */
+    --qc-fg: 231 233 242;            /* #e7e9f2 */
+    --qc-fg-muted: 154 162 182;      /* #9aa2b6 */
     --qc-fg-subtle: 138 146 161;     /* #8a92a1 */
-    --qc-accent: 167 160 255;        /* #a7a0ff  brand indigo, text 8.1:1 */
+    --qc-accent: 150 146 255;        /* #9692ff  brand indigo, text 7.4:1 */
     --qc-accent-solid: 88 80 236;    /* #5850ec  fills, white text 5.6:1 */
     --qc-accent-solid-hover: 104 96 245;
     --qc-on-accent: 255 255 255;
@@ -116,7 +118,9 @@
     --qc-qiskit: 167 200 255;
     --qc-cirq: 70 234 237;
     --qc-pennylane: 255 171 243;
-    --qc-code-bg: 18 20 24;
+    --qc-code-bg: 12 14 22;
+    --qc-signal: 61 214 230;         /* #3dd6e6 data only */
+    --qc-field: 142 138 255;         /* interference-field strokes */
     --qc-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -16px rgb(0 0 0 / 0.6);
   }
 }
@@ -2235,4 +2239,57 @@ html {
 }
 @media (prefers-reduced-motion: reduce) {
   .qc-viz-op { transition: none; }
+}
+
+
+/* ===== Homepage: interference field =====
+   Fine wave lines (see components/site/InterferenceField.tsx) faded out at
+   the edges with a mask. The only ambient motion on the site is a very slow
+   drift, removed for reduced motion. */
+.qc-field {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: rgb(var(--qc-field));
+  -webkit-mask-image: radial-gradient(ellipse 70% 80% at 72% 45%, #000 0%, rgba(0, 0, 0, 0.55) 45%, transparent 78%);
+  mask-image: radial-gradient(ellipse 70% 80% at 72% 45%, #000 0%, rgba(0, 0, 0, 0.55) 45%, transparent 78%);
+}
+.qc-field--center {
+  /* A ring: clear behind the centred text, lines framing it, faded edges. */
+  -webkit-mask-image: radial-gradient(ellipse 75% 95% at 50% 50%, transparent 0%, transparent 28%, rgba(0, 0, 0, 0.85) 52%, transparent 88%);
+  mask-image: radial-gradient(ellipse 75% 95% at 50% 50%, transparent 0%, transparent 28%, rgba(0, 0, 0, 0.85) 52%, transparent 88%);
+}
+.qc-field svg {
+  width: 100%;
+  height: 100%;
+}
+.qc-field__drift {
+  animation: qc-field-drift 60s linear infinite alternate;
+  transform-origin: center;
+}
+@keyframes qc-field-drift {
+  from { transform: translate3d(-1.5%, 0, 0); }
+  to { transform: translate3d(1.5%, 0, 0); }
+}
+
+/* Soft dot lattice: secondary texture for panels. */
+.qc-lattice {
+  background-image: radial-gradient(rgb(var(--qc-fg) / 0.07) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Reveal on first view (set by components/site/Reveal.tsx). */
+.qc-reveal {
+  opacity: 0;
+  transform: translate3d(0, 14px, 0);
+  transition: opacity 600ms var(--qc-ease-out), transform 700ms var(--qc-ease-out);
+}
+.qc-reveal[data-shown='true'] {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qc-field__drift { animation: none; }
+  .qc-reveal { opacity: 1; transform: none; transition: none; }
 }
