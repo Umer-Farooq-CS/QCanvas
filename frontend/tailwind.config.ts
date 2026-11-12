@@ -117,6 +117,8 @@ const config: Config = {
           cirq: 'rgb(var(--qc-cirq) / <alpha-value>)',
           pennylane: 'rgb(var(--qc-pennylane) / <alpha-value>)',
           code: 'rgb(var(--qc-code-bg) / <alpha-value>)',
+          signal: 'rgb(var(--qc-signal) / <alpha-value>)',
+          field: 'rgb(var(--qc-field) / <alpha-value>)',
         },
         framework: {
           qiskit: '#a7c8ff',
@@ -150,6 +152,7 @@ const config: Config = {
       // Site type scale (display sizes; body uses Tailwind defaults)
       fontSize: {
         'display-1': ['clamp(2.25rem, 1.7rem + 2.2vw, 3.25rem)', { lineHeight: '1.06', letterSpacing: '-0.025em' }],
+        'display-hero': ['clamp(2.75rem, 2rem + 2.4vw, 4.5rem)', { lineHeight: '1.02', letterSpacing: '-0.03em' }],
         'display-2': ['clamp(1.75rem, 1.4rem + 1.5vw, 2.5rem)', { lineHeight: '1.1', letterSpacing: '-0.02em' }],
         'title': ['1.25rem', { lineHeight: '1.35', letterSpacing: '-0.01em' }],
       },

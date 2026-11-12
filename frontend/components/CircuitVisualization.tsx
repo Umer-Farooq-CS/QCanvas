@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Expand, Minimize2, Minus, Plus, Scan } from 'lucide-react'
-import { describeOp, layoutCircuit, type GateFamily, type LayoutOp, type RawGate } from '@/lib/circuitLayout'
+import { describeOp, layoutCircuit, type CircuitLayout, type GateFamily, type LayoutOp, type RawGate } from '@/lib/circuitLayout'
 
 /**
  * 2D circuit diagram.
@@ -266,6 +266,178 @@ function opSpan(op: LayoutOp, row: number) {
   return { top: rowAt(op.qubits[0], row) - BOX / 2, bottom: rowAt(op.qubits[op.qubits.length - 1], row) + BOX / 2 }
 }
 
+/** Column positions and per-qubit wire info for a laid-out circuit. */
+function computeGeometry(layout: CircuitLayout) {
+  const widths = new Array<number>(layout.columns).fill(BOX)
+  const opW = new Map<number, number>()
+  for (const op of layout.ops) {
+    const w = opWidth(op)
+    opW.set(op.id, w)
+    widths[op.column] = Math.max(widths[op.column], w)
+  }
+  const centers: number[] = []
+  let x = LEFT + 14
+  for (const w of widths) {
+    centers.push(x + w / 2)
+    x += w + GAP
+  }
+  // A qubit whose last operation is a measurement continues as a classical
+  // (double) wire from the meter onwards.
+  const last = new Array<LayoutOp | undefined>(layout.qubits)
+  for (const op of layout.ops) {
+    if (op.kind === 'barrier') continue
+    for (const q of op.qubits) {
+      const prev = last[q]
+      if (!prev || prev.column <= op.column) last[q] = op
+    }
+  }
+  const measuredAt = last.map((op) => (op && op.kind === 'measure' ? centers[op.column] : undefined))
+  const families = new Set(layout.ops.map((o) => o.family))
+  return {
+    centers, widths, opW, measuredAt, families,
+    width: Math.max(x + RIGHT - GAP, 240),
+    height: TOP + (layout.qubits - 1) * rowPitch(layout.qubits) + BOTTOM + BOX / 2,
+  }
+}
+
+type Geometry = ReturnType<typeof computeGeometry>
+
+/** Bands, wires and gates: the drawing shared by the IDE view and StaticCircuit. */
+function CircuitBody({ layout, geo, p, dark, row, drawW, stateOf, dimFrom, showAxis = true }: {
+  layout: CircuitLayout
+  geo: Geometry
+  p: Palette
+  dark: boolean
+  row: number
+  drawW: number
+  stateOf?: (id: number) => GlyphProps['state']
+  /** Ops in this column or later are drawn faded (for stepping through). */
+  dimFrom?: number
+  showAxis?: boolean
+}) {
+  const rowY = (q: number) => rowAt(q, row)
+  return (
+    <>
+      {showAxis && (
+        <text x={10} y={14} dominantBaseline="middle" fontFamily={SANS} fontSize={9} fill={p.label} opacity={0.8}>
+          time →
+        </text>
+      )}
+      {geo.centers.map((cx, i) => (
+        <g key={i}>
+          {i % 2 === 0 && (
+            <rect
+              x={cx - geo.widths[i] / 2 - GAP / 2}
+              y={TOP - row / 2 + 6}
+              width={geo.widths[i] + GAP}
+              height={geo.height - TOP + row / 2 - 10}
+              rx={4}
+              fill={p.label}
+              opacity={dark ? 0.05 : 0.06}
+            />
+          )}
+          {showAxis && (
+            <text x={cx} y={14} textAnchor="middle" dominantBaseline="middle" fontFamily={MONO} fontSize={9} fill={p.label} opacity={0.8}>
+              {i + 1}
+            </text>
+          )}
+        </g>
+      ))}
+
+      {/* Wires: quantum (single line) until a final measurement, then classical (double line). */}
+      {Array.from({ length: layout.qubits }, (_, q) => {
+        const y = rowY(q)
+        const m = geo.measuredAt[q]
+        const end = drawW - 8
+        return (
+          <g key={q}>
+            <line x1={LEFT} x2={m ?? end} y1={y} y2={y} stroke={p.wire} strokeWidth={1.25} />
+            {m !== undefined && (
+              <g stroke={p.measure.stroke} strokeWidth={1} opacity={0.55}>
+                <line x1={m + BOX / 2} x2={end} y1={y - 1.75} y2={y - 1.75} />
+                <line x1={m + BOX / 2} x2={end} y1={y + 1.75} y2={y + 1.75} />
+              </g>
+            )}
+            <text x={10} y={y} dominantBaseline="middle" fontFamily={MONO} fontSize={12} fill={p.label}>
+              q<tspan fontSize={9} dy={3}>{q}</tspan>
+            </text>
+            <text x={LEFT - 6} y={y} textAnchor="end" dominantBaseline="middle" fontFamily={MONO} fontSize={12} fontWeight={600} fill={p.init}>
+              |0⟩
+            </text>
+          </g>
+        )
+      })}
+
+      {layout.ops.map((op) => (
+        <g
+          key={op.id}
+          className="qc-viz-op"
+          style={{
+            transform: `translateX(${geo.centers[op.column]}px)`,
+            opacity: dimFrom !== undefined && op.column >= dimFrom ? 0.16 : 1,
+          }}
+        >
+          <OpGlyph
+            row={row}
+            op={op}
+            x={0}
+            w={geo.opW.get(op.id) ?? BOX}
+            p={p}
+            state={stateOf ? stateOf(op.id) : 'idle'}
+          />
+        </g>
+      ))}
+    </>
+  )
+}
+
+/**
+ * Non-interactive diagram that scales to its container's width: for the
+ * marketing site (hero strip, showcase, learning-path thumbnails). Same
+ * renderer and colours as the IDE view.
+ */
+export function StaticCircuit({
+  gates,
+  qubits = 0,
+  className = '',
+  step,
+  showAxis = true,
+  label,
+}: {
+  gates: RawGate[]
+  qubits?: number
+  className?: string
+  /** Show moments before this one in full and fade the rest. */
+  step?: number
+  showAxis?: boolean
+  label?: string
+}) {
+  const dark = useIsDark()
+  const p = dark ? DARK : LIGHT
+  const layout = useMemo(() => layoutCircuit(gates, qubits), [gates, qubits])
+  const geo = useMemo(() => computeGeometry(layout), [layout])
+  const row = rowPitch(layout.qubits)
+  return (
+    <svg
+      viewBox={`0 0 ${geo.width} ${geo.height}`}
+      className={`block h-auto w-full select-none ${className}`}
+      role="img"
+      aria-label={label ?? `Circuit diagram: ${layout.qubits} qubits, ${layout.ops.length} operations`}
+    >
+      <CircuitBody
+        layout={layout}
+        geo={geo}
+        p={p}
+        dark={dark}
+        row={row}
+        drawW={geo.width}
+        dimFrom={step}
+        showAxis={showAxis}
+      />
+    </svg>
+  )
+}
+
 export default function CircuitVisualization({ gates, qubits, className = '', busy = false, onContentHeight }: CircuitVisualizationProps) {
   const dark = useIsDark()
   const p = dark ? DARK : LIGHT
@@ -283,38 +455,7 @@ export default function CircuitVisualization({ gates, qubits, className = '', bu
   const [expanded, setExpanded] = useState(false)
 
   // Column geometry: each column is as wide as its widest op.
-  const geo = useMemo(() => {
-    const widths = new Array<number>(layout.columns).fill(BOX)
-    const opW = new Map<number, number>()
-    for (const op of layout.ops) {
-      const w = opWidth(op)
-      opW.set(op.id, w)
-      widths[op.column] = Math.max(widths[op.column], w)
-    }
-    const centers: number[] = []
-    let x = LEFT + 14
-    for (const w of widths) {
-      centers.push(x + w / 2)
-      x += w + GAP
-    }
-    // A qubit whose last operation is a measurement continues as a classical
-    // (double) wire from the meter onwards.
-    const last = new Array<LayoutOp | undefined>(layout.qubits)
-    for (const op of layout.ops) {
-      if (op.kind === 'barrier') continue
-      for (const q of op.qubits) {
-        const prev = last[q]
-        if (!prev || prev.column <= op.column) last[q] = op
-      }
-    }
-    const measuredAt = last.map((op) => (op && op.kind === 'measure' ? centers[op.column] : undefined))
-    const families = new Set(layout.ops.map((o) => o.family))
-    return {
-      centers, widths, opW, measuredAt, families,
-      width: Math.max(x + RIGHT - GAP, 240),
-      height: TOP + (layout.qubits - 1) * rowPitch(layout.qubits) + BOTTOM + BOX / 2,
-    }
-  }, [layout])
+  const geo = useMemo(() => computeGeometry(layout), [layout])
 
   useEffect(() => {
     if (onContentHeight && geo.height > 0) onContentHeight(Math.ceil(geo.height + HEADER_PX + 8))
@@ -518,65 +659,15 @@ export default function CircuitVisualization({ gates, qubits, className = '', bu
             className="block select-none"
             onMouseLeave={() => setHovered(null)}
           >
-            {/* Time axis: one shaded band and number per moment, left to right. */}
-            <text x={10} y={14} dominantBaseline="middle" fontFamily={SANS} fontSize={9} fill={p.label} opacity={0.8}>
-              time →
-            </text>
-            {geo.centers.map((cx, i) => (
-              <g key={i}>
-                {i % 2 === 0 && (
-                  <rect
-                    x={cx - geo.widths[i] / 2 - GAP / 2}
-                    y={TOP - row / 2 + 6}
-                    width={geo.widths[i] + GAP}
-                    height={geo.height - TOP + row / 2 - 10}
-                    rx={4}
-                    fill={p.label}
-                    opacity={dark ? 0.05 : 0.06}
-                  />
-                )}
-                <text x={cx} y={14} textAnchor="middle" dominantBaseline="middle" fontFamily={MONO} fontSize={9} fill={p.label} opacity={0.8}>
-                  {i + 1}
-                </text>
-              </g>
-            ))}
-
-            {/* Wires: quantum (single line) until a final measurement, then classical (double line). */}
-            {Array.from({ length: layout.qubits }, (_, q) => {
-              const y = rowY(q)
-              const m = geo.measuredAt[q]
-              const end = drawW - 8
-              return (
-                <g key={q}>
-                  <line x1={LEFT} x2={m ?? end} y1={y} y2={y} stroke={p.wire} strokeWidth={1.25} />
-                  {m !== undefined && (
-                    <g stroke={p.measure.stroke} strokeWidth={1} opacity={0.55}>
-                      <line x1={m + BOX / 2} x2={end} y1={y - 1.75} y2={y - 1.75} />
-                      <line x1={m + BOX / 2} x2={end} y1={y + 1.75} y2={y + 1.75} />
-                    </g>
-                  )}
-                  <text x={10} y={y} dominantBaseline="middle" fontFamily={MONO} fontSize={12} fill={p.label}>
-                    q<tspan fontSize={9} dy={3}>{q}</tspan>
-                  </text>
-                  <text x={LEFT - 6} y={y} textAnchor="end" dominantBaseline="middle" fontFamily={MONO} fontSize={12} fontWeight={600} fill={p.init}>
-                    |0⟩
-                  </text>
-                </g>
-              )
-            })}
-
-            {layout.ops.map((op) => (
-              <g key={op.id} className="qc-viz-op" style={{ transform: `translateX(${geo.centers[op.column]}px)` }}>
-                <OpGlyph
-                  row={row}
-                  op={op}
-                  x={0}
-                  w={geo.opW.get(op.id) ?? BOX}
-                  p={p}
-                  state={selected === op.id ? 'selected' : hovered === op.id ? 'hover' : 'idle'}
-                />
-              </g>
-            ))}
+            <CircuitBody
+              layout={layout}
+              geo={geo}
+              p={p}
+              dark={dark}
+              row={row}
+              drawW={drawW}
+              stateOf={(id) => (selected === id ? 'selected' : hovered === id ? 'hover' : 'idle')}
+            />
 
             {/* Hit areas on top so thin lines and dots are easy to point at. */}
             {layout.ops.map((op) => {
