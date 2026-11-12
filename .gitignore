@@ -352,3 +352,12 @@ design-audit/*.png
 # FastQSim session token cache (secret, written at runtime)
 **/.fastqsim_token_cache
 backend/test_db_output.txt
+
+# Local database dumps, migration backups and keys: never commit
+migration_backup/
+migraion_backup/
+qcanvas_prod_backup.sql
+*.sql.gz
+global-bundle.pem
+ip-check.py
+Test-Pypi-Imports/

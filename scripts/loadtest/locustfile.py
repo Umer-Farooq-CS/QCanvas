@@ -31,6 +31,28 @@ import random
 
 import gevent
 from locust import HttpUser, between, events, task
+from urllib.parse import urlparse
+
+# Safety: never point this at the live site by accident (adapted from the
+# Load-Test/ guard on master). Production needs LOAD_TEST_ALLOW_PRODUCTION=YES,
+# HTTPS, and stays within the caps below.
+PRODUCTION_HOSTS = {"qcanvas.codes", "www.qcanvas.codes", "api.qcanvas.codes"}
+MAX_PRODUCTION_USERS = 200
+MAX_PRODUCTION_SPAWN_RATE = 5
+
+
+@events.test_start.add_listener
+def _guard_production(environment, **_kwargs):
+    host = (urlparse(environment.host or "").hostname or "").lower()
+    if host not in PRODUCTION_HOSTS:
+        return
+    if os.environ.get("LOAD_TEST_ALLOW_PRODUCTION") != "YES":
+        raise RuntimeError("Refusing to load-test production. Set LOAD_TEST_ALLOW_PRODUCTION=YES during an agreed window.")
+    if not str(environment.host).lower().startswith("https://"):
+        raise RuntimeError("Production load tests must use HTTPS.")
+    opts = environment.parsed_options
+    if opts and ((getattr(opts, "num_users", 0) or 0) > MAX_PRODUCTION_USERS or (getattr(opts, "spawn_rate", 0) or 0) > MAX_PRODUCTION_SPAWN_RATE):
+        raise RuntimeError(f"Production caps: {MAX_PRODUCTION_USERS} users, spawn rate {MAX_PRODUCTION_SPAWN_RATE}/s.")
 
 THINK_MIN = float(os.getenv("THINK_MIN", "5"))
 THINK_MAX = float(os.getenv("THINK_MAX", "20"))
