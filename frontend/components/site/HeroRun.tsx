@@ -82,7 +82,7 @@ function Lines({
   animateIn: boolean;
 }) {
   return (
-    <pre className="qc-code qc-code--plain overflow-x-auto whitespace-pre text-[0.6875rem] leading-[1.75] sm:text-[0.78125rem]">
+    <pre className="qc-code qc-code--plain overflow-x-auto overflow-y-hidden whitespace-pre text-[0.6875rem] leading-[1.75] sm:text-[0.78125rem]">
       <code>
         {code.split("\n").map((line, i) => (
           <motion.span

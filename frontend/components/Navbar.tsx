@@ -43,10 +43,10 @@ export default function Navbar() {
       <nav className="qc-container flex h-14 items-center justify-between gap-4" aria-label="Main">
         <Link
           href="/"
-          className="qc-focus -ml-1 rounded-md px-1 py-1"
+          className="qc-focus -ml-1 flex items-center rounded-md px-1 py-1"
           aria-label="QCanvas home"
         >
-          <BrandLogo />
+          <BrandLogo size="lg" />
         </Link>
 
         <div className="hidden items-center gap-1 md:flex">

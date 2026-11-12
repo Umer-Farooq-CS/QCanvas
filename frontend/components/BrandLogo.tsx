@@ -12,11 +12,11 @@ export default function BrandLogo({
   wordmark?: boolean;
   className?: string;
 }>) {
-  const mark = { sm: "h-6 w-6", md: "h-7 w-7", lg: "h-9 w-9" }[size];
-  const text = { sm: "text-[1rem]", md: "text-[1.0625rem]", lg: "text-xl" }[size];
+  const mark = { sm: "h-6 w-6", md: "h-7 w-7", lg: "h-8 w-8" }[size];
+  const text = { sm: "text-[1rem]", md: "text-[1.0625rem]", lg: "text-[1.3125rem]" }[size];
 
   return (
-    <span className={`inline-flex items-center gap-2 ${className}`}>
+    <span className={`inline-flex items-center gap-2.5 ${className}`}>
       <span className={`qc-brand-mark ${mark}`} aria-hidden="true" />
       {wordmark && (
         <span
