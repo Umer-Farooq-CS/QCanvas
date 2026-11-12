@@ -546,12 +546,12 @@ export default function ShareModal({
               </label>
               <div className="flex-1 relative rounded-lg overflow-hidden border border-white/10 group">
                 <div className="absolute inset-0 backdrop-blur-sm"></div>
-                <pre className="absolute inset-0 p-4 text-xs text-blue-200/90 font-mono overflow-auto custom-scrollbar leading-relaxed">
+                <pre className="absolute inset-0 p-4 text-xs text-blue-800 dark:text-blue-200/90 font-mono overflow-auto custom-scrollbar leading-relaxed">
                   <code>{fileContent}</code>
                 </pre>
 
                 {/* Overlay gradient at bottom */}
-                <div className="absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-black/60 to-transparent pointer-events-none"></div>
+                <div className="absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-white/80 dark:from-black/60 to-transparent pointer-events-none"></div>
               </div>
             </div>
 
@@ -560,7 +560,7 @@ export default function ShareModal({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 hover:brightness-110 active:scale-95 text-gray-100 font-bold shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-300 transform disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2 bg-[length:200%_auto] animate-gradient"
+                className="on-fill w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 hover:brightness-110 active:scale-95 text-gray-100 font-bold shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-300 transform disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2 bg-[length:200%_auto] animate-gradient"
               >
                 {isSubmitting ? (
                   <>

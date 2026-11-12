@@ -215,7 +215,7 @@ export default function EditProfileModal({
                   errors.fullName
                     ? "border-red-500/60 focus:border-red-500"
                     : "border-qc-line focus:border-quantum-blue/60"
-                } rounded-lg pl-9 pr-4 py-2.5 text-sm text-qc-fg placeholder-gray-600 outline-none transition-colors`}
+                } rounded-lg pl-9 pr-4 py-2.5 text-sm text-qc-fg placeholder:text-qc-subtle outline-none transition-colors`}
               />
             </div>
             {errors.fullName && (
@@ -246,7 +246,7 @@ export default function EditProfileModal({
                   errors.username
                     ? "border-red-500/60 focus:border-red-500"
                     : "border-qc-line focus:border-quantum-blue/60"
-                } rounded-lg pl-9 pr-4 py-2.5 text-sm text-qc-fg placeholder-gray-600 outline-none transition-colors font-mono`}
+                } rounded-lg pl-9 pr-4 py-2.5 text-sm text-qc-fg placeholder:text-qc-subtle outline-none transition-colors font-mono`}
               />
             </div>
             {errors.username && (
@@ -279,7 +279,7 @@ export default function EditProfileModal({
                   errors.bio
                     ? "border-red-500/60 focus:border-red-500"
                     : "border-qc-line focus:border-quantum-blue/60"
-                } rounded-lg pl-9 pr-4 py-2.5 text-sm text-qc-fg placeholder-gray-600 outline-none transition-colors resize-none`}
+                } rounded-lg pl-9 pr-4 py-2.5 text-sm text-qc-fg placeholder:text-qc-subtle outline-none transition-colors resize-none`}
               />
               <span
                 className={`absolute bottom-2 right-3 text-[10px] ${bio.length > MAX_BIO_LENGTH ? "text-qc-danger" : "text-qc-subtle"}`}

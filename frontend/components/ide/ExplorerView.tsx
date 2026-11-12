@@ -622,7 +622,7 @@ function ExplorerView() {
               draggable
               className={`w-full flex items-center gap-2 py-1.5 pr-8 pl-2 text-sm rounded-md border transition-all duration-150 ${
                 activeFileId === node.file.id
-                  ? "bg-editor-accent/90 border-editor-accent text-gray-100 shadow-sm"
+                  ? "on-fill bg-editor-accent/90 border-editor-accent text-gray-100 shadow-sm"
                   : "text-gray-900 dark:text-gray-100 border-transparent hover:bg-editor-border/40 hover:border-editor-border/60"
               }`}
               onDragStart={(e) => {
@@ -656,10 +656,10 @@ function ExplorerView() {
             <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
               <button
                 type="button"
-                className={`p-1 rounded-md hover:bg-editor-border/70${
+                className={`p-1 rounded-md hover:bg-editor-border/70 ${
                   activeFileId === node.file.id
-                    ? "bg-editor-accent/90 border-editor-accent text-gray-100 shadow-sm"
-                    : "text-gray-900 border-transparent hover:bg-editor-border/40 hover:border-editor-border/60"
+                    ? "on-fill bg-editor-accent/90 border-editor-accent text-gray-100 shadow-sm"
+                    : "text-gray-900 dark:text-gray-200 border-transparent hover:bg-editor-border/40 hover:border-editor-border/60"
                 }`}
                 title="Rename file"
                 onClick={(e) => {
@@ -675,7 +675,7 @@ function ExplorerView() {
                 // "
                 className={`p-1 rounded-md hover:bg-editor-border/70 ${
                   activeFileId === node.file.id
-                    ? "bg-editor-accent/90 border-editor-accent text-gray-100 shadow-sm"
+                    ? "on-fill bg-editor-accent/90 border-editor-accent text-gray-100 shadow-sm"
                     : "text-gray-900 dark:text-gray-200 border-transparent hover:bg-editor-border/40 hover:border-editor-border/60"
                 }`}
                 title="Delete file"
@@ -710,7 +710,7 @@ function ExplorerView() {
               <button
                 type="button"
                 ref={projectMenuButtonRef}
-                className="max-w-[180px] inline-flex items-center gap-2 bg-editor-bg border border-editor-border rounded-md px-2 py-1 text-xs text-editor-text shadow-sm hover:bg-editor-bg/10 transition-colors"
+                className="max-w-[180px] inline-flex items-center gap-2 bg-editor-bg border border-editor-border rounded-md px-2 py-1 text-xs text-editor-text shadow-sm hover:bg-white/10 transition-colors"
                 title="Switch project"
                 onClick={() => setProjectMenuOpen((o) => !o)}
               >
@@ -745,7 +745,7 @@ function ExplorerView() {
                           type="button"
                           className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-md transition-colors ${
                             activeProjectId
-                              ? "text-editor-text hover:bg-editor-bg hover:text-white"
+                              ? "text-editor-text hover:bg-white/10 hover:text-white"
                               : "bg-editor-panelHigh/90 text-gray-100 shadow-sm"
                           }`}
                           onClick={() => {
@@ -787,7 +787,7 @@ function ExplorerView() {
                         </div>
                         <button
                           type="button"
-                          className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-xs font-semibold bg-emerald-400/10 text-emerald-500 dark:text-emerald-200 border border-emerald-400/25 hover:bg-emerald-400/15 transition-colors"
+                          className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-xs font-semibold bg-emerald-400/10 text-emerald-700 dark:text-emerald-200 border border-emerald-400/25 hover:bg-emerald-400/15 transition-colors"
                           onClick={() => {
                             setProjectMenuOpen(false);
                             startCreateProject();
@@ -804,7 +804,7 @@ function ExplorerView() {
             </div>
             <button
               type="button"
-              className="p-1.5 rounded-md border border-transparent hover:bg-gray-100 hover:border-editor-border text-editor-text transition-colors"
+              className="p-1.5 rounded-md border border-transparent hover:bg-white/10 hover:border-editor-border text-editor-text transition-colors"
               title="New Folder"
               onClick={() => startCreateFolder()}
             >
@@ -812,7 +812,7 @@ function ExplorerView() {
             </button>
             <button
               type="button"
-              className="p-1.5 rounded-md border border-transparent hover:bg-gray-100 hover:border-editor-border text-editor-text transition-colors"
+              className="p-1.5 rounded-md border border-transparent hover:bg-white/10 hover:border-editor-border text-editor-text transition-colors"
               title={
                 selectedFolderId ? "New File in Selected Folder" : "New File"
               }

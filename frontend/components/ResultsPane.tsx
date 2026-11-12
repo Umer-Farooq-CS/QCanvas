@@ -690,7 +690,7 @@ function ResultsPane() {
                 <Icon className="w-3 h-3 mr-1" />
                 {label}
                 {count !== undefined && count > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 text-xs bg-red-500 text-white rounded-full">
+                  <span className="ml-1 px-1.5 py-0.5 text-xs on-fill bg-red-500 text-white rounded-full">
                     {count}
                   </span>
                 )}
@@ -1642,8 +1642,8 @@ print(result.counts)`}
 
               {/* Cloud Execution & Billing Telemetry - Premium Card */}
               {(quantumResults?.metadata as any)?.job_id && (
-                <div className="rounded-xl border border-quantum-blue/30 overflow-hidden bg-gradient-to-br from-quantum-blue-dark/20 to-gray-900 shadow-lg">
-                  <div className="px-4 py-3 border-b border-quantum-blue/20 bg-quantum-blue-dark/40 flex items-center justify-between">
+                <div className="rounded-xl border border-quantum-blue/30 overflow-hidden bg-qc-surface-2 dark:bg-transparent dark:bg-gradient-to-br dark:from-quantum-blue-dark/20 dark:to-gray-900 shadow-lg">
+                  <div className="px-4 py-3 border-b border-quantum-blue/20 bg-indigo-500/10 dark:bg-quantum-blue-dark/40 flex items-center justify-between">
                     <h4 className="text-sm font-semibold text-white flex items-center">
                       <Cloud className="w-4 h-4 mr-2 text-cyan-400" />
                       FastQSim Cloud Job Telemetry

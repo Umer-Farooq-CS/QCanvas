@@ -243,7 +243,7 @@ export default function CircuitVisualization3D({ gates, qubits, className = '', 
     <div className={`relative flex h-full min-h-0 flex-col ${className}`}>
       <div className="flex h-8 shrink-0 items-center gap-3 px-3 text-[11px] text-editor-text">
         <span className="font-medium">Circuit · 3D</span>
-        <span className="tabular-nums opacity-60">
+        <span className="tabular-nums opacity-80">
           {layout.qubits} qubits · {layout.ops.length} ops · depth {layout.columns}
         </span>
         {busy && (
@@ -252,11 +252,11 @@ export default function CircuitVisualization3D({ gates, qubits, className = '', 
             Updating
           </span>
         )}
-        <span className="ml-auto hidden opacity-50 lg:inline">Drag to orbit · scroll to zoom · right-drag to pan</span>
+        <span className="ml-auto hidden opacity-80 lg:inline">Drag to orbit · scroll to zoom · right-drag to pan</span>
         <button
           type="button"
           onClick={() => setNonce((n) => n + 1)}
-          className="flex items-center gap-1 rounded px-1.5 py-0.5 opacity-70 transition hover:bg-editor-border/70 hover:opacity-100"
+          className="flex items-center gap-1 rounded px-1.5 py-0.5 opacity-90 transition hover:bg-editor-border/70 hover:opacity-100"
           title="Reset camera"
         >
           <RotateCcw className="h-3 w-3" /> Reset view

@@ -88,7 +88,7 @@ export default function ProfileDropdown({ onLogout }: ProfileDropdownProps) {
       >
         {/* Avatar / Level Indicator */}
         <div className="relative">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 via-violet-500 to-cyan-500 flex items-center justify-center text-white text-xs font-bold ring-2 ring-white/10 group-hover:ring-indigo-300/50 transition-[box-shadow]">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 via-violet-500 to-cyan-500 on-fill flex items-center justify-center text-white text-xs font-bold ring-2 ring-white/10 group-hover:ring-indigo-300/50 transition-[box-shadow]">
             {initials}
           </div>
           <div className="absolute -bottom-1 -right-1 bg-[#0a0a1a] border border-quantum-blue-light rounded-full w-4 h-4 flex items-center justify-center">
@@ -100,7 +100,7 @@ export default function ProfileDropdown({ onLogout }: ProfileDropdownProps) {
 
         {/* Name & Badge (Hidden on mobile) */}
         <div className="hidden lg:flex flex-col items-start">
-          <span className="text-xs font-semibold text-black  dark:text-gray-300 group-hover:text-black transition-colors">
+          <span className="text-xs font-semibold text-black dark:text-gray-300 group-hover:text-black dark:group-hover:text-white transition-colors">
             {user.username}
           </span>
           <span className="text-[10px] text-quantum-blue-light flex items-center gap-1">
@@ -123,7 +123,7 @@ export default function ProfileDropdown({ onLogout }: ProfileDropdownProps) {
           {/* Header */}
           <div className="p-4 border-b border-editor-border">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-11 h-11 shrink-0 rounded-full bg-gradient-to-br from-indigo-500 via-violet-500 to-cyan-500 flex items-center justify-center text-white text-base font-bold">
+              <div className="w-11 h-11 shrink-0 rounded-full bg-gradient-to-br from-indigo-500 via-violet-500 to-cyan-500 on-fill flex items-center justify-center text-white text-base font-bold">
                 {initials}
               </div>
               <div className="flex-1 overflow-hidden">
@@ -174,7 +174,7 @@ export default function ProfileDropdown({ onLogout }: ProfileDropdownProps) {
               className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-black dark:text-gray-300 hover:bg-indigo-500/10 hover:text-white transition-colors duration-100 group"
               onClick={() => setIsOpen(false)}
             >
-              <Award className="w-4 h-4 text-black dark:text-gray-400 group-hover:text-yellow-400" />
+              <Award className="w-4 h-4 text-black dark:text-gray-400 group-hover:text-yellow-600 dark:group-hover:text-yellow-400" />
               <span>Achievements</span>
             </Link>
 

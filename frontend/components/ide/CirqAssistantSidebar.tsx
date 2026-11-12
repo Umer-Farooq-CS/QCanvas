@@ -118,13 +118,13 @@ function Toggle({
         className={`relative inline-flex h-6 w-11 items-center rounded-full border transition-colors ${
           checked
             ? "bg-emerald-400/80 border-emerald-400/40"
-            : "bg-slate-800/60 border-editor-border/40"
+            : "bg-gray-300 dark:bg-slate-800/60 border-editor-border/40"
         } ${isDisabled ? "opacity-60 cursor-not-allowed" : "hover:brightness-110"}`}
         aria-pressed={checked}
         aria-label={label}
       >
         <span
-          className={`inline-block h-5 w-5 transform rounded-full bg-slate-950 shadow transition-transform ${
+          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
             checked ? "translate-x-5" : "translate-x-1"
           }`}
         />
@@ -318,7 +318,7 @@ export default function CirqAssistantSidebar({
             onClick={() => setActiveTab("chat")}
             className={`flex-1 flex flex-col items-center justify-center py-2 rounded-lg transition-all ${
               activeTab === "chat"
-                ? "bg-emerald-200/50 text-emerald-600/80 dark:bg-emerald-400/10 dark:text-emerald-300"
+                ? "bg-emerald-200/50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300"
                 : "text-editor-text/70 hover:bg-white/5 hover:text-editor-text"
             }`}
           >
@@ -332,8 +332,8 @@ export default function CirqAssistantSidebar({
             onClick={() => setActiveTab("settings")}
             className={`flex-1 flex flex-col items-center justify-center py-2 rounded-lg transition-all ${
               activeTab === "settings"
-                ? "bg-emerald-200/50 text-emerald-600/80 dark:bg-emerald-400/10 dark:text-emerald-300"
-                : "text-editor-text/70 hover:bg-gray-300/5 hover:text-editor-text"
+                ? "bg-emerald-200/50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300"
+                : "text-editor-text/70 hover:bg-white/5 hover:text-editor-text"
             }`}
           >
             <Settings className="w-5 h-5" />

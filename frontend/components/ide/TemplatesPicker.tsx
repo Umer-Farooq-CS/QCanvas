@@ -139,7 +139,7 @@ export default function TemplatesPicker({
                     <span className={`h-1.5 w-1.5 rounded-full ${FRAMEWORK_STYLE[f as Framework].dot}`} aria-hidden="true" />
                   )}
                   {f}
-                  <span className="tabular-nums opacity-60">{counts[f]}</span>
+                  <span className="tabular-nums opacity-80">{counts[f]}</span>
                 </button>
               );
             })}

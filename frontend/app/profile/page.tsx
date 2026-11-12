@@ -367,7 +367,7 @@ export default function ProfilePage() {
                     className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                       activeTab === id
                         ? "bg-qc-surface-3 text-qc-fg "
-                        : "text-qc-subtle hover:text-gray-900 hover:bg-qc-surface-2"
+                        : "text-qc-subtle hover:text-qc-fg hover:bg-qc-surface-2"
                     }`}
                   >
                     <TIcon className="w-4 h-4 shrink-0" />

@@ -779,18 +779,23 @@ body {
   color: #d4d4d4;
 }
 
-html {
+/* Native controls (number spinners, select arrows, scrollbars, date
+   pickers) follow color-scheme. The theme class sits on <html> itself, so
+   the old `.light html` selector never matched and light mode kept dark
+   native controls. */
+html,
+html.dark {
   color-scheme: dark;
+}
+
+html.light {
+  color-scheme: light;
 }
 
 /* Light mode overrides */
 .light body {
   background-color: rgb(var(--qc-bg));
   color: #1f2937;
-}
-
-.light html {
-  color-scheme: light;
 }
 
 /* Light theme comprehensive overrides */
@@ -1157,7 +1162,7 @@ html {
 
 /* Light theme for status colors */
 .light .text-green-400 {
-  color: #16a34a !important;
+  color: #15803d !important; /* green-700: green-600 was 2.8:1 on tinted cards */
 }
 
 .light .text-red-400 {
@@ -2293,3 +2298,123 @@ html {
   .qc-field__drift { animation: none; }
   .qc-reveal { opacity: 1; transform: none; transition: none; }
 }
+
+
+/* ------------------------------------------------------------------------
+   Light-theme coverage for IDE classes that had no override (menus, Find &
+   Replace, results cards, statistics, Cirq assistant, share modal). The
+   overrides above match exact class names, so each opacity / shade variant
+   needs its own entry. Dark mode is untouched.
+   ------------------------------------------------------------------------ */
+.light .bg-editor-panelLowest {
+  background-color: #f1f5f9 !important;
+}
+
+.light .bg-editor-panelHighest,
+.light .bg-editor-panelHighest\/90,
+.light .bg-gray-900\/95 {
+  background-color: rgba(255, 255, 255, 0.98) !important;
+}
+
+.light .hover\:bg-editor-panelHigh\/80:hover,
+.light .bg-black\/30 {
+  background-color: rgba(15, 23, 42, 0.06) !important;
+}
+
+.light .bg-yellow-900\/20,
+.light .bg-orange-900\/20 {
+  background-color: rgba(245, 158, 11, 0.1) !important;
+}
+
+/* Cirq assistant chat bubbles and controls */
+.light .bg-slate-800\/60 {
+  background-color: #e2e8f0 !important;
+}
+
+.light .bg-slate-800\/25 {
+  background-color: rgba(255, 255, 255, 0.75) !important;
+}
+
+.light .bg-slate-900\/70 {
+  background-color: #f1f5f9 !important;
+}
+
+/* Pastel accent text was tuned for dark surfaces; on white it falls to
+   ~2:1. Map each to its 700 shade in light mode. */
+.light .text-cyan-300,
+.light .text-cyan-400 { color: #0e7490 !important; }
+.light .text-emerald-200,
+.light .text-emerald-300,
+.light .text-emerald-400,
+.light .hover\:text-emerald-300:hover { color: #047857 !important; }
+.light .text-amber-300,
+.light .text-amber-400,
+.light .text-amber-400\/90 { color: #b45309 !important; }
+.light .text-yellow-100,
+.light .text-yellow-200,
+.light .text-yellow-300 { color: #a16207 !important; }
+.light .text-orange-400 { color: #c2410c !important; }
+.light .text-rose-400 { color: #e11d48 !important; }
+.light .text-pink-400 { color: #db2777 !important; }
+.light .text-teal-400 { color: #0f766e !important; }
+.light .text-indigo-400 { color: #4f46e5 !important; }
+.light .text-violet-400 { color: #7c3aed !important; }
+.light .text-sky-300 { color: #0369a1 !important; }
+.light .text-blue-100 { color: #1e40af !important; }
+.light .text-white\/90,
+.light .text-white\/95 { color: #0f172a !important; }
+.light .hover\:text-red-300:hover { color: #dc2626 !important; }
+
+/* Text on a saturated fill (accent row, gradient avatar, primary button)
+   stays white in light mode; `.light .text-white` would otherwise turn it
+   dark. Put `on-fill` on the filled element. */
+.light .on-fill,
+.light .on-fill.text-white,
+.light .on-fill .text-white,
+.light .on-fill.text-gray-100,
+.light .on-fill .text-gray-100,
+.light .on-fill svg {
+  color: #ffffff !important;
+}
+
+
+/* Markdown preview: MarkdownPreview imports GitHub's dark sheet, which hard
+   codes its colours. Light-theme equivalents (GitHub light palette). */
+.light .markdown-body {
+  color-scheme: light;
+  color: #1f2328;
+}
+.light .markdown-body a,
+.light .markdown-body .markdown-alert.markdown-alert-note .markdown-alert-title { color: #0969da; }
+.light .markdown-body h1,
+.light .markdown-body h2 { border-bottom-color: #d1d9e0b3; }
+.light .markdown-body h6,
+.light .markdown-body blockquote,
+.light .markdown-body .footnotes,
+.light .markdown-body .pl-c { color: #59636e; }
+.light .markdown-body blockquote,
+.light .markdown-body .markdown-alert { border-left-color: #d1d9e0; }
+.light .markdown-body hr { background-color: #d1d9e0; border-bottom-color: #d1d9e0b3; }
+.light .markdown-body table th,
+.light .markdown-body table td { border-color: #d1d9e0; }
+.light .markdown-body table tr { background-color: #ffffff; border-top-color: #d1d9e0b3; }
+.light .markdown-body table tr:nth-child(2n) { background-color: #f6f8fa; }
+.light .markdown-body code,
+.light .markdown-body tt { background-color: #818b981f; }
+.light .markdown-body pre,
+.light .markdown-body .highlight pre,
+.light .markdown-body kbd { color: #1f2328; background-color: #f6f8fa; }
+.light .markdown-body mark,
+.light .markdown-body .pl-smi,
+.light .markdown-body .pl-c2,
+.light .markdown-body .pl-mi,
+.light .markdown-body .footnotes li:target { color: #1f2328; }
+
+/* Framework accents (file icons, tab dots, template chips) are pastels made
+   for dark surfaces; use deeper shades on light ones. */
+.light .text-framework-qiskit { color: #2563eb !important; }
+.light .text-framework-cirq { color: #0e7490 !important; }
+.light .text-framework-pennylane { color: #c026d3 !important; }
+.light .bg-framework-qiskit { background-color: #2563eb !important; }
+.light .bg-framework-cirq { background-color: #0e7490 !important; }
+.light .bg-framework-pennylane { background-color: #c026d3 !important; }

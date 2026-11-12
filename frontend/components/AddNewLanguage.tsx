@@ -480,7 +480,7 @@ export default function AddNewLanguage({ isOpen, onClose }: AddNewLanguageProps)
                   ))}
                 </div>
 
-                <div className="mt-6 p-3 bg-gradient-to-r from-quantum-blue-dark/50 to-quantum-purple-dark/50 rounded-lg border border-white/10">
+                <div className="mt-6 p-3 bg-indigo-50 dark:bg-transparent dark:bg-gradient-to-r dark:from-quantum-blue-dark/50 dark:to-quantum-purple-dark/50 rounded-lg border border-white/10">
                   <p className="text-xs text-black dark:text-gray-300">
                     <strong className="text-white">Example:</strong> For a language called &quot;MyFramework&quot;,
                     create <code className="text-quantum-blue-light">myframework_to_qasm.py</code> with

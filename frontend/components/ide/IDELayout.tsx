@@ -174,7 +174,7 @@ export default function IDELayout({
               type="button"
               aria-label="Resize assistant panel"
               title="Drag to resize assistant panel"
-              className="w-1.5 shrink-0 h-full cursor-col-resize bg-transparent hover:bg-white/5 active:bg-white/10"
+              className="w-1.5 shrink-0 h-full cursor-col-resize bg-transparent hover:bg-white/5 active:bg-editor-accent/40"
               onMouseDown={(e: React.MouseEvent) => {
                 const maxWidth =
                   globalThis.window === undefined

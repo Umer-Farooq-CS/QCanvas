@@ -578,7 +578,7 @@ export default function CircuitVisualization({ gates, qubits, className = '', bu
   const W = drawW * scale
   const H = geo.height * scale
   const ctrlBtn =
-    'grid h-6 w-6 place-items-center rounded text-editor-text opacity-70 transition hover:bg-editor-border/70 hover:opacity-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-indigo-400'
+    'grid h-6 w-6 place-items-center rounded text-editor-text opacity-90 transition hover:bg-editor-border/70 hover:opacity-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-indigo-400'
 
   return (
     <>
@@ -598,7 +598,7 @@ export default function CircuitVisualization({ gates, qubits, className = '', bu
       {/* Summary + zoom */}
       <div className="flex h-8 shrink-0 items-center gap-3 px-3 text-[11px] text-editor-text">
         <span className="font-medium">Circuit</span>
-        <span className="tabular-nums opacity-60">
+        <span className="tabular-nums opacity-80">
           {layout.qubits} qubit{layout.qubits === 1 ? '' : 's'} · {layout.ops.length} op{layout.ops.length === 1 ? '' : 's'} · depth {layout.columns}
         </span>
         {busy && (
@@ -622,7 +622,7 @@ export default function CircuitVisualization({ gates, qubits, className = '', bu
           <button
             type="button"
             onClick={() => setZoom(null)}
-            className="min-w-[3rem] rounded px-1 py-0.5 text-center tabular-nums opacity-70 transition hover:bg-editor-border/70 hover:opacity-100"
+            className="min-w-[3rem] rounded px-1 py-0.5 text-center tabular-nums opacity-90 transition hover:bg-editor-border/70 hover:opacity-100"
             title="Reset to auto size"
           >
             {Math.round(scale * 100)}%

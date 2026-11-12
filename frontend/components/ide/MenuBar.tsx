@@ -366,7 +366,7 @@ function MenuBar({
             <div key={m.id} className="relative">
               <button
                 type="button"
-                className={`px-2 py-1 text-xs rounded-md transition-colors ${openMenu === m.id ? "bg-editor-bg/10 text-white" : "text-editor-text hover:bg-editor-panelHigh/10 hover:text-white"}`}
+                className={`px-2 py-1 text-xs rounded-md transition-colors ${openMenu === m.id ? "bg-white/10 text-white" : "text-editor-text hover:bg-white/5 hover:text-white"}`}
                 onClick={() =>
                   setOpenMenu((cur) => (cur === m.id ? null : m.id))
                 }
@@ -413,7 +413,7 @@ function MenuBar({
             <span
               className={`hidden items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-medium md:inline-flex ${
                 activeKind === "hybrid"
-                  ? "border-emerald-500/30 text-emerald-500"
+                  ? "border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
                   : "border-editor-border text-editor-text opacity-80"
               }`}
               title={
@@ -431,7 +431,7 @@ function MenuBar({
           )}
           <button
             type="button"
-            className="text-xs text-editor-text hover:text-white px-2 py-1 rounded-md hover:bg-editor-bg/10 hidden sm:inline-flex"
+            className="text-xs text-editor-text hover:text-white px-2 py-1 rounded-md hover:bg-white/10 hidden sm:inline-flex"
             onClick={() => setShowTemplatesPicker(true)}
           >
             Templates

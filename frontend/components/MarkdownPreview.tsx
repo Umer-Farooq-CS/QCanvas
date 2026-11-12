@@ -19,12 +19,12 @@ const mdComponents = {
     </h1>
   ),
   h2: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
-    <h2 className="text-xl font-semibold text-white/95 mt-5 mb-2" {...props}>
+    <h2 className="text-xl font-semibold text-white mt-5 mb-2" {...props}>
       {children}
     </h2>
   ),
   h3: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
-    <h3 className="text-lg font-medium text-white/90 mt-4 mb-2" {...props}>
+    <h3 className="text-lg font-medium text-white mt-4 mb-2" {...props}>
       {children}
     </h3>
   ),
