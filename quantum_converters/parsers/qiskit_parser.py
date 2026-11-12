@@ -61,7 +61,7 @@ from typing import List, Dict, Any, Optional, Set, Tuple, Union
 from quantum_converters.base.circuit_ast import (
     CircuitAST, GateNode, MeasurementNode, ResetNode, BarrierNode, ForLoopNode, IfStatementNode
 )
-from quantum_converters.base.circuit_validation import UnsupportedCircuitError
+from quantum_converters.base.circuit_validation import UnsupportedCircuitError, bounded_range
 from quantum_converters.base.safe_eval import NotStatic, static_eval
 
 # VERBOSE is imported from config.config
@@ -1244,7 +1244,7 @@ class QiskitASTVisitor(ast.NodeVisitor):
                 if node.id not in offsets:
                     raise UnsupportedCircuitError(f"register '{node.id}' is not part of the circuit")
                 size = self.registers[node.id]['size']
-                return list(range(offsets[node.id], offsets[node.id] + size))
+                return bounded_range(offsets[node.id], offsets[node.id] + size)
             if isinstance(node, ast.Name) and isinstance(self.variables.get(node.id), list):
                 values = self.variables[node.id]
                 if all(isinstance(v, int) and not isinstance(v, bool) for v in values):
@@ -1258,7 +1258,7 @@ class QiskitASTVisitor(ast.NodeVisitor):
             # Try to extract range information
             r = self._extract_range(node)
             if r and isinstance(r[0], int) and isinstance(r[1], int):
-                return list(range(r[0], r[1]))
+                return bounded_range(r[0], r[1])
             raise UnsupportedCircuitError(f"cannot resolve qubits '{ast.unparse(node)}' statically")
         return [self._extract_qubit_index(node, kind)]
 

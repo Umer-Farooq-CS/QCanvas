@@ -26,6 +26,22 @@ class UnsupportedCircuitError(ValueError):
     """The source program uses something the converter cannot translate faithfully."""
 
 
+# Ranges taken from user code (qubit lists, register sizes, loop bounds) are
+# materialised during static parsing, sometimes inside the API process
+# (/api/converter/parse). Cap them so `range(10**12)` can't exhaust memory.
+MAX_STATIC_RANGE = 100_000
+
+
+def bounded_range(*args: int) -> List[int]:
+    """list(range(*args)), refusing anything larger than MAX_STATIC_RANGE."""
+    r = range(*args)
+    if len(r) > MAX_STATIC_RANGE:
+        raise UnsupportedCircuitError(
+            f"range of {len(r):,} values is too large (limit {MAX_STATIC_RANGE:,})"
+        )
+    return list(r)
+
+
 # name -> (number of qubits, number of parameters); modifiers add control qubits.
 GATE_SIGNATURES: Dict[str, tuple] = {
     "id": (1, 0), "i": (1, 0), "x": (1, 0), "y": (1, 0), "z": (1, 0), "h": (1, 0),
@@ -193,6 +209,11 @@ class _Validator:
                 if not isinstance(start, int) or not isinstance(end, int) or isinstance(start, bool) or isinstance(end, bool):
                     self.errors.append(
                         f"for-loop over '{op.variable}': range bounds ({start!r}, {end!r}) are not compile-time integers")
+                    continue
+                if len(range(start, end)) > MAX_STATIC_RANGE:
+                    self.errors.append(
+                        f"for-loop over '{op.variable}' has {len(range(start, end)):,} iterations "
+                        f"(limit {MAX_STATIC_RANGE:,})")
                     continue
                 values = list(range(start, end))
                 self.walk(op.body, loops + ((op.variable, values),))

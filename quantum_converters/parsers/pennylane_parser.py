@@ -64,7 +64,7 @@ from typing import List, Any, Set, Optional, Tuple, Dict, Union
 from quantum_converters.base.circuit_ast import (
     CircuitAST, GateNode, MeasurementNode, ResetNode, BarrierNode, ForLoopNode, IfStatementNode
 )
-from quantum_converters.base.circuit_validation import UnsupportedCircuitError
+from quantum_converters.base.circuit_validation import UnsupportedCircuitError, bounded_range
 from quantum_converters.base.safe_eval import NotStatic, static_eval
 
 
@@ -879,7 +879,7 @@ class PennyLaneASTVisitor(ast.NodeVisitor):
                 if node.func.id == 'range' and len(node.args) == 1:
                     arg = self._parse_wires_value(node.args[0])
                     if arg and isinstance(arg[0], int):
-                        return list(range(arg[0]))
+                        return bounded_range(arg[0])
                 elif node.func.id == 'list' and len(node.args) == 1:
                     arg = self._parse_wires_value(node.args[0])
                     if arg:
@@ -1142,7 +1142,7 @@ class PennyLaneASTVisitor(ast.NodeVisitor):
             bounds = [static_eval(a, self._numeric_variables()) for a in node.args]
             if not all(isinstance(b, int) for b in bounds):
                 raise NotStatic("range bounds")
-            return list(range(*bounds))
+            return bounded_range(*bounds)
         value = static_eval(node, self._numeric_variables())
         if not isinstance(value, list):
             raise NotStatic("not iterable")

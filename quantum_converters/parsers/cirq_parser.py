@@ -60,7 +60,7 @@ from typing import List, Set, Any, Optional, Dict, Tuple, Union
 from quantum_converters.base.circuit_ast import (
     CircuitAST, GateNode, MeasurementNode, ResetNode, BarrierNode, ForLoopNode, IfStatementNode
 )
-from quantum_converters.base.circuit_validation import UnsupportedCircuitError
+from quantum_converters.base.circuit_validation import UnsupportedCircuitError, bounded_range
 from quantum_converters.base.safe_eval import NotStatic, static_number
 
 # VERBOSE is imported from config.config
@@ -466,7 +466,7 @@ class CirqASTVisitor(ast.NodeVisitor):
                 raise UnsupportedCircuitError("could not determine the size of a LineQubit.range(...)")
             if not 1 <= len(bounds) <= 3 or call_node.keywords:
                 raise UnsupportedCircuitError("unsupported LineQubit.range(...) call")
-            return list(range(*bounds))
+            return bounded_range(*bounds)
         if func.attr == 'LineQubit':
             if len(call_node.args) != 1 or call_node.keywords:
                 raise UnsupportedCircuitError("unsupported cirq.LineQubit(...) call")
