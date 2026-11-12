@@ -1,717 +1,517 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
-import * as d3 from 'd3'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Maximize2, Minus, Plus } from 'lucide-react'
+import { describeOp, layoutCircuit, type LayoutOp, type RawGate } from '@/lib/circuitLayout'
 
-interface Gate {
-  type: string
-  qubit: number
-  control?: number
-  target?: number
-  angle?: number
-  name?: string
-  qubits?: number[]
-  timestamp?: number
-}
+/**
+ * 2D circuit diagram.
+ *
+ * Declarative SVG: the layout is computed once per gate list (lib/circuitLayout)
+ * and each operation is a memoised glyph, so hovering or selecting re-renders
+ * one or two glyphs instead of tearing down and redrawing the whole drawing.
+ */
 
 interface CircuitVisualizationProps {
-  gates: Gate[]
+  gates: RawGate[]
   qubits: number
   className?: string
+  /** A newer parse is in flight; the current drawing stays until it lands. */
+  busy?: boolean
 }
 
-export default function CircuitVisualization({ gates, qubits, className = '' }: CircuitVisualizationProps) {
-  const svgRef = useRef<SVGSVGElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [selectedGate, setSelectedGate] = useState<Gate | null>(null)
-  const [hoveredGate, setHoveredGate] = useState<Gate | null>(null)
-  const [isDarkMode, setIsDarkMode] = useState(true)
+// Geometry (SVG user units, scaled as a whole by the zoom level).
+const ROW = 52
+const BOX = 34
+const GAP = 20
+const LEFT = 52
+const TOP = 30
+const BOTTOM = 18
+const RIGHT = 24
 
-  // Detect theme
+interface FamilyColors { fill: string; stroke: string; text: string }
+interface Palette {
+  bg: string
+  wire: string
+  label: string
+  muted: string
+  hover: string
+  select: string
+  clifford: FamilyColors
+  rotation: FamilyColors
+  multi: FamilyColors
+  measure: FamilyColors
+}
+
+const DARK: Palette = {
+  bg: '#131313',
+  wire: '#3d4250',
+  label: '#8b93a7',
+  muted: '#6b7280',
+  hover: '#a5b4fc',
+  select: '#22d3ee',
+  clifford: { fill: '#262a4a', stroke: '#6366f1', text: '#c7d2fe' },
+  rotation: { fill: '#16343b', stroke: '#06b6d4', text: '#a5f3fc' },
+  multi: { fill: '#2c2347', stroke: '#8b5cf6', text: '#ddd6fe' },
+  measure: { fill: '#272b33', stroke: '#94a3b8', text: '#e2e8f0' },
+}
+
+const LIGHT: Palette = {
+  bg: '#ffffff',
+  wire: '#cbd5e1',
+  label: '#64748b',
+  muted: '#94a3b8',
+  hover: '#4f46e5',
+  select: '#0891b2',
+  clifford: { fill: '#eef2ff', stroke: '#6366f1', text: '#3730a3' },
+  rotation: { fill: '#ecfeff', stroke: '#0891b2', text: '#155e75' },
+  multi: { fill: '#f5f3ff', stroke: '#7c3aed', text: '#5b21b6' },
+  measure: { fill: '#f8fafc', stroke: '#64748b', text: '#334155' },
+}
+
+const SANS = "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif"
+const MONO = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+
+function useIsDark() {
+  const [dark, setDark] = useState(true)
   useEffect(() => {
-    const checkTheme = () => {
-      setIsDarkMode(!document.documentElement.classList.contains('light'))
-    }
-    checkTheme()
-    const observer = new MutationObserver(checkTheme)
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
-    return () => observer.disconnect()
+    const check = () => setDark(!document.documentElement.classList.contains('light'))
+    check()
+    const obs = new MutationObserver(check)
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+    return () => obs.disconnect()
   }, [])
+  return dark
+}
 
-  // Theme colors. Memoised: a fresh object every render made the d3 effect
-  // below (which lists `colors` as a dependency) redraw the whole SVG on every
-  // parent re-render, i.e. on every debounced keystroke in the editor.
-  const colors = useMemo(() => ({
-    background: isDarkMode ? '#1e1e1e' : '#ffffff',
-    qubitLine: isDarkMode ? '#4B5563' : '#9CA3AF',
-    qubitLabel: isDarkMode ? '#9CA3AF' : '#6B7280',
-    gateStroke: isDarkMode ? '#6B7280' : '#4B5563',
-    text: isDarkMode ? '#ffffff' : '#1F2937',
-    hover: isDarkMode ? '#3B82F6' : '#2563EB',
-    selected: isDarkMode ? '#10B981' : '#059669',
-  }), [isDarkMode])
+/** Box width an op needs: wide enough for its label and angle. */
+function opWidth(op: LayoutOp): number {
+  if (op.kind === 'barrier') return 10
+  if (op.kind === 'swap' || op.kind === 'measure' || op.kind === 'reset') return BOX
+  if (op.kind === 'controlled' && (op.base === 'x' || op.base === 'z') && !op.angleLabel) return 26
+  const label = op.label.length * 8.5 + 12
+  const angle = op.angleLabel ? op.angleLabel.length * 6.2 + 12 : 0
+  return Math.max(BOX, label, angle)
+}
 
-  useEffect(() => {
-    if (!svgRef.current || gates.length === 0) return
+const rowY = (q: number) => TOP + q * ROW
 
-    const svg = d3.select(svgRef.current)
-    svg.selectAll('*').remove()
+interface GlyphProps {
+  op: LayoutOp
+  x: number
+  w: number
+  p: Palette
+  state: 'idle' | 'hover' | 'selected'
+}
 
-    const margin = { top: 20, right: 20, bottom: 20, left: 60 }
-    const qubitSpacing = 60
-    const gateSpacing = 80
-    
-    // Calculate max timestamp for width calculation
-    const maxTimestamp = gates.reduce((max, gate) => {
-      const ts = gate.timestamp ?? 0
-      return Math.max(max, ts)
-    }, 0)
-    
-    // Calculate width based on timestamps (circuit depth), ensuring minimum width
-    const minWidth = 600
-    const circuitDepth = maxTimestamp + 1
-    const calculatedWidth = Math.max(minWidth, circuitDepth * gateSpacing + margin.left + margin.right)
-    const width = calculatedWidth
-    const height = qubits * qubitSpacing + margin.top + margin.bottom
+function GateBox({ cx, cy, w, h, label, angle, c, ring }: {
+  cx: number; cy: number; w: number; h: number; label: string; angle?: string; c: FamilyColors; ring?: string
+}) {
+  return (
+    <g>
+      <rect
+        x={cx - w / 2} y={cy - h / 2} width={w} height={h} rx={7}
+        fill={c.fill} stroke={ring ?? c.stroke} strokeWidth={ring ? 2 : 1.25}
+      />
+      <text
+        x={cx} y={angle ? cy - 3 : cy + 0.5}
+        textAnchor="middle" dominantBaseline="middle"
+        fontFamily={SANS} fontSize={label.length > 3 ? 11 : 13} fontWeight={600} fill={c.text}
+      >
+        {label}
+      </text>
+      {angle && (
+        <text
+          x={cx} y={cy + 9.5} textAnchor="middle" dominantBaseline="middle"
+          fontFamily={MONO} fontSize={9} fill={c.text} opacity={0.8}
+        >
+          {angle}
+        </text>
+      )}
+    </g>
+  )
+}
 
-    svg.attr('width', width).attr('height', height)
+const OpGlyph = memo(function OpGlyph({ op, x, w, p, state }: GlyphProps) {
+  const c = p[op.family]
+  const ring = state === 'selected' ? p.select : state === 'hover' ? p.hover : undefined
+  const lo = op.qubits[0]
+  const hi = op.qubits[op.qubits.length - 1]
+  const line = ring ?? c.stroke
 
-    // Create main group with zoom transform
-    const mainGroup = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`)
-
-    // Setup zoom behavior
-    const zoom = d3.zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.5, 3])
-      .on('zoom', (event) => {
-        mainGroup.attr('transform', `translate(${margin.left + event.transform.x},${margin.top + event.transform.y}) scale(${event.transform.k})`)
-      })
-
-    svg.call(zoom as any)
-
-    // Draw qubit lines
-    for (let i = 0; i < qubits; i++) {
-      const y = i * qubitSpacing + 30
-      
-      mainGroup.append('line')
-        .attr('x1', 0)
-        .attr('y1', y)
-        .attr('x2', width - margin.left - margin.right)
-        .attr('y2', y)
-        .attr('stroke', colors.qubitLine)
-        .attr('stroke-width', 2)
-        .attr('class', 'qubit-line')
-
-      mainGroup.append('text')
-        .attr('x', -10)
-        .attr('y', y + 5)
-        .attr('text-anchor', 'end')
-        .attr('fill', colors.qubitLabel)
-        .attr('font-family', 'monospace')
-        .attr('font-size', '14px')
-        .attr('class', 'qubit-label')
-        .text(`q${i}`)
+  switch (op.kind) {
+    case 'barrier': {
+      const y1 = rowY(lo) - ROW / 2 + 6
+      const y2 = rowY(hi) + ROW / 2 - 6
+      return (
+        <g>
+          <rect x={x - 5} y={y1} width={10} height={y2 - y1} rx={3} fill={p.muted} opacity={0.12} />
+          <line x1={x} x2={x} y1={y1} y2={y2} stroke={ring ?? p.muted} strokeWidth={1.25} strokeDasharray="4 3" />
+        </g>
+      )
     }
 
-    // Gate color helper
-    const getGateColor = (gateType: string, property: 'fill' | 'stroke'): string => {
-      const type = gateType.toLowerCase()
-      const gateColors: Record<string, { fill: string; stroke: string }> = {
-        h: { fill: '#3B82F6', stroke: '#1D4ED8' },
-        x: { fill: '#EF4444', stroke: '#DC2626' },
-        y: { fill: '#10B981', stroke: '#059669' },
-        z: { fill: '#8B5CF6', stroke: '#7C3AED' },
-        s: { fill: '#06B6D4', stroke: '#0891B2' },
-        t: { fill: '#14B8A6', stroke: '#0D9488' },
-        rx: { fill: '#F59E0B', stroke: '#D97706' },
-        ry: { fill: '#F59E0B', stroke: '#D97706' },
-        rz: { fill: '#F59E0B', stroke: '#D97706' },
-        p: { fill: '#F59E0B', stroke: '#D97706' },
-        measure: { fill: '#6B7280', stroke: '#4B5563' },
+    case 'measure': {
+      const cy = rowY(op.targets[0])
+      return (
+        <g>
+          <rect x={x - BOX / 2} y={cy - BOX / 2} width={BOX} height={BOX} rx={7}
+            fill={c.fill} stroke={ring ?? c.stroke} strokeWidth={ring ? 2 : 1.25} />
+          <path d={`M ${x - 10} ${cy + 6} A 10 10 0 0 1 ${x + 10} ${cy + 6}`} fill="none" stroke={c.text} strokeWidth={1.5} />
+          <line x1={x} y1={cy + 6} x2={x + 7} y2={cy - 6} stroke={c.text} strokeWidth={1.5} strokeLinecap="round" />
+          <circle cx={x} cy={cy + 6} r={1.6} fill={c.text} />
+        </g>
+      )
+    }
+
+    case 'reset': {
+      const cy = rowY(op.targets[0])
+      return <GateBox cx={x} cy={cy} w={BOX} h={BOX} label="|0⟩" c={c} ring={ring} />
+    }
+
+    case 'swap': {
+      const [a, b] = op.targets
+      const cross = (q: number) => {
+        const cy = rowY(q)
+        return (
+          <g key={q} stroke={line} strokeWidth={2} strokeLinecap="round">
+            <line x1={x - 6} y1={cy - 6} x2={x + 6} y2={cy + 6} />
+            <line x1={x - 6} y1={cy + 6} x2={x + 6} y2={cy - 6} />
+          </g>
+        )
       }
-      return gateColors[type]?.[property] || (isDarkMode ? '#6B7280' : '#9CA3AF')
+      return (
+        <g>
+          <line x1={x} x2={x} y1={rowY(lo)} y2={rowY(hi)} stroke={line} strokeWidth={1.75} />
+          {op.controls.map((q) => <circle key={q} cx={x} cy={rowY(q)} r={5} fill={line} />)}
+          {cross(a)}
+          {cross(b)}
+        </g>
+      )
     }
 
-    // Get gate info for tooltip
-    const getGateInfo = (gate: Gate): string => {
-      let info = `<strong>${gate.type.toUpperCase()}</strong><br/>`
-      if (gate.control !== undefined && gate.target !== undefined) {
-        info += `Control: q${gate.control}<br/>Target: q${gate.target}`
-      } else {
-        info += `Qubit: q${gate.qubit}`
-      }
-      if (gate.angle !== undefined) {
-        info += `<br/>Angle: ${gate.angle.toFixed(3)} rad`
-        info += `<br/>Angle: ${(gate.angle * 180 / Math.PI).toFixed(1)}°`
-      }
-      return info
+    case 'controlled': {
+      const t = op.targets[0]
+      const ty = rowY(t)
+      const symbolic = !op.angleLabel && (op.base === 'x' || op.base === 'z')
+      return (
+        <g>
+          <line x1={x} x2={x} y1={rowY(lo)} y2={rowY(hi)} stroke={line} strokeWidth={1.75} />
+          {op.controls.map((q) => <circle key={q} cx={x} cy={rowY(q)} r={5} fill={line} />)}
+          {symbolic && op.base === 'x' && (
+            <g>
+              <circle cx={x} cy={ty} r={12} fill={p.bg} stroke={line} strokeWidth={1.75} />
+              <line x1={x - 12} x2={x + 12} y1={ty} y2={ty} stroke={line} strokeWidth={1.75} />
+              <line x1={x} x2={x} y1={ty - 12} y2={ty + 12} stroke={line} strokeWidth={1.75} />
+            </g>
+          )}
+          {symbolic && op.base === 'z' && <circle cx={x} cy={ty} r={5} fill={line} />}
+          {!symbolic && (
+            <GateBox cx={x} cy={ty} w={w} h={BOX} label={op.label} angle={op.angleLabel} c={c} ring={ring} />
+          )}
+        </g>
+      )
     }
 
-    // Create tooltip
-    const tooltip = d3.select('body')
-      .append('div')
-      .attr('class', 'circuit-tooltip')
-      .style('opacity', 0)
-      .style('position', 'absolute')
-      .style('background', isDarkMode ? '#1F2937' : '#F3F4F6')
-      .style('color', colors.text)
-      .style('padding', '8px 12px')
-      .style('border-radius', '6px')
-      .style('font-size', '12px')
-      .style('font-family', 'monospace')
-      .style('pointer-events', 'none')
-      .style('z-index', '1000')
-      .style('box-shadow', '0 4px 6px rgba(0,0,0,0.1)')
-      .style('border', `1px solid ${colors.gateStroke}`)
-
-    // Drawing functions - defined inside useEffect to access getGateColor and colors
-    function drawHGate(g: d3.Selection<SVGGElement, unknown, null, undefined>, x: number, y: number, label: string, gate: Gate) {
-      g.attr('data-gate-type', 'h')
-      g.append('rect')
-        .attr('x', x - 15)
-        .attr('y', y - 15)
-        .attr('width', 30)
-        .attr('height', 30)
-        .attr('fill', getGateColor('h', 'fill'))
-        .attr('stroke', getGateColor('h', 'stroke'))
-        .attr('stroke-width', 2)
-        .attr('rx', 4)
-        .attr('class', 'gate-element')
-      g.append('text')
-        .attr('x', x)
-        .attr('y', y + 5)
-        .attr('text-anchor', 'middle')
-        .attr('fill', 'white')
-        .attr('font-family', 'monospace')
-        .attr('font-size', '14px')
-        .attr('font-weight', 'bold')
-        .text(label)
+    case 'multi': {
+      const y1 = rowY(lo) - BOX / 2
+      const y2 = rowY(hi) + BOX / 2
+      return (
+        <g>
+          <rect x={x - w / 2} y={y1} width={w} height={y2 - y1} rx={7}
+            fill={c.fill} stroke={ring ?? c.stroke} strokeWidth={ring ? 2 : 1.25} />
+          {op.targets.map((q, i) => (
+            <text key={q} x={x - w / 2 + 5} y={rowY(q) + 0.5} dominantBaseline="middle"
+              fontFamily={MONO} fontSize={8} fill={c.text} opacity={0.6}>{i}</text>
+          ))}
+          <text x={x} y={(y1 + y2) / 2 - (op.angleLabel ? 4 : 0)} textAnchor="middle" dominantBaseline="middle"
+            fontFamily={SANS} fontSize={12} fontWeight={600} fill={c.text}>{op.label}</text>
+          {op.angleLabel && (
+            <text x={x} y={(y1 + y2) / 2 + 9} textAnchor="middle" dominantBaseline="middle"
+              fontFamily={MONO} fontSize={9} fill={c.text} opacity={0.8}>{op.angleLabel}</text>
+          )}
+        </g>
+      )
     }
 
-    function drawXGate(g: d3.Selection<SVGGElement, unknown, null, undefined>, x: number, y: number, gate: Gate) {
-      g.attr('data-gate-type', 'x')
-      g.append('circle')
-        .attr('cx', x)
-        .attr('cy', y)
-        .attr('r', 15)
-        .attr('fill', getGateColor('x', 'fill'))
-        .attr('stroke', getGateColor('x', 'stroke'))
-        .attr('stroke-width', 2)
-        .attr('class', 'gate-element')
-      g.append('text')
-        .attr('x', x)
-        .attr('y', y + 5)
-        .attr('text-anchor', 'middle')
-        .attr('fill', 'white')
-        .attr('font-family', 'monospace')
-        .attr('font-size', '14px')
-        .attr('font-weight', 'bold')
-        .text('X')
+    default:
+      return <GateBox cx={x} cy={rowY(op.targets[0])} w={w} h={BOX} label={op.label} angle={op.angleLabel} c={c} ring={ring} />
+  }
+})
+
+/** Vertical extent of an op, for hit areas and tooltip anchoring. */
+function opSpan(op: LayoutOp) {
+  return { top: rowY(op.qubits[0]) - BOX / 2, bottom: rowY(op.qubits[op.qubits.length - 1]) + BOX / 2 }
+}
+
+export default function CircuitVisualization({ gates, qubits, className = '', busy = false }: CircuitVisualizationProps) {
+  const dark = useIsDark()
+  const p = dark ? DARK : LIGHT
+  const svgRef = useRef<SVGSVGElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [hovered, setHovered] = useState<number | null>(null)
+  const [selected, setSelected] = useState<number | null>(null)
+  const [zoom, setZoom] = useState<number | null>(null) // null = auto (fit height)
+  const [box, setBox] = useState({ w: 0, h: 0 })
+
+  const layout = useMemo(() => layoutCircuit(gates, qubits), [gates, qubits])
+  const hasOps = layout.ops.length > 0
+
+  // Column geometry: each column is as wide as its widest op.
+  const geo = useMemo(() => {
+    const widths = new Array<number>(layout.columns).fill(BOX)
+    const opW = new Map<number, number>()
+    for (const op of layout.ops) {
+      const w = opWidth(op)
+      opW.set(op.id, w)
+      widths[op.column] = Math.max(widths[op.column], w)
     }
-
-    function drawYGate(g: d3.Selection<SVGGElement, unknown, null, undefined>, x: number, y: number, gate: Gate) {
-      g.attr('data-gate-type', 'y')
-      g.append('circle')
-        .attr('cx', x)
-        .attr('cy', y)
-        .attr('r', 15)
-        .attr('fill', getGateColor('y', 'fill'))
-        .attr('stroke', getGateColor('y', 'stroke'))
-        .attr('stroke-width', 2)
-        .attr('class', 'gate-element')
-      g.append('text')
-        .attr('x', x)
-        .attr('y', y + 5)
-        .attr('text-anchor', 'middle')
-        .attr('fill', 'white')
-        .attr('font-family', 'monospace')
-        .attr('font-size', '14px')
-        .attr('font-weight', 'bold')
-        .text('Y')
+    const centers: number[] = []
+    let x = LEFT + 14
+    for (const w of widths) {
+      centers.push(x + w / 2)
+      x += w + GAP
     }
+    return { centers, opW, width: Math.max(x + RIGHT - GAP, 240), height: TOP + (layout.qubits - 1) * ROW + BOTTOM + BOX / 2 }
+  }, [layout])
 
-    function drawZGate(g: d3.Selection<SVGGElement, unknown, null, undefined>, x: number, y: number, gate: Gate) {
-      g.attr('data-gate-type', 'z')
-      g.append('circle')
-        .attr('cx', x)
-        .attr('cy', y)
-        .attr('r', 15)
-        .attr('fill', getGateColor('z', 'fill'))
-        .attr('stroke', getGateColor('z', 'stroke'))
-        .attr('stroke-width', 2)
-        .attr('class', 'gate-element')
-      g.append('text')
-        .attr('x', x)
-        .attr('y', y + 5)
-        .attr('text-anchor', 'middle')
-        .attr('fill', 'white')
-        .attr('font-family', 'monospace')
-        .attr('font-size', '14px')
-        .attr('font-weight', 'bold')
-        .text('Z')
-    }
-
-    function drawSGate(g: d3.Selection<SVGGElement, unknown, null, undefined>, x: number, y: number, gate: Gate) {
-      g.attr('data-gate-type', 's')
-      g.append('rect')
-        .attr('x', x - 15)
-        .attr('y', y - 15)
-        .attr('width', 30)
-        .attr('height', 30)
-        .attr('fill', getGateColor('s', 'fill'))
-        .attr('stroke', getGateColor('s', 'stroke'))
-        .attr('stroke-width', 2)
-        .attr('rx', 4)
-        .attr('class', 'gate-element')
-      g.append('text')
-        .attr('x', x)
-        .attr('y', y + 5)
-        .attr('text-anchor', 'middle')
-        .attr('fill', 'white')
-        .attr('font-family', 'monospace')
-        .attr('font-size', '14px')
-        .attr('font-weight', 'bold')
-        .text('S')
-    }
-
-    function drawTGate(g: d3.Selection<SVGGElement, unknown, null, undefined>, x: number, y: number, gate: Gate) {
-      g.attr('data-gate-type', 't')
-      g.append('rect')
-        .attr('x', x - 15)
-        .attr('y', y - 15)
-        .attr('width', 30)
-        .attr('height', 30)
-        .attr('fill', getGateColor('t', 'fill'))
-        .attr('stroke', getGateColor('t', 'stroke'))
-        .attr('stroke-width', 2)
-        .attr('rx', 4)
-        .attr('class', 'gate-element')
-      g.append('text')
-        .attr('x', x)
-        .attr('y', y + 5)
-        .attr('text-anchor', 'middle')
-        .attr('fill', 'white')
-        .attr('font-family', 'monospace')
-        .attr('font-size', '14px')
-        .attr('font-weight', 'bold')
-        .text('T')
-    }
-
-    function drawCNOTGate(g: d3.Selection<SVGGElement, unknown, null, undefined>, x: number, controlY: number, targetY: number, gate: Gate) {
-      g.attr('data-gate-type', 'cx')
-      g.append('circle')
-        .attr('cx', x)
-        .attr('cy', controlY)
-        .attr('r', 6)
-        .attr('fill', colors.background)
-        .attr('stroke', colors.gateStroke)
-        .attr('stroke-width', 2)
-        .attr('class', 'gate-element')
-      g.append('line')
-        .attr('x1', x)
-        .attr('y1', controlY)
-        .attr('x2', x)
-        .attr('y2', targetY)
-        .attr('stroke', colors.gateStroke)
-        .attr('stroke-width', 2)
-      g.append('circle')
-        .attr('cx', x)
-        .attr('cy', targetY)
-        .attr('r', 15)
-        .attr('fill', 'none')
-        .attr('stroke', colors.gateStroke)
-        .attr('stroke-width', 2)
-        .attr('class', 'gate-element')
-      g.append('line')
-        .attr('x1', x - 8)
-        .attr('y1', targetY - 8)
-        .attr('x2', x + 8)
-        .attr('y2', targetY + 8)
-        .attr('stroke', colors.gateStroke)
-        .attr('stroke-width', 2)
-      g.append('line')
-        .attr('x1', x - 8)
-        .attr('y1', targetY + 8)
-        .attr('x2', x + 8)
-        .attr('y2', targetY - 8)
-        .attr('stroke', colors.gateStroke)
-        .attr('stroke-width', 2)
-    }
-
-    function drawCZGate(g: d3.Selection<SVGGElement, unknown, null, undefined>, x: number, controlY: number, targetY: number, gate: Gate) {
-      g.attr('data-gate-type', 'cz')
-      g.append('circle')
-        .attr('cx', x)
-        .attr('cy', controlY)
-        .attr('r', 6)
-        .attr('fill', colors.background)
-        .attr('stroke', colors.gateStroke)
-        .attr('stroke-width', 2)
-        .attr('class', 'gate-element')
-      g.append('line')
-        .attr('x1', x)
-        .attr('y1', controlY)
-        .attr('x2', x)
-        .attr('y2', targetY)
-        .attr('stroke', colors.gateStroke)
-        .attr('stroke-width', 2)
-      g.append('circle')
-        .attr('cx', x)
-        .attr('cy', targetY)
-        .attr('r', 6)
-        .attr('fill', colors.background)
-        .attr('stroke', colors.gateStroke)
-        .attr('stroke-width', 2)
-        .attr('class', 'gate-element')
-    }
-
-    function drawSWAPGate(g: d3.Selection<SVGGElement, unknown, null, undefined>, x: number, qubit1Y: number, qubit2Y: number, gate: Gate) {
-      g.attr('data-gate-type', 'swap')
-      g.append('line')
-        .attr('x1', x - 8)
-        .attr('y1', qubit1Y - 8)
-        .attr('x2', x + 8)
-        .attr('y2', qubit1Y + 8)
-        .attr('stroke', colors.gateStroke)
-        .attr('stroke-width', 2)
-      g.append('line')
-        .attr('x1', x - 8)
-        .attr('y1', qubit1Y + 8)
-        .attr('x2', x + 8)
-        .attr('y2', qubit1Y - 8)
-        .attr('stroke', colors.gateStroke)
-        .attr('stroke-width', 2)
-      g.append('line')
-        .attr('x1', x - 8)
-        .attr('y1', qubit2Y - 8)
-        .attr('x2', x + 8)
-        .attr('y2', qubit2Y + 8)
-        .attr('stroke', colors.gateStroke)
-        .attr('stroke-width', 2)
-      g.append('line')
-        .attr('x1', x - 8)
-        .attr('y1', qubit2Y + 8)
-        .attr('x2', x + 8)
-        .attr('y2', qubit2Y - 8)
-        .attr('stroke', colors.gateStroke)
-        .attr('stroke-width', 2)
-      g.append('line')
-        .attr('x1', x)
-        .attr('y1', qubit1Y)
-        .attr('x2', x)
-        .attr('y2', qubit2Y)
-        .attr('stroke', colors.gateStroke)
-        .attr('stroke-width', 2)
-    }
-
-    function drawRotationGate(g: d3.Selection<SVGGElement, unknown, null, undefined>, x: number, y: number, label: string, angle: number | undefined, gate: Gate) {
-      g.attr('data-gate-type', gate.type.toLowerCase())
-      g.append('rect')
-        .attr('x', x - 20)
-        .attr('y', y - 15)
-        .attr('width', 40)
-        .attr('height', 30)
-        .attr('fill', getGateColor(gate.type.toLowerCase(), 'fill'))
-        .attr('stroke', getGateColor(gate.type.toLowerCase(), 'stroke'))
-        .attr('stroke-width', 2)
-        .attr('rx', 4)
-        .attr('class', 'gate-element')
-      g.append('text')
-        .attr('x', x)
-        .attr('y', y + 2)
-        .attr('text-anchor', 'middle')
-        .attr('fill', 'white')
-        .attr('font-family', 'monospace')
-        .attr('font-size', '12px')
-        .attr('font-weight', 'bold')
-        .text(label)
-      if (angle !== undefined) {
-        g.append('text')
-          .attr('x', x)
-          .attr('y', y + 12)
-          .attr('text-anchor', 'middle')
-          .attr('fill', 'white')
-          .attr('font-family', 'monospace')
-          .attr('font-size', '8px')
-          .text(`(${angle.toFixed(2)})`)
-      }
-    }
-
-    function drawPhaseGate(g: d3.Selection<SVGGElement, unknown, null, undefined>, x: number, y: number, angle: number | undefined, gate: Gate) {
-      g.attr('data-gate-type', 'p')
-      g.append('rect')
-        .attr('x', x - 20)
-        .attr('y', y - 15)
-        .attr('width', 40)
-        .attr('height', 30)
-        .attr('fill', getGateColor('p', 'fill'))
-        .attr('stroke', getGateColor('p', 'stroke'))
-        .attr('stroke-width', 2)
-        .attr('rx', 4)
-        .attr('class', 'gate-element')
-      g.append('text')
-        .attr('x', x)
-        .attr('y', y + 2)
-        .attr('text-anchor', 'middle')
-        .attr('fill', 'white')
-        .attr('font-family', 'monospace')
-        .attr('font-size', '12px')
-        .attr('font-weight', 'bold')
-        .text('P')
-      if (angle !== undefined) {
-        g.append('text')
-          .attr('x', x)
-          .attr('y', y + 12)
-          .attr('text-anchor', 'middle')
-          .attr('fill', 'white')
-          .attr('font-family', 'monospace')
-          .attr('font-size', '8px')
-          .text(`(${angle.toFixed(2)})`)
-      }
-    }
-
-    function drawMeasurementGate(g: d3.Selection<SVGGElement, unknown, null, undefined>, x: number, y: number, gate: Gate) {
-      g.attr('data-gate-type', 'measure')
-      // Measurement box
-      g.append('rect')
-        .attr('x', x - 15)
-        .attr('y', y - 15)
-        .attr('width', 30)
-        .attr('height', 30)
-        .attr('fill', getGateColor('measure', 'fill'))
-        .attr('stroke', getGateColor('measure', 'stroke'))
-        .attr('stroke-width', 2)
-        .attr('rx', 4)
-        .attr('class', 'gate-element')
-      // Draw meter arc using path (semicircle)
-      g.append('path')
-        .attr('d', `M ${x - 8} ${y + 5} A 8 8 0 0 1 ${x + 8} ${y + 5}`)
-        .attr('fill', 'none')
-        .attr('stroke', 'white')
-        .attr('stroke-width', 2)
-      // Draw meter needle
-      g.append('line')
-        .attr('x1', x)
-        .attr('y1', y + 5)
-        .attr('x2', x + 5)
-        .attr('y2', y - 3)
-        .attr('stroke', 'white')
-        .attr('stroke-width', 2)
-      // Add "M" label
-      g.append('text')
-        .attr('x', x)
-        .attr('y', y - 6)
-        .attr('text-anchor', 'middle')
-        .attr('fill', 'white')
-        .attr('font-family', 'monospace')
-        .attr('font-size', '8px')
-        .attr('font-weight', 'bold')
-        .text('M')
-    }
-
-    function drawGenericGate(g: d3.Selection<SVGGElement, unknown, null, undefined>, x: number, y: number, label: string, gate: Gate) {
-      g.attr('data-gate-type', gate.type.toLowerCase())
-      g.append('rect')
-        .attr('x', x - 15)
-        .attr('y', y - 15)
-        .attr('width', 30)
-        .attr('height', 30)
-        .attr('fill', colors.gateStroke)
-        .attr('stroke', colors.gateStroke)
-        .attr('stroke-width', 2)
-        .attr('rx', 4)
-        .attr('class', 'gate-element')
-      g.append('text')
-        .attr('x', x)
-        .attr('y', y + 5)
-        .attr('text-anchor', 'middle')
-        .attr('fill', 'white')
-        .attr('font-family', 'monospace')
-        .attr('font-size', '10px')
-        .attr('font-weight', 'bold')
-        .text(label.length > 4 ? label.substring(0, 4) : label)
-    }
-
-    // Draw gates with interactivity
-    gates.forEach((gate, gateIndex) => {
-      // Use timestamp for x position if available, otherwise fall back to gate index
-      const timeSlot = gate.timestamp ?? gateIndex
-      const x = timeSlot * gateSpacing + 40
-      const y = gate.qubit * qubitSpacing + 30
-      
-      // Create gate group for interactivity
-      const gateGroup = mainGroup.append('g')
-        .attr('class', 'gate-group')
-        .attr('data-gate-index', gateIndex)
-        .style('cursor', 'pointer')
-        .on('mouseenter', function(event) {
-          setHoveredGate(gate)
-          d3.select(this).selectAll('rect, circle').attr('stroke-width', 3).attr('stroke', colors.hover)
-          
-          // Show tooltip
-          const gateInfo = getGateInfo(gate)
-          tooltip.transition().duration(200).style('opacity', 0.95)
-          tooltip.html(gateInfo)
-            .style('left', (event.pageX + 10) + 'px')
-            .style('top', (event.pageY - 10) + 'px')
-        })
-        .on('mouseleave', function() {
-          setHoveredGate(null)
-          if (selectedGate !== gate) {
-            const element = d3.select(this).node() as SVGElement
-            const gateType = element.getAttribute('data-gate-type') || ''
-            const defaultStroke = getGateColor(gateType, 'stroke')
-            d3.select(this).selectAll('rect, circle').attr('stroke-width', 2).attr('stroke', defaultStroke)
-          }
-          tooltip.transition().duration(200).style('opacity', 0)
-        })
-        .on('click', function() {
-          const newSelected = selectedGate === gate ? null : gate
-          setSelectedGate(newSelected)
-          // Update all gates to show selection
-          mainGroup.selectAll('.gate-group').each(function() {
-            const element = d3.select(this).node() as SVGElement
-            const gateIndex = parseInt(element.getAttribute('data-gate-index') || '0')
-            const isSelected = gates[gateIndex] === newSelected
-            const gateType = element.getAttribute('data-gate-type') || ''
-            const defaultStroke = getGateColor(gateType, 'stroke')
-            d3.select(this).selectAll('rect, circle')
-              .attr('stroke-width', isSelected ? 3 : 2)
-              .attr('stroke', isSelected ? colors.selected : defaultStroke)
-          })
-        })
-
-      // Draw gate based on type
-      switch (gate.type.toLowerCase()) {
-        case 'h':
-        case 'hadamard':
-          drawHGate(gateGroup, x, y, gate.name || 'H', gate)
-          break
-        case 'x':
-        case 'pauli-x':
-          drawXGate(gateGroup, x, y, gate)
-          break
-        case 'y':
-        case 'pauli-y':
-          drawYGate(gateGroup, x, y, gate)
-          break
-        case 'z':
-        case 'pauli-z':
-          drawZGate(gateGroup, x, y, gate)
-          break
-        case 's':
-          drawSGate(gateGroup, x, y, gate)
-          break
-        case 't':
-          drawTGate(gateGroup, x, y, gate)
-          break
-        case 'cx':
-        case 'cnot':
-          if (gate.control !== undefined && gate.target !== undefined) {
-            drawCNOTGate(gateGroup, x, gate.control * qubitSpacing + 30, gate.target * qubitSpacing + 30, gate)
-          }
-          break
-        case 'cz':
-          if (gate.control !== undefined && gate.target !== undefined) {
-            drawCZGate(gateGroup, x, gate.control * qubitSpacing + 30, gate.target * qubitSpacing + 30, gate)
-          }
-          break
-        case 'swap':
-          if (gate.control !== undefined && gate.target !== undefined) {
-            drawSWAPGate(gateGroup, x, gate.control * qubitSpacing + 30, gate.target * qubitSpacing + 30, gate)
-          }
-          break
-        case 'rz':
-        case 'ry':
-        case 'rx':
-          drawRotationGate(gateGroup, x, y, gate.type.toUpperCase(), gate.angle, gate)
-          break
-        case 'p':
-        case 'phaseshift':
-          drawPhaseGate(gateGroup, x, y, gate.angle, gate)
-          break
-        case 'measure':
-        case 'measurement':
-          drawMeasurementGate(gateGroup, x, y, gate)
-          break
-        default:
-          drawGenericGate(gateGroup, x, y, gate.type.toUpperCase(), gate)
-      }
+  // Track the visible area to auto-fit.
+  useLayoutEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const ro = new ResizeObserver(([entry]) => {
+      const r = entry.contentRect
+      setBox((b) => (b.w === r.width && b.h === r.height ? b : { w: r.width, h: r.height }))
     })
+    ro.observe(el)
+    return () => ro.disconnect()
+    // Re-attach when the drawing first appears (the empty state has no scroller).
+  }, [hasOps])
 
-    // Cleanup tooltip on unmount
-    return () => {
-      tooltip.remove()
+  const autoScale = box.h > 0 ? Math.min(1.25, Math.max(0.55, (box.h - 4) / geo.height)) : 1
+  const scale = zoom ?? autoScale
+
+  const setZoomClamped = useCallback((z: number) => setZoom(Math.min(2.5, Math.max(0.25, Math.round(z * 100) / 100))), [])
+  const fitAll = useCallback(() => {
+    if (!box.w || !box.h) return
+    setZoomClamped(Math.min(1.25, (box.w - 4) / geo.width, (box.h - 4) / geo.height))
+  }, [box, geo, setZoomClamped])
+
+  // Ctrl/⌘ + wheel zooms; plain wheel scrolls as usual.
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return
+      e.preventDefault()
+      setZoom((z) => {
+        const cur = z ?? autoScale
+        return Math.min(2.5, Math.max(0.25, cur * (e.deltaY < 0 ? 1.1 : 1 / 1.1)))
+      })
     }
-  }, [gates, qubits, selectedGate, hoveredGate, isDarkMode, colors])
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [autoScale, hasOps])
+
+  // Selection refers to op ids; drop it when the circuit changes underneath.
+  useEffect(() => {
+    setSelected((s) => (s !== null && s < layout.ops.length ? s : null))
+    setHovered(null)
+  }, [layout])
 
   useEffect(() => {
-    const handleDownload = () => {
-      if (!svgRef.current) return;
-      
-      const svgElement = svgRef.current;
-      const serializer = new XMLSerializer();
-      let svgString = serializer.serializeToString(svgElement);
-      
-      if (!svgString.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
-        svgString = svgString.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
-      }
+    if (selected === null) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setSelected(null)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selected])
 
-      const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(svgBlob);
-      
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'circuit-diagram.svg';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    };
+  // Export: the toolbar dispatches this event.
+  useEffect(() => {
+    const onDownload = () => {
+      const svg = svgRef.current
+      if (!svg) return
+      const clone = svg.cloneNode(true) as SVGSVGElement
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+      clone.setAttribute('viewBox', `0 0 ${geo.width} ${geo.height}`)
+      clone.setAttribute('width', String(Math.ceil(geo.width * 2)))
+      clone.setAttribute('height', String(Math.ceil(geo.height * 2)))
+      const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+      bg.setAttribute('width', '100%')
+      bg.setAttribute('height', '100%')
+      bg.setAttribute('fill', p.bg)
+      clone.insertBefore(bg, clone.firstChild)
+      clone.querySelectorAll('[data-hit]').forEach((n) => n.remove())
+      const blob = new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'circuit-diagram.svg'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    }
+    window.addEventListener('download-circuit-svg', onDownload)
+    return () => window.removeEventListener('download-circuit-svg', onDownload)
+  }, [geo, p.bg])
 
-    window.addEventListener('download-circuit-svg', handleDownload);
-    return () => window.removeEventListener('download-circuit-svg', handleDownload);
-  }, []);
+  const opById = (id: number | null) => (id === null ? undefined : layout.ops.find((o) => o.id === id))
+  const hoverOp = opById(hovered)
+  const selOp = opById(selected)
 
-  if (gates.length === 0) {
+  if (layout.ops.length === 0) {
     return (
-      <div className={`flex items-center justify-center h-32 border-2 border-dashed border-gray-600 rounded-lg ${className}`}>
-        <p className="text-black dark:text-gray-400 text-sm">No circuit to visualize</p>
+      <div className={`flex h-full flex-col items-center justify-center gap-1 text-center ${className}`}>
+        <p className="text-sm text-editor-text">{busy ? 'Reading your circuit…' : 'No gates to draw yet'}</p>
+        {!busy && (
+          <p className="text-xs text-editor-text opacity-60">
+            Add a gate such as <code className="font-mono">qc.h(0)</code> and the diagram updates as you type.
+          </p>
+        )}
       </div>
     )
   }
 
+  // Wires run the full visible width even when the circuit is short.
+  const drawW = Math.max(geo.width, box.w > 0 ? (box.w - 2) / scale : 0)
+  const W = drawW * scale
+  const H = geo.height * scale
+  const ctrlBtn =
+    'grid h-6 w-6 place-items-center rounded text-editor-text opacity-70 transition hover:bg-editor-border/70 hover:opacity-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-indigo-400'
+
   return (
-    <div ref={containerRef} className={`relative ${className}`}>
-      {selectedGate && (
-        <div className="absolute top-2 right-2 bg-editor-bg border border-editor-border rounded-lg p-3 text-sm z-10 max-w-xs">
-          <div className="font-bold mb-2 text-quantum-blue-light">Gate Details</div>
-          <div className="space-y-1 text-editor-text">
-            <div><strong>Type:</strong> {selectedGate.type.toUpperCase()}</div>
-            {selectedGate.control !== undefined && selectedGate.target !== undefined ? (
-              <>
-                <div><strong>Control:</strong> q{selectedGate.control}</div>
-                <div><strong>Target:</strong> q{selectedGate.target}</div>
-              </>
-            ) : (
-              <div><strong>Qubit:</strong> q{selectedGate.qubit}</div>
-            )}
-            {selectedGate.angle !== undefined && (
-              <div>
-                <strong>Angle:</strong> {selectedGate.angle.toFixed(3)} rad ({((selectedGate.angle * 180) / Math.PI).toFixed(1)}°)
-              </div>
-            )}
-          </div>
+    <div className={`relative flex h-full min-h-0 flex-col ${className}`}>
+      {/* Summary + zoom */}
+      <div className="flex h-8 shrink-0 items-center gap-3 px-3 text-[11px] text-editor-text">
+        <span className="font-medium">Circuit</span>
+        <span className="tabular-nums opacity-60">
+          {layout.qubits} qubit{layout.qubits === 1 ? '' : 's'} · {layout.ops.length} op{layout.ops.length === 1 ? '' : 's'} · depth {layout.columns}
+        </span>
+        {busy && (
+          <span className="flex items-center gap-1.5 opacity-60" aria-live="polite">
+            <span className="h-2.5 w-2.5 animate-spin rounded-full border border-indigo-400 border-t-transparent" />
+            Updating
+          </span>
+        )}
+        <div className="ml-auto flex items-center gap-0.5">
+          <button type="button" className={ctrlBtn} onClick={() => setZoomClamped(scale / 1.2)} title="Zoom out" aria-label="Zoom out">
+            <Minus className="h-3.5 w-3.5" />
+          </button>
           <button
-            onClick={() => setSelectedGate(null)}
-            className="mt-2 text-xs text-black dark:text-gray-400 hover:text-white"
+            type="button"
+            onClick={() => setZoom(null)}
+            className="min-w-[3rem] rounded px-1 py-0.5 text-center tabular-nums opacity-70 transition hover:bg-editor-border/70 hover:opacity-100"
+            title="Reset to auto size"
           >
-            Close
+            {Math.round(scale * 100)}%
+          </button>
+          <button type="button" className={ctrlBtn} onClick={() => setZoomClamped(scale * 1.2)} title="Zoom in" aria-label="Zoom in">
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+          <button type="button" className={ctrlBtn} onClick={fitAll} title="Fit whole circuit" aria-label="Fit whole circuit">
+            <Maximize2 className="h-3.5 w-3.5" />
           </button>
         </div>
-      )}
-      <div className="overflow-auto">
-        <svg ref={svgRef} className="min-w-full"></svg>
       </div>
+
+      <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-auto" onClick={() => setSelected(null)}>
+        <div className="relative" style={{ width: W, height: H }}>
+          <svg
+            ref={svgRef}
+            width={W}
+            height={H}
+            viewBox={`0 0 ${drawW} ${geo.height}`}
+            role="img"
+            aria-label={`Circuit diagram: ${layout.qubits} qubits, ${layout.ops.length} operations, depth ${layout.columns}`}
+            className="block select-none"
+            onMouseLeave={() => setHovered(null)}
+          >
+            {/* Wires and labels */}
+            {Array.from({ length: layout.qubits }, (_, q) => (
+              <g key={q}>
+                <line x1={LEFT} x2={drawW - 8} y1={rowY(q)} y2={rowY(q)} stroke={p.wire} strokeWidth={1.25} />
+                <text x={LEFT - 10} y={rowY(q)} textAnchor="end" dominantBaseline="middle" fontFamily={MONO} fontSize={12} fill={p.label}>
+                  q<tspan fontSize={9} dy={3}>{q}</tspan>
+                </text>
+              </g>
+            ))}
+
+            {layout.ops.map((op) => (
+              <g key={op.id} className="qc-viz-op" style={{ transform: `translateX(${geo.centers[op.column]}px)` }}>
+                <OpGlyph
+                  op={op}
+                  x={0}
+                  w={geo.opW.get(op.id) ?? BOX}
+                  p={p}
+                  state={selected === op.id ? 'selected' : hovered === op.id ? 'hover' : 'idle'}
+                />
+              </g>
+            ))}
+
+            {/* Hit areas on top so thin lines and dots are easy to point at. */}
+            {layout.ops.map((op) => {
+              const { top, bottom } = opSpan(op)
+              const w = Math.max(geo.opW.get(op.id) ?? BOX, 24)
+              return (
+                <rect
+                  key={op.id}
+                  data-hit=""
+                  x={geo.centers[op.column] - w / 2 - 2}
+                  y={top - 2}
+                  width={w + 4}
+                  height={bottom - top + 4}
+                  fill="transparent"
+                  className="cursor-pointer"
+                  onMouseEnter={() => setHovered(op.id)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setSelected((s) => (s === op.id ? null : op.id))
+                  }}
+                />
+              )
+            })}
+          </svg>
+
+          {hoverOp && hoverOp.id !== selected && (() => {
+            const span = opSpan(hoverOp)
+            // Above the gate when there is room, otherwise below it.
+            const above = span.top * scale > 30
+            return (
+              <div
+                className={`pointer-events-none absolute z-10 -translate-x-1/2 whitespace-nowrap rounded-md border border-editor-border bg-editor-sidebar px-2 py-1 text-[11px] text-editor-text shadow-lg ${above ? '-translate-y-full' : ''}`}
+                style={{
+                  left: Math.max(geo.centers[hoverOp.column] * scale, 90),
+                  top: above ? span.top * scale - 6 : span.bottom * scale + 6,
+                }}
+              >
+                {describeOp(hoverOp)}
+              </div>
+            )
+          })()}
+        </div>
+      </div>
+
+      {selOp && (
+        <div
+          className="absolute bottom-2 right-2 z-20 w-60 rounded-lg border border-editor-border bg-editor-sidebar p-3 text-xs text-editor-text shadow-xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="font-semibold">{selOp.sourceType.toUpperCase()}</span>
+            <button type="button" onClick={() => setSelected(null)} className="opacity-60 hover:opacity-100" aria-label="Close details">
+              Esc
+            </button>
+          </div>
+          <p className="leading-relaxed opacity-80">{describeOp(selOp)}</p>
+          {selOp.angle !== undefined && (
+            <p className="mt-1.5 font-mono tabular-nums opacity-80">
+              θ = {selOp.angleLabel} = {selOp.angle.toFixed(4)} rad ({((selOp.angle * 180) / Math.PI).toFixed(1)}°)
+            </p>
+          )}
+          <p className="mt-1.5 opacity-50">Moment {selOp.column + 1} of {layout.columns}</p>
+        </div>
+      )}
     </div>
   )
 }

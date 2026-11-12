@@ -812,7 +812,14 @@ def get_circuit():
                 }
                 gates.append(gate_dict)
             
-            # Skip BarrierNode - not needed for visualization
+            elif BarrierNode and isinstance(op, BarrierNode):
+                # Drawn as a dashed separator; it also stops gates sliding
+                # left past it, which is what the barrier means.
+                qubits = [self._resolve_qubit(q, var_context) for q in (op.qubits or [])]
+                gate_dict = {"type": "barrier", "qubit": qubits[0] if qubits else 0}
+                if qubits:
+                    gate_dict["qubits"] = qubits
+                gates.append(gate_dict)
     
     def _resolve_qubit(self, qubit, var_context: dict) -> int:
         """
@@ -840,14 +847,25 @@ def get_circuit():
         for q in op.qubits:
             resolved_qubits.append(self._resolve_qubit(q, var_context))
         
+        # Parsers express some gates as base + modifiers (qc.sdg -> s{inv},
+        # qc.mcx -> x{ctrl: n}). Fold them back into the conventional name so
+        # the diagram draws S† / a multi-controlled X instead of S / a box.
+        name = op.name.lower()
+        modifiers = getattr(op, "modifiers", None) or {}
+        if modifiers.get("inv"):
+            name = str({"s": "sdg", "t": "tdg", "sx": "sxdg"}.get(name, name))
+        n_ctrl = modifiers.get("ctrl")
+        if isinstance(n_ctrl, int) and 0 < n_ctrl < len(op.qubits):
+            name = ("c" * n_ctrl + name) if n_ctrl <= 2 else ("mc" + name)
+
         gate_dict = {
-            "type": op.name.lower(),
+            "type": name,
             "qubit": resolved_qubits[0] if resolved_qubits else 0,
         }
         
         # Handle two-qubit gates (control-target)
         if len(resolved_qubits) >= 2:
-            if op.name.lower() in ['cx', 'cnot', 'cz', 'cy', 'ch', 'swap', 'cswap']:
+            if name in ['cx', 'cnot', 'cz', 'cy', 'ch', 'swap', 'cswap']:
                 gate_dict["control"] = resolved_qubits[0]
                 gate_dict["target"] = resolved_qubits[1]
             else:
@@ -859,20 +877,35 @@ def get_circuit():
         
         # Handle parameterized gates
         if op.parameters:
-            param = op.parameters[0]
-            if isinstance(param, (int, float)):
-                gate_dict["angle"] = float(param)
-            elif param == 'pi':
-                gate_dict["angle"] = 3.14159265359
-            elif isinstance(param, str) and '/' in param:
-                try:
-                    if param.startswith('pi/'):
-                        divisor = int(param.split('/')[1])
-                        gate_dict["angle"] = 3.14159265359 / divisor
-                except (ValueError, IndexError):
-                    pass
-        
+            angle = self._param_to_angle(op.parameters[0], var_context)
+            if angle is not None:
+                gate_dict["angle"] = angle
+
         return gate_dict
+
+    @staticmethod
+    def _param_to_angle(param, var_context: dict) -> Optional[float]:
+        """Numeric value of a gate parameter, or None when it is symbolic.
+
+        Parsers hand parameters over either as numbers or as source text such as
+        ``"pi/2"``, ``"-np.pi/4"`` or ``"2*theta"`` (with ``theta`` bound by a
+        loop). Text is evaluated with the static evaluator, never ``eval``.
+        """
+        if isinstance(param, bool):
+            return None
+        if isinstance(param, (int, float)):
+            return float(param)
+        if not isinstance(param, str) or not param.strip() or len(param) > 200:
+            return None
+        try:
+            import ast as _ast
+            import math as _math
+            from quantum_converters.base.safe_eval import static_number
+
+            value = float(static_number(_ast.parse(param.strip(), mode="eval"), var_context))
+            return value if _math.isfinite(value) else None
+        except Exception:  # NotStatic (symbolic), SyntaxError, overflow...
+            return None
     
     def _assign_timestamps(self, gates: list) -> list:
         """
@@ -897,7 +930,11 @@ def get_circuit():
                 gate_qubits.add(gate['target'])
             if 'qubits' in gate and gate['qubits']:
                 gate_qubits.update(gate['qubits'])
-            
+            # A multi-qubit gate's connecting line crosses every wire between
+            # its outermost qubits, so it occupies that whole span.
+            if len(gate_qubits) > 1:
+                gate_qubits = set(range(min(gate_qubits), max(gate_qubits) + 1))
+
             # Find earliest timestamp where all qubits are free
             timestamp = 0
             for q in gate_qubits:
