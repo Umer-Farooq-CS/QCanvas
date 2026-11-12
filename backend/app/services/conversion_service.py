@@ -94,6 +94,8 @@ CONVERT_TIMEOUT_SECONDS: float = _env_number("USER_CODE_CONVERT_TIMEOUT", 20)
 # AST parser keeps loops symbolic; expanding `range(10**9)` here used to hang
 # the API process.
 PARSE_MAX_GATES: int = int(_env_number("USER_CODE_PARSE_MAX_GATES", 5000))
+# Widest qubit span a single gate may reserve when laying out the diagram.
+_MAX_SPAN_QUBITS = 512
 PARSE_MAX_LOOP_ITERATIONS: int = int(_env_number("USER_CODE_PARSE_MAX_LOOP_ITERATIONS", 100000))
 
 
@@ -932,7 +934,9 @@ def get_circuit():
                 gate_qubits.update(gate['qubits'])
             # A multi-qubit gate's connecting line crosses every wire between
             # its outermost qubits, so it occupies that whole span.
-            if len(gate_qubits) > 1:
+            # Indices come from user code: never materialise a huge range
+            # (qc.cx(0, 10**9)). Past the cap only the operands are reserved.
+            if len(gate_qubits) > 1 and max(gate_qubits) - min(gate_qubits) <= _MAX_SPAN_QUBITS:
                 gate_qubits = set(range(min(gate_qubits), max(gate_qubits) + 1))
 
             # Find earliest timestamp where all qubits are free

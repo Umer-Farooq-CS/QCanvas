@@ -36,6 +36,7 @@ _FUNCTIONS = {
 }
 _MODULES = {"np", "numpy", "math", "pnp", "jnp"}
 _MAX_POW = 4096
+_MAX_INT_BITS = 65_536  # largest integer a static expression may produce
 
 
 def _is_number(value: Any) -> bool:
@@ -77,6 +78,14 @@ def static_eval(node: ast.AST, variables: Mapping[str, Any] = None) -> Any:
                 raise NotStatic("arithmetic on non-numbers")
             if isinstance(n.op, ast.Pow) and abs(b) > _MAX_POW:
                 raise NotStatic("exponent too large")
+            # Bound integer results, not just exponents: (10**4096)**4096 or a
+            # chain of huge products would otherwise burn CPU and memory.
+            if isinstance(a, (int, np.integer)) and isinstance(b, (int, np.integer)):
+                bits_a, bits_b = abs(int(a)).bit_length(), abs(int(b)).bit_length()
+                if isinstance(n.op, ast.Pow) and b > 0 and bits_a * int(b) > _MAX_INT_BITS:
+                    raise NotStatic("result too large")
+                if isinstance(n.op, ast.Mult) and bits_a + bits_b > _MAX_INT_BITS:
+                    raise NotStatic("result too large")
             try:
                 return _BIN_OPS[type(n.op)](a, b)
             except (ZeroDivisionError, OverflowError, ValueError) as e:

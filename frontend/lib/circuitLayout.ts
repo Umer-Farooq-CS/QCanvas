@@ -51,6 +51,9 @@ export interface CircuitLayout {
   columns: number
 }
 
+/** Most wires the diagram will draw (the simulator caps far lower). */
+export const MAX_DRAWN_QUBITS = 256
+
 const CLIFFORD = new Set(['h', 'x', 'y', 'z', 's', 'sdg', 't', 'tdg', 'sx', 'sxdg', 'id', 'i'])
 const ROTATION = new Set(['rx', 'ry', 'rz', 'p', 'phase', 'u', 'u1', 'u2', 'u3', 'gphase', 'r', 'rot'])
 /** Base gates a "c"-prefix can control (crx -> rx, ccx -> x, cswap -> swap). */
@@ -170,13 +173,16 @@ export function layoutCircuit(gates: RawGate[], qubitHint = 0): CircuitLayout {
     )
     return Math.max(m, ...qs)
   }, -1)
-  const nQubits = Math.max(qubitHint, maxOperand + 1, 1)
+  // Indices come from user code: a typo like cx(0, 10**9) must not allocate a
+  // billion-entry array and freeze the tab. Gates past the cap are not drawn.
+  const nQubits = Math.min(Math.max(qubitHint, maxOperand + 1, 1), MAX_DRAWN_QUBITS)
 
   const next = new Array<number>(nQubits).fill(0)
   const ops: LayoutOp[] = []
   gates.forEach((g, i) => {
     const op = normalize(g, i, nQubits)
     if (!op || op.qubits.length === 0) return
+    if (op.qubits[0] < 0 || op.qubits[op.qubits.length - 1] >= nQubits) return
     const lo = Math.max(0, op.qubits[0])
     const hi = Math.min(nQubits - 1, op.qubits[op.qubits.length - 1])
     let column = 0
