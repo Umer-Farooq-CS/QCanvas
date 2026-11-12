@@ -185,6 +185,14 @@ Residuals stated in the commits: the guest-cap count-then-create is not atomic (
 - **One brand across site and IDE (`a5eb196`).** `BrandLogo` (gradient mark and wordmark) in the navbar, auth pages, footer and IDE menu bar. Accent moved from generic blue to brand indigo in both the site (`--qc-accent*`) and the IDE (`--editor-accent`), WCAG AA in light and dark.
 - **Live hero run (`a5eb196`).** The homepage hero runs a real Bell-state example (Qiskit, Cirq and PennyLane tabs): it reveals the source, compiles to OpenQASM line by line, then fills the histogram with real counts. "Run again" replays; reduced motion shows the final state. Starters are the workshop's Qiskit templates.
 - **IDE (`a5eb196`, `95f9791`).** New Templates picker (framework chips defaulting to Qiskit, Esc, focus handling, press feedback, creating state); animated menus without the hover border jump; polished profile menu; actionable empty editor (Qiskit Bell state, Browse templates); rebuilt editor tabs (active tab merges into the editor with an indigo top line, framework dot, close button on hover or active, middle-click to close); run options panel animates like other menus.
+- **Circuit diagram rewrite (`26bfd4b`).** The 2D diagram was imperative d3 that tore down and redrew the whole SVG on every hover, drew the CNOT target as a ⊗, and drew every gate other than cx, cz and swap as a box on one qubit (crx, cp, ccx and mcx were wrong). It is now declarative SVG built from a shared layout (`lib/circuitLayout.ts`):
+  - correct ⊕ targets, control dots, CZ dots, swap crosses, Toffoli and multi-controlled X, measure meter, `|0⟩` reset, dashed barrier;
+  - angles as π fractions;
+  - columns that never overlap a control line;
+  - auto-fit to the panel, zoom and fit controls, hover tooltip, click for details, SVG export.
+
+  The 3D view uses the same layout, renders on demand (no GPU work while idle), frames the camera to the circuit, and draws proper CNOT rings, control spheres and swap crosses. OpenQASM files now draw too (they showed nothing before).
+- **Navbar logo (`1aa8977`).** Larger and vertically centred with the nav links.
 - **Copy (`a5eb196`, `78cfc4f`).** No "demo account" wording, no version footer, no shared credentials shown, plain copy instead of exclamation-mark prompts.
 
 ### 4.2 Performance
@@ -193,6 +201,7 @@ Residuals stated in the commits: the guest-cap count-then-create is not atomic (
 |---|---|---|
 | Narrow store selectors and `memo` across the IDE | Typing no longer re-renders the whole IDE | `2588b8c` |
 | Memoised d3 diagram colours | The diagram no longer redraws per keystroke | `2588b8c` |
+| Circuit diagram: memoised SVG glyphs, cached parses (32 entries), stale requests aborted, 350 ms debounce, 3D `frameloop="demand"` with capped DPR | Hover re-renders one gate; tab switches and undo show the diagram instantly; an idle 3D view costs nothing | `26bfd4b` |
 | Lazy-loaded chart.js, d3 diagram, markdown/KaTeX and the Cirq assistant | `/app` first-load JS 551 kB to 245 kB (`2588b8c`). The CHANGELOG records 238 kB; the team's current measurement is about 235 kB. All figures are in the same range. | `2588b8c` |
 | Landing page as Server Component | `/` first-load JS 197 kB to 118 kB | `2909b2e` |
 | OG image 6.15 MB to 71 KB | Faster link previews | `12618f3` |
@@ -288,7 +297,7 @@ Defaults are those in the README and commit messages. Settings live in `backend/
 | `GUEST_ACCOUNT_TTL_HOURS` | 72 | Guest workspaces are deleted after this, or on logout. |
 | `GUEST_IDLE_TTL_HOURS` | 3 | Empty, inactive guests are evicted after this. |
 | `GUEST_MAX_ACTIVE` | 5000 | Global live-guest cap; above it `/guest` returns 503 after eviction. |
-| `RATE_LIMIT_*` | sized for a workshop | Per-user or per-IP limits. Guest creation per IP: 60/min, 400/h, 1500/day. |
+| `RATE_LIMIT_*` | sized for a workshop | Per-user or per-IP limits. Guest creation per IP: 300/min, 1000/h, 3000/day (raised from 60/min in `06b6f02`: a workshop room shares one NAT address). |
 | `REDIS_URL` / `REDIS_*` | `localhost:6379` | Shared rate-limit counters. Falls back to in-memory if unreachable, which is per worker and weaker. |
 | `WEB_CONCURRENCY` | auto | Uvicorn workers; about 300 to 400 MB each. README suggests 4 for about 200 users. |
 | `FORWARDED_TRUSTED_HOPS` | 1 | Number of proxies in front of the API (ALB = 1; Cloudflare then ALB = 2). Wrong value gives wrong client IPs. |
@@ -321,7 +330,7 @@ Defaults are those in the README and commit messages. Settings live in `backend/
 
 ## 8. Known limitations and not done
 
-- **PennyLane QNN example cannot be converted.** The static parser cannot index module-level arrays with loop variables. It now fails with a clear error instead of producing silent zeros. PennyLane `MultiRZ`, `adjoint` and `ctrl` also raise instead of being converted (`a77300d`, `2e2dbfb`). Avoid the QNN example in the workshop or tell attendees it will error.
+- **PennyLane QNN example: fixed (`8463195`).** Static loops that index module-level arrays are now unrolled (bounded), and the example matches real PennyLane probabilities to within 1e-7 on all three backends. PennyLane `MultiRZ`, `adjoint` and `ctrl` still raise instead of being converted (`a77300d`, `2e2dbfb`).
 - **No per-account login lockout.** Auth limits are keyed on client IP, not on the targeted account.
 - **Guest cap is approximate.** Count-then-create is not atomic (`02be6ab`).
 - **Client IP depends on configuration.** `FORWARDED_TRUSTED_HOPS` and `TRUSTED_PROXY_CIDRS` must match the real proxy chain, or limits will key on the proxy and throttle the whole room (`02be6ab`, `2e2dbfb`).
@@ -339,19 +348,20 @@ Defaults are those in the README and commit messages. Settings live in `backend/
 
 ### 9.1 Reverting UI work
 
-Three merge commits group the UI work. Each can be reverted as a unit:
+Four merge commits group the UI work. Each can be reverted as a unit:
 
 | Merge commit | Scope |
 |---|---|
 | `2909b2e` | Redesign of non-IDE pages: landing, docs, examples, about, auth, profile and achievements, 404, shared `qc-*` palette. IDE unchanged. |
 | `659b433` | UI polish: one brand across site and IDE, live hero run, Templates picker, desktop-width layout. |
+| `39f1e34` | Circuit visualization rewrite (2D and 3D), parse caching, navbar logo. |
 | `df61e3c` | UI polish round 2: themed tabs, light-theme coverage, inline New File, honest stats, resolution scaling, readable run errors, site audit fixes. |
 
 ```bash
 git revert -m 1 <merge sha>
 ```
 
-Revert newest first (`df61e3c`, then `659b433`, then `2909b2e`) to reduce conflicts. Backend, security and correctness fixes are not part of these merges and stay in place. Caution: some later non-merge commits touch files the merges changed, so a revert may need conflict resolution. The merge commit messages for `2909b2e` note that guest "Try demo", `?next` validation, password rules and the click-to-approve admin flow were kept through conflict resolution, so reverting that merge needs a careful look at the auth pages.
+Revert newest first (`39f1e34`, then `df61e3c`, then `659b433`, then `2909b2e`) to reduce conflicts. Backend, security and correctness fixes are not part of these merges and stay in place. Caution: some later non-merge commits touch files the merges changed, so a revert may need conflict resolution. The merge commit messages for `2909b2e` note that guest "Try demo", `?next` validation, password rules and the click-to-approve admin flow were kept through conflict resolution, so reverting that merge needs a careful look at the auth pages.
 
 ### 9.2 Reviewing, in commit order
 
@@ -396,6 +406,10 @@ Oldest first, from `git log --reverse main..workshop-polishing`.
 | 35 | `54796e1` | Readable run errors: keep the real cause and line number |
 | 36 | `df61e3c` | Merge UI polish round 2 (workshop-ui-polish-2) |
 | 37 | `b922cb5` | CORS: accept any localhost port in development ("Failed to fetch" on :3001) |
-| 38 | (next commit) | CORS dev allowance made opt-in (default `production`); About page team photos in portrait frames; this document |
+| 38 | `a41fede` | CORS dev allowance made opt-in (default `production`); About page team photos in portrait frames; this document |
+| 39 | `b4aca35` | Cap ranges materialised from user code during static parsing (DoS) |
+| 40 | `8463195` | PennyLane: resolve module-level array indexing in static loops (QNN example) |
+| 41 | `06b6f02` | Workshop reliability: room-sized guest rate limit, 8 s refresh timeout (no endless "Loading QCanvas...") |
+| 42 | `39f1e34` | Merge circuit visualization rewrite (workshop-viz) |
 
 Suggested review order for a short session: `78cfc4f` (guest workspaces), `a5d3413` and `2e2dbfb` (sandbox), `7f787ae` (correctness), `8213465` (capacity), then the config table in section 7.
