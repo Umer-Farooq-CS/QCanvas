@@ -281,8 +281,23 @@ function EditorPane({
 
   const handleCircuitDragStart = (e: React.MouseEvent) => {
     e.preventDefault();
+    circuitUserSizedRef.current = true;
     setIsDraggingCircuit(true);
   };
+
+  // The circuit panel sizes itself to the diagram (so an 8-qubit circuit is
+  // readable without dragging) until the user resizes it by hand. It never
+  // takes more than ~55% of the editor column, leaving room for the code.
+  const circuitUserSizedRef = useRef(false);
+  const fitCircuitPanel = useCallback((px: number) => {
+    if (circuitUserSizedRef.current) return;
+    const column = containerRef.current?.getBoundingClientRect().height ?? 0;
+    const max = column > 0 ? Math.max(180, Math.floor(column * 0.55)) : 480;
+    setCircuitHeight(Math.max(140, Math.min(max, px)));
+  }, []);
+  useEffect(() => {
+    circuitUserSizedRef.current = false;
+  }, [activeFile?.id]);
 
   // Debounced content update to avoid too frequent store updates. The latest
   // unsaved edit is kept in a ref so it can be flushed synchronously (before a
@@ -1514,6 +1529,7 @@ function EditorPane({
                 gates={parsedGates}
                 qubits={parsedQubits}
                 busy={isParsing}
+                onContentHeight={fitCircuitPanel}
               />
             )}
           </div>
@@ -1526,6 +1542,8 @@ function EditorPane({
             className={`h-1 bg-editor-border hover:bg-quantum-blue-light cursor-row-resize transition-colors ${isDraggingCircuit ? "bg-quantum-blue-light" : ""}`}
             onMouseDown={handleCircuitDragStart}
             onKeyDown={(e) => {
+              if (e.key === "ArrowUp" || e.key === "ArrowDown")
+                circuitUserSizedRef.current = true;
               if (e.key === "ArrowUp")
                 setCircuitHeight((h) => Math.max(100, h - 20));
               if (e.key === "ArrowDown")

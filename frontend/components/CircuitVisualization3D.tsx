@@ -88,6 +88,31 @@ function Block({ px, py, h = 0.82, w = 0.82, color, label, sub, lift }: {
   )
 }
 
+/** Measurement: a dark face with a dial arc and needle, like the 2D meter. */
+function Meter({ px, py, color, lift }: { px: number; py: number; color: string; lift: boolean }) {
+  return (
+    <group position={[px, py, lift ? 0.18 : 0]}>
+      <RoundedBox args={[0.82, 0.82, 0.32]} radius={0.08} smoothness={2}>
+        <meshStandardMaterial color={color} roughness={0.45} emissive={color} emissiveIntensity={lift ? 0.35 : 0.08} />
+      </RoundedBox>
+      {/* Dial: half torus opening downwards, on the front face. */}
+      <mesh position={[0, -0.12, 0.17]}>
+        <torusGeometry args={[0.24, 0.03, 8, 24, Math.PI]} />
+        <meshStandardMaterial color="#1f1300" />
+      </mesh>
+      {/* Needle from the dial centre towards the upper right. */}
+      <mesh position={[0.07, 0.0, 0.18]} rotation={[0, 0, -Math.PI / 5]}>
+        <boxGeometry args={[0.035, 0.3, 0.02]} />
+        <meshStandardMaterial color="#1f1300" />
+      </mesh>
+      <mesh position={[0, -0.12, 0.18]}>
+        <sphereGeometry args={[0.035, 10, 8]} />
+        <meshStandardMaterial color="#1f1300" />
+      </mesh>
+    </group>
+  )
+}
+
 const Op3D = memo(function Op3D({ op, hovered, onHover }: {
   op: LayoutOp; hovered: boolean; onHover: (id: number | null) => void
 }) {
@@ -109,7 +134,7 @@ const Op3D = memo(function Op3D({ op, hovered, onHover }: {
         </mesh>
       )
     case 'measure':
-      return <group {...handlers}><Block px={px} py={y(op.targets[0])} color={color} label="M" lift={hovered} /></group>
+      return <group {...handlers}><Meter px={px} py={y(op.targets[0])} color={color} lift={hovered} /></group>
     case 'reset':
       return <group {...handlers}><Block px={px} py={y(op.targets[0])} color={color} label="|0⟩" lift={hovered} /></group>
     case 'swap':
@@ -127,7 +152,7 @@ const Op3D = memo(function Op3D({ op, hovered, onHover }: {
       )
     case 'controlled': {
       const t = op.targets[0]
-      const symbolic = !op.angleLabel && (op.base === 'x' || op.base === 'z')
+      const symbolic = !op.angleLabel && op.base === 'x'
       return (
         <group {...handlers}>
           <Connector px={px} from={lo} to={hi} color={color} />
@@ -142,7 +167,6 @@ const Op3D = memo(function Op3D({ op, hovered, onHover }: {
               <mesh><boxGeometry args={[0.05, 0.6, 0.05]} /><meshStandardMaterial color={color} /></mesh>
             </group>
           )}
-          {symbolic && op.base === 'z' && <Dot px={px} q={t} color={color} />}
           {!symbolic && <Block px={px} py={y(t)} color={color} label={op.label} sub={op.angleLabel} lift={hovered} />}
         </group>
       )
